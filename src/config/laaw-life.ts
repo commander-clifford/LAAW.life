@@ -57,11 +57,13 @@ export const laawLifeTenant = {
   id: "laaw-life",
   slug: "laaw-life",
   displayName: "LAAW Life",
+  defaultLocationId: "ivy-station",
   locations: [
     {
       id: "ivy-station",
-      slug: "ivy-station",
-      calendarHeading: "Ivy Station Calendar",
+      slug: "ivy",
+      displayName: "Ivy Station",
+      calendarHeading: "Ivy Station",
       calendar: {
         provider: "google-calendar-embed",
         src: ivyStationCalendarSrc,
@@ -70,7 +72,8 @@ export const laawLifeTenant = {
     {
       id: "hawthorne",
       slug: "hawthorne",
-      calendarHeading: "Hawthorne Calendar",
+      displayName: "Hawthorne",
+      calendarHeading: "Hawthorne",
       calendar: {
         provider: "google-calendar-embed",
         src: hawthorneCalendarSrc,

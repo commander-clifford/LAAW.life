@@ -8,6 +8,7 @@ export type CalendarSource = GoogleCalendarEmbedSource;
 export type Location = Readonly<{
   id: string;
   slug: string;
+  displayName: string;
   calendarHeading: string;
   calendar: CalendarSource;
 }>;
@@ -16,6 +17,7 @@ export type Tenant = Readonly<{
   id: string;
   slug: string;
   displayName: string;
+  defaultLocationId: string;
   locations: readonly Location[];
 }>;
 

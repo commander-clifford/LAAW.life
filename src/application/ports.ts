@@ -16,7 +16,7 @@ export interface SiteCatalog {
   getDefaultTenant(): Promise<Tenant>;
 }
 
-// Request-bound implementations can use a cookie now and a database later.
+// The current adapter is device-local; a cookie or database can replace it later.
 export interface LocationPreferenceStore {
   getLastLocationId(tenantId: string): Promise<string | null>;
   setLastLocationId(tenantId: string, locationId: string): Promise<void>;

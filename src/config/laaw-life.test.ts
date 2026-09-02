@@ -8,9 +8,19 @@ import { googleCalendarEmbedProvider } from "@/src/infrastructure/google-calenda
 describe("LAAW Life configuration", () => {
   it("keeps locations data-driven and preserves the existing calendars", () => {
     expect(laawLifeTenant.locations.map(({ slug }) => slug)).toEqual([
-      "ivy-station",
+      "ivy",
       "hawthorne",
     ]);
+    expect(laawLifeTenant.defaultLocationId).toBe("ivy-station");
+    expect(
+      laawLifeTenant.locations.map(({ calendarHeading }) => calendarHeading),
+    ).toEqual(["Ivy Station", "Hawthorne"]);
+    expect(new Set(laawLifeTenant.locations.map(({ id }) => id)).size).toBe(
+      laawLifeTenant.locations.length,
+    );
+    expect(new Set(laawLifeTenant.locations.map(({ slug }) => slug)).size).toBe(
+      laawLifeTenant.locations.length,
+    );
 
     expect(
       laawLifeTenant.locations.map(({ calendar }) =>

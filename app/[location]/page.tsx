@@ -1,0 +1,39 @@
+import { notFound } from "next/navigation";
+
+import { getLocationBySlug } from "@/src/application/location-routing";
+import { LocationCalendar } from "@/src/components/location-calendar";
+import { googleCalendarEmbedProvider } from "@/src/infrastructure/google-calendar-embed-provider";
+import { siteCatalog } from "@/src/infrastructure/static-site-catalog";
+
+type LocationPageProps = Readonly<{
+  params: Promise<{
+    location: string;
+  }>;
+}>;
+
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  const tenant = await siteCatalog.getDefaultTenant();
+
+  return tenant.locations.map((location) => ({
+    location: location.slug,
+  }));
+}
+
+export default async function LocationPage({ params }: LocationPageProps) {
+  const tenant = await siteCatalog.getDefaultTenant();
+  const { location: slug } = await params;
+  const location = getLocationBySlug(tenant, slug);
+
+  if (!location) {
+    notFound();
+  }
+
+  return (
+    <LocationCalendar
+      calendarProvider={googleCalendarEmbedProvider}
+      location={location}
+    />
+  );
+}

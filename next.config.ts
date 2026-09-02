@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   output: "export",
   distDir: "dist",
   reactStrictMode: true,
+  trailingSlash: true,
   ...(pagesBasePath ? { basePath: pagesBasePath } : {}),
 };
 
