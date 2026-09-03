@@ -3,6 +3,7 @@
 import gsap from "gsap";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -14,10 +15,48 @@ import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-loc
 
 const wideNavigationQuery = "(min-width: 48rem)";
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+const pageCanvasSelector = "[data-page-canvas]";
+const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
+
+function getPageCanvasParts(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(pageCanvasSelector));
+}
+
+function setPageInteractionSurfacesInert(isInert: boolean): void {
+  document
+    .querySelectorAll<HTMLElement>(pageInteractionSurfaceSelector)
+    .forEach((part) => {
+      part.inert = isInert;
+    });
+}
+
+function getDrawerOverlay(): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(".drawer-overlay");
+}
+
+function setDrawerAvailable(drawer: HTMLElement, isAvailable: boolean): void {
+  drawer.inert = !isAvailable;
+  drawer.setAttribute("aria-hidden", String(!isAvailable));
+}
+
+function setOpenerAvailable(
+  opener: HTMLButtonElement,
+  isAvailable: boolean,
+): void {
+  opener.disabled = !isAvailable;
+  opener.inert = !isAvailable;
+
+  if (isAvailable) {
+    opener.removeAttribute("aria-hidden");
+  } else {
+    opener.setAttribute("aria-hidden", "true");
+  }
+}
 
 type NavigationLocation = Pick<Location, "id" | "slug" | "displayName">;
 
 type SiteHeaderProps = Readonly<{
+  children: ReactNode;
   siteName: string;
   tenantId: string;
   locations: readonly NavigationLocation[];
@@ -28,19 +67,32 @@ type CloseOptions = Readonly<{
   restoreFocus?: boolean;
 }>;
 
+type ScrollLockStyles = Readonly<{
+  bodyOverflow: string;
+  documentOverflow: string;
+}>;
+
 export function SiteHeader({
+  children,
   siteName,
   tenantId,
   locations,
 }: SiteHeaderProps) {
   const pathname = usePathname();
-  const drawerRef = useRef<HTMLDialogElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const animationRef = useRef<gsap.core.Timeline | null>(null);
+  const drawerOpenRef = useRef(false);
+  const drawerClosingRef = useRef(false);
   const modeRef = useRef<"narrow" | "wide">("narrow");
   const reducedMotionRef = useRef(false);
   const previousPathnameRef = useRef(pathname);
+  const navigationHadFocusRef = useRef(false);
+  const scrollLockStylesRef = useRef<ScrollLockStyles | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isWideNavigation, setIsWideNavigation] = useState(true);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   const currentSlug = getLocationSlugFromPath(pathname, locations);
   const currentLocation = locations.find(
@@ -53,82 +105,178 @@ export function SiteHeader({
     animationRef.current = null;
   }, []);
 
+  const lockPageScroll = useCallback(() => {
+    if (scrollLockStylesRef.current) {
+      return;
+    }
+
+    scrollLockStylesRef.current = {
+      bodyOverflow: document.body.style.overflow,
+      documentOverflow: document.documentElement.style.overflow,
+    };
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+  }, []);
+
+  const unlockPageScroll = useCallback(() => {
+    const previousStyles = scrollLockStylesRef.current;
+
+    if (!previousStyles) {
+      return;
+    }
+
+    document.body.style.overflow = previousStyles.bodyOverflow;
+    document.documentElement.style.overflow =
+      previousStyles.documentOverflow;
+    scrollLockStylesRef.current = null;
+  }, []);
+
   const closeMobileDrawer = useCallback(
     ({ immediate = false, restoreFocus = true }: CloseOptions = {}) => {
       const drawer = drawerRef.current;
+      const overlay = getDrawerOverlay();
+      const opener = menuButtonRef.current;
 
-      if (!drawer?.open || modeRef.current === "wide") {
+      if (
+        !drawer ||
+        !overlay ||
+        !opener ||
+        (!drawerOpenRef.current &&
+          !(immediate && drawerClosingRef.current)) ||
+        modeRef.current === "wide"
+      ) {
         return;
       }
 
+      drawerOpenRef.current = false;
+      drawerClosingRef.current = true;
       stopAnimation();
 
       const duration = immediate || reducedMotionRef.current ? 0 : 0.28;
       const drawerWidth = drawer.getBoundingClientRect().width;
+      const pageCanvasParts = getPageCanvasParts();
+
+      const finishClose = () => {
+        if (drawerOpenRef.current) {
+          return;
+        }
+
+        setIsMobileDrawerOpen(false);
+        setDrawerAvailable(drawer, false);
+        setPageInteractionSurfacesInert(false);
+        setOpenerAvailable(opener, true);
+        gsap.set(overlay, {
+          autoAlpha: 0,
+          pointerEvents: "none",
+        });
+        drawerClosingRef.current = false;
+        animationRef.current = null;
+        unlockPageScroll();
+
+        if (restoreFocus) {
+          opener.focus();
+        }
+      };
+
+      if (duration === 0) {
+        gsap.set(drawer, { x: -drawerWidth });
+        gsap.set(pageCanvasParts, { x: 0 });
+        finishClose();
+        return;
+      }
+
       const timeline = gsap.timeline({
         defaults: { duration, ease: "power2.inOut" },
-        onComplete: () => {
-          if (drawer.open) {
-            drawer.close();
-          }
-
-          setIsMobileDrawerOpen(false);
-          animationRef.current = null;
-
-          if (restoreFocus) {
-            menuButtonRef.current?.focus();
-          }
-        },
+        onComplete: finishClose,
       });
 
       timeline
         .to(drawer, { x: -drawerWidth }, 0)
-        .to(document.body, { paddingLeft: 0 }, 0)
-        .to(drawer, { "--drawer-backdrop-alpha": 0 }, 0);
+        .to(pageCanvasParts, { x: 0 }, 0)
+        .to(overlay, { opacity: 0 }, 0);
 
       animationRef.current = timeline;
     },
-    [stopAnimation],
+    [stopAnimation, unlockPageScroll],
   );
 
   const openMobileDrawer = useCallback(() => {
     const drawer = drawerRef.current;
+    const overlay = getDrawerOverlay();
+    const opener = menuButtonRef.current;
+    const closeButton = drawerCloseButtonRef.current;
 
-    if (!drawer || drawer.open || modeRef.current === "wide") {
+    if (
+      !drawer ||
+      !overlay ||
+      !opener ||
+      !closeButton ||
+      drawerOpenRef.current ||
+      modeRef.current === "wide"
+    ) {
       return;
     }
 
-    stopAnimation();
+    const shouldPreserveAnimationProgress = animationRef.current !== null;
+    drawerOpenRef.current = true;
+    drawerClosingRef.current = false;
     setIsMobileDrawerOpen(true);
-    drawer.showModal();
+    stopAnimation();
 
     const drawerWidth = drawer.getBoundingClientRect().width;
+    const pageCanvasParts = getPageCanvasParts();
     const duration = reducedMotionRef.current ? 0 : 0.32;
 
-    gsap.set(drawer, {
-      x: -drawerWidth,
-      "--drawer-backdrop-alpha": 0,
+    setDrawerAvailable(drawer, true);
+    setOpenerAvailable(opener, false);
+    setPageInteractionSurfacesInert(true);
+    lockPageScroll();
+    gsap.set(overlay, {
+      pointerEvents: "auto",
+      visibility: "visible",
     });
+    closeButton.focus();
+
+    if (!shouldPreserveAnimationProgress) {
+      gsap.set(drawer, { x: -drawerWidth });
+      gsap.set(pageCanvasParts, { x: 0 });
+      gsap.set(overlay, { opacity: 0 });
+    }
+
+    if (duration === 0) {
+      gsap.set(drawer, { x: 0 });
+      gsap.set(pageCanvasParts, { x: drawerWidth });
+      gsap.set(overlay, { opacity: 0.16 });
+      animationRef.current = null;
+      return;
+    }
 
     const timeline = gsap.timeline({
       defaults: { duration, ease: "power2.out" },
       onComplete: () => {
-        const currentLink = drawer.querySelector<HTMLElement>(
-          '[aria-current="page"]',
-        );
+        if (!drawerOpenRef.current) {
+          return;
+        }
 
-        (currentLink ?? drawer.querySelector<HTMLElement>("button"))?.focus();
         animationRef.current = null;
       },
     });
 
     timeline
       .to(drawer, { x: 0 }, 0)
-      .to(document.body, { paddingLeft: drawerWidth }, 0)
-      .to(drawer, { "--drawer-backdrop-alpha": 0.16 }, 0);
+      .to(pageCanvasParts, { x: drawerWidth }, 0)
+      .to(overlay, { opacity: 0.16 }, 0);
 
     animationRef.current = timeline;
-  }, [stopAnimation]);
+  }, [lockPageScroll, stopAnimation]);
+
+  const toggleMobileDrawer = useCallback(() => {
+    if (drawerOpenRef.current) {
+      closeMobileDrawer();
+    } else {
+      openMobileDrawer();
+    }
+  }, [closeMobileDrawer, openMobileDrawer]);
 
   useEffect(() => {
     if (currentLocationId) {
@@ -141,8 +289,9 @@ export function SiteHeader({
 
   useEffect(() => {
     const drawer = drawerRef.current;
+    const overlay = getDrawerOverlay();
 
-    if (!drawer) {
+    if (!drawer || !overlay) {
       return;
     }
 
@@ -151,34 +300,176 @@ export function SiteHeader({
 
     const syncReducedMotion = () => {
       reducedMotionRef.current = reducedMotion.matches;
+
+      if (
+        !reducedMotion.matches ||
+        !animationRef.current ||
+        modeRef.current === "wide"
+      ) {
+        return;
+      }
+
+      stopAnimation();
+      const drawerWidth = drawer.getBoundingClientRect().width;
+      const pageCanvasParts = getPageCanvasParts();
+      const opener = menuButtonRef.current;
+
+      if (!opener) {
+        return;
+      }
+
+      if (drawerOpenRef.current) {
+        drawerClosingRef.current = false;
+        setDrawerAvailable(drawer, true);
+        setOpenerAvailable(opener, false);
+        setPageInteractionSurfacesInert(true);
+        lockPageScroll();
+        gsap.set(drawer, { x: 0 });
+        gsap.set(pageCanvasParts, { x: drawerWidth });
+        gsap.set(overlay, {
+          autoAlpha: 0.16,
+          pointerEvents: "auto",
+        });
+      } else {
+        const drawerContainedFocus =
+          document.activeElement instanceof Element &&
+          drawer.contains(document.activeElement);
+
+        drawerClosingRef.current = false;
+        setIsMobileDrawerOpen(false);
+        setDrawerAvailable(drawer, false);
+        setOpenerAvailable(opener, true);
+        setPageInteractionSurfacesInert(false);
+        unlockPageScroll();
+        gsap.set(drawer, { x: -drawerWidth });
+        gsap.set(pageCanvasParts, { x: 0 });
+        gsap.set(overlay, {
+          autoAlpha: 0,
+          pointerEvents: "none",
+        });
+
+        if (drawerContainedFocus) {
+          opener.focus();
+        }
+      }
     };
 
     const syncViewportMode = () => {
+      const previousMode = modeRef.current;
+      const activeElement = document.activeElement;
+      const toggleHadFocus = activeElement === menuButtonRef.current;
+      const drawerContainedFocus =
+        activeElement instanceof Element && drawer.contains(activeElement);
+      const navigationHadFocus =
+        toggleHadFocus ||
+        drawerContainedFocus ||
+        navigationHadFocusRef.current;
+      const drawerWasEngaged =
+        drawerOpenRef.current || drawerClosingRef.current;
+
       stopAnimation();
       const isWide = wideViewport.matches;
-      modeRef.current = isWide ? "wide" : "narrow";
+      const pageCanvasParts = getPageCanvasParts();
+      const opener = menuButtonRef.current;
 
-      if (drawer.open) {
-        drawer.close();
+      if (!opener) {
+        return;
       }
 
+      modeRef.current = isWide ? "wide" : "narrow";
+      drawerOpenRef.current = false;
+      drawerClosingRef.current = false;
       setIsMobileDrawerOpen(false);
+      setIsWideNavigation(isWide);
+      setPageInteractionSurfacesInert(false);
+      setOpenerAvailable(opener, true);
+      unlockPageScroll();
+      gsap.set(overlay, {
+        autoAlpha: 0,
+        pointerEvents: "none",
+      });
 
       if (isWide) {
-        drawer.show();
-        gsap.set(drawer, {
-          x: 0,
-          "--drawer-backdrop-alpha": 0,
-        });
+        gsap.set(pageCanvasParts, { clearProps: "transform" });
+        setDrawerAvailable(drawer, true);
+        gsap.set(drawer, { x: 0 });
         gsap.set(document.body, {
           paddingLeft: drawer.getBoundingClientRect().width,
         });
+
+        if (
+          previousMode === "narrow" &&
+          (navigationHadFocus || drawerWasEngaged)
+        ) {
+          const currentDrawerLink =
+            drawer.querySelector<HTMLElement>('[aria-current="page"]') ??
+            drawer.querySelector<HTMLElement>("a[href]");
+          currentDrawerLink?.focus();
+        }
       } else {
-        gsap.set(drawer, {
-          x: -drawer.getBoundingClientRect().width,
-          "--drawer-backdrop-alpha": 0,
-        });
+        setDrawerAvailable(drawer, false);
+        gsap.set(pageCanvasParts, { x: 0 });
+        gsap.set(drawer, { x: -drawer.getBoundingClientRect().width });
         gsap.set(document.body, { paddingLeft: 0 });
+
+        if (previousMode === "wide" && navigationHadFocus) {
+          menuButtonRef.current?.focus();
+        }
+      }
+
+      setIsNavigationReady(true);
+    };
+
+    const syncNarrowDrawerGeometry = () => {
+      if (wideViewport.matches || modeRef.current === "wide") {
+        return;
+      }
+
+      const opener = menuButtonRef.current;
+
+      if (!opener) {
+        return;
+      }
+
+      const drawerWidth = drawer.getBoundingClientRect().width;
+      const pageCanvasParts = getPageCanvasParts();
+
+      if (drawerOpenRef.current) {
+        stopAnimation();
+        drawerClosingRef.current = false;
+        setDrawerAvailable(drawer, true);
+        setOpenerAvailable(opener, false);
+        setPageInteractionSurfacesInert(true);
+        lockPageScroll();
+        gsap.set(drawer, { x: 0 });
+        gsap.set(pageCanvasParts, { x: drawerWidth });
+        gsap.set(overlay, {
+          autoAlpha: 0.16,
+          pointerEvents: "auto",
+        });
+        return;
+      }
+
+      const drawerContainedFocus =
+        document.activeElement instanceof Element &&
+        drawer.contains(document.activeElement);
+
+      stopAnimation();
+      drawerClosingRef.current = false;
+      setIsMobileDrawerOpen(false);
+      setDrawerAvailable(drawer, false);
+      setOpenerAvailable(opener, true);
+      setPageInteractionSurfacesInert(false);
+      unlockPageScroll();
+      gsap.set(drawer, { x: -drawerWidth });
+      gsap.set(pageCanvasParts, { x: 0 });
+      gsap.set(overlay, {
+        autoAlpha: 0,
+        pointerEvents: "none",
+      });
+
+      if (drawerContainedFocus) {
+        opener.focus();
       }
     };
 
@@ -186,22 +477,120 @@ export function SiteHeader({
     syncViewportMode();
     wideViewport.addEventListener("change", syncViewportMode);
     reducedMotion.addEventListener("change", syncReducedMotion);
+    window.addEventListener("resize", syncNarrowDrawerGeometry);
 
     return () => {
       wideViewport.removeEventListener("change", syncViewportMode);
       reducedMotion.removeEventListener("change", syncReducedMotion);
+      window.removeEventListener("resize", syncNarrowDrawerGeometry);
       stopAnimation();
+      drawerOpenRef.current = false;
+      drawerClosingRef.current = false;
+      setPageInteractionSurfacesInert(false);
+      const opener = menuButtonRef.current;
 
-      if (drawer.open) {
-        drawer.close();
+      if (opener) {
+        setOpenerAvailable(opener, true);
       }
-
+      unlockPageScroll();
       gsap.set(document.body, { clearProps: "paddingLeft" });
-      gsap.set(drawer, {
-        clearProps: "transform,--drawer-backdrop-alpha",
+      gsap.set(getPageCanvasParts(), { clearProps: "transform" });
+      gsap.set(drawer, { clearProps: "transform" });
+      gsap.set(overlay, {
+        clearProps: "opacity,visibility,pointerEvents",
       });
     };
-  }, [stopAnimation]);
+  }, [lockPageScroll, stopAnimation, unlockPageScroll]);
+
+  useEffect(() => {
+    const overlay = getDrawerOverlay();
+
+    if (!overlay) {
+      return;
+    }
+
+    const handleOverlayClick = () => {
+      closeMobileDrawer();
+    };
+
+    overlay.addEventListener("click", handleOverlayClick);
+
+    return () => {
+      overlay.removeEventListener("click", handleOverlayClick);
+    };
+  }, [closeMobileDrawer]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const drawer = drawerRef.current;
+      const toggle = menuButtonRef.current;
+
+      if (
+        !drawer ||
+        !toggle ||
+        (!drawerOpenRef.current && !drawerClosingRef.current) ||
+        modeRef.current === "wide"
+      ) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMobileDrawer();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const drawerTargets =
+        drawerOpenRef.current || drawerClosingRef.current
+        ? Array.from(
+            drawer.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            ),
+          ).filter((target) => !target.closest("[inert]"))
+        : [];
+      const focusTargets =
+        drawerOpenRef.current || drawerClosingRef.current
+        ? drawerTargets
+        : [toggle];
+      const firstFocusTarget = focusTargets[0] ?? toggle;
+      const currentIndex = focusTargets.indexOf(
+        document.activeElement as HTMLElement,
+      );
+
+      if (currentIndex === -1) {
+        event.preventDefault();
+        firstFocusTarget.focus();
+      } else if (event.shiftKey && currentIndex === 0) {
+        event.preventDefault();
+        focusTargets.at(-1)?.focus();
+      } else if (!event.shiftKey && currentIndex === focusTargets.length - 1) {
+        event.preventDefault();
+        firstFocusTarget.focus();
+      }
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const drawer = drawerRef.current;
+      const toggle = menuButtonRef.current;
+      const target = event.target;
+
+      navigationHadFocusRef.current =
+        target instanceof Element &&
+        (target === toggle || Boolean(drawer?.contains(target)));
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("focusin", handleFocusIn);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("focusin", handleFocusIn);
+    };
+  }, [closeMobileDrawer]);
 
   useEffect(() => {
     if (previousPathnameRef.current !== pathname) {
@@ -210,61 +599,67 @@ export function SiteHeader({
     }
   }, [closeMobileDrawer, pathname]);
 
+  const isDrawerAvailable = isWideNavigation || isMobileDrawerOpen;
+
   return (
-    <header className="site-header">
-      <a className="skip-link" href="#main-content">
-        Skip to calendar
-      </a>
-      <div className="site-header-inner">
-        <Link className="site-brand" href="/">
-          {siteName}
-        </Link>
-        <button
-          ref={menuButtonRef}
-          className="navigation-toggle"
-          type="button"
-          aria-controls="location-drawer"
-          aria-expanded={isMobileDrawerOpen}
-          aria-label={
-            isMobileDrawerOpen
-              ? "Close location navigation"
-              : "Open location navigation"
-          }
-          onClick={openMobileDrawer}
+    <>
+      <div className="site-canvas" data-page-canvas="">
+        <header className="site-header" data-page-interaction-surface="">
+          <a className="skip-link" href="#main-content">
+            Skip to calendar
+          </a>
+          <div className="site-header-inner">
+            <button
+              ref={menuButtonRef}
+              className="navigation-toggle"
+              type="button"
+              aria-controls="location-drawer"
+              aria-expanded={isMobileDrawerOpen}
+              aria-hidden={isMobileDrawerOpen || undefined}
+              disabled={!isNavigationReady || isMobileDrawerOpen}
+              aria-label="Open location navigation"
+              onClick={toggleMobileDrawer}
+            >
+              <span className="navigation-toggle-icon" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+            <Link className="site-brand" href="/">
+              {siteName}
+            </Link>
+          </div>
+        </header>
+
+        <main
+          className="site-main"
+          data-page-interaction-surface=""
+          id="main-content"
+          tabIndex={-1}
         >
-          <span className="navigation-toggle-icon" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-        </button>
+          <div className="site-main-content">{children}</div>
+        </main>
+
+        <button
+          className="drawer-overlay"
+          type="button"
+          tabIndex={-1}
+          aria-label="Close location navigation"
+        />
       </div>
 
-      <dialog
+      <aside
         ref={drawerRef}
         className="location-drawer"
         id="location-drawer"
+        data-navigation-ready={isNavigationReady}
         aria-labelledby="location-drawer-title"
-        onCancel={(event) => {
-          event.preventDefault();
-          closeMobileDrawer();
-        }}
-        onClick={(event) => {
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const clickedBackdrop =
-            event.clientX < bounds.left ||
-            event.clientX > bounds.right ||
-            event.clientY < bounds.top ||
-            event.clientY > bounds.bottom;
-
-          if (clickedBackdrop) {
-            closeMobileDrawer();
-          }
-        }}
+        aria-hidden={!isDrawerAvailable}
       >
         <div className="location-drawer-header">
-          <h2 id="location-drawer-title">Choose a location</h2>
           <button
+            ref={drawerCloseButtonRef}
             className="drawer-close"
             type="button"
             aria-label="Close location navigation"
@@ -272,6 +667,7 @@ export function SiteHeader({
           >
             <span aria-hidden="true">×</span>
           </button>
+          <h2 id="location-drawer-title">Choose a location</h2>
         </div>
         <nav aria-label="Location calendars">
           <ul className="location-list">
@@ -284,12 +680,22 @@ export function SiteHeader({
                     className="location-link"
                     href={getLocationPath(location)}
                     aria-current={isCurrent ? "page" : undefined}
-                    onClick={() => {
+                    onClick={(event) => {
+                      const opensInAnotherContext =
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.shiftKey ||
+                        event.altKey ||
+                        event.button !== 0;
+
                       void browserLocationPreferenceStore.setLastLocationId(
                         tenantId,
                         location.id,
                       );
-                      closeMobileDrawer({ restoreFocus: isCurrent });
+                      closeMobileDrawer({
+                        immediate: !isCurrent && !opensInAnotherContext,
+                        restoreFocus: isCurrent || opensInAnotherContext,
+                      });
                     }}
                   >
                     <span>{location.displayName}</span>
@@ -302,7 +708,7 @@ export function SiteHeader({
             })}
           </ul>
         </nav>
-      </dialog>
-    </header>
+      </aside>
+    </>
   );
 }

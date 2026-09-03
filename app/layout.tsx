@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { SiteFooter } from "@/src/components/site-footer";
 import { SiteHeader } from "@/src/components/site-header";
 import { siteCatalog } from "@/src/infrastructure/static-site-catalog";
 
@@ -30,11 +29,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
           siteName={tenant.displayName}
           tenantId={tenant.id}
           locations={locations}
-        />
-        <main className="site-main" id="main-content" tabIndex={-1}>
+        >
           {children}
-        </main>
-        <SiteFooter />
+        </SiteHeader>
       </body>
     </html>
   );
