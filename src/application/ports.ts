@@ -5,10 +5,32 @@ import type {
 } from "@/src/domain/site";
 
 export type CalendarEmbed = Readonly<{
+  fallbackHref: string;
   src: string;
 }>;
 
+export type CalendarAgendaItem = Readonly<{
+  allDay: boolean;
+  dateKeys: readonly string[];
+  end: string;
+  id: string;
+  location: string | null;
+  sourceName: string;
+  start: string;
+  title: string;
+}>;
+
+export type CalendarAgenda = Readonly<{
+  availableDateKeys: readonly string[];
+  events: readonly CalendarAgendaItem[];
+  failedSourceCount: number;
+  initialDateKey: string;
+  sourceCount: number;
+  timeZone: string;
+}>;
+
 export interface CalendarProvider {
+  getAgenda(source: CalendarSource): Promise<CalendarAgenda>;
   getEmbed(source: CalendarSource): CalendarEmbed;
 }
 

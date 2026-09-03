@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { describe, expect, it } from "vitest";
 
 import { laawLifeTenant } from "@/src/config/laaw-life";
@@ -22,19 +20,61 @@ describe("LAAW Life configuration", () => {
       laawLifeTenant.locations.length,
     );
 
+    const calendarUrls = laawLifeTenant.locations.map(
+      ({ calendar }) => new URL(calendar.src),
+    );
+    const calendarSourcesByLocation = calendarUrls.map((url) =>
+      url.searchParams
+        .getAll("src")
+        .map((source) => Buffer.from(source, "base64").toString("utf8")),
+    );
+    const calendarSources = calendarSourcesByLocation.flat();
+
     expect(
-      laawLifeTenant.locations.map(({ calendar }) =>
-        createHash("sha256").update(calendar.src).digest("hex"),
-      ),
-    ).toEqual([
-      "9112372d84478994f3bac17d88e389d0b50ae6bcc17bd04f21c894176d327ea6",
-      "5a6a09780e6da675955457ec3d45d2c3f6f662077e8c5f5cbb9d6b7daea87a44",
+      calendarUrls.map((url) => url.searchParams.getAll("src").length),
+    ).toEqual([8, 8]);
+    expect(new Set(calendarSources).size).toBe(10);
+    expect(calendarSourcesByLocation).toEqual([
+      [
+        "c_998g12g73ffcp0rb7k49tklt2o@group.calendar.google.com",
+        "nfl_24_%4cos+%41ngeles+%43hargers#sports@group.v.calendar.google.com",
+        "gfh6tqtg3dal933622rdpvqs70@group.calendar.google.com",
+        "7lvuqen1dk09j26qsb1m7j5l4c@group.calendar.google.com",
+        "nhl_8_%4cos+%41ngeles+%4bings#sports@group.v.calendar.google.com",
+        "nfl_14_%4cos+%41ngeles+%52ams#sports@group.v.calendar.google.com",
+        "ncaaf_64_%55%43%4c%41+%42ruins#sports@group.v.calendar.google.com",
+        "ncaaf_62_%55%53%43+%54rojans#sports@group.v.calendar.google.com",
+      ],
+      [
+        "h45lb52k2q98f6l7ip777f1agg@group.calendar.google.com",
+        "nfl_24_%4cos+%41ngeles+%43hargers#sports@group.v.calendar.google.com",
+        "gfh6tqtg3dal933622rdpvqs70@group.calendar.google.com",
+        "7lvuqen1dk09j26qsb1m7j5l4c@group.calendar.google.com",
+        "nfl_14_%4cos+%41ngeles+%52ams#sports@group.v.calendar.google.com",
+        "ncaaf_64_%55%43%4c%41+%42ruins#sports@group.v.calendar.google.com",
+        "ncaaf_62_%55%53%43+%54rojans#sports@group.v.calendar.google.com",
+        "en.usa#holiday@group.v.calendar.google.com",
+      ],
     ]);
 
     for (const location of laawLifeTenant.locations) {
-      expect(googleCalendarEmbedProvider.getEmbed(location.calendar)).toEqual({
-        src: location.calendar.src,
-      });
+      const url = new URL(location.calendar.src);
+      const colors = url.searchParams.getAll("color");
+
+      expect(url.protocol).toBe("https:");
+      expect(url.hostname).toBe("calendar.google.com");
+      expect(url.pathname).toBe("/calendar/embed");
+      expect(url.searchParams.get("ctz")).toBe("America/Los_Angeles");
+      expect(url.searchParams.get("showTz")).toBe("0");
+      if (colors.length > 0) {
+        expect(colors).toHaveLength(url.searchParams.getAll("src").length);
+      }
+      expect(googleCalendarEmbedProvider.getEmbed(location.calendar)).toEqual(
+        {
+          fallbackHref: location.calendar.src,
+          src: location.calendar.src,
+        },
+      );
     }
   });
 });

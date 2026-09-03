@@ -25,9 +25,10 @@ export function LocationPreferenceRedirect({
   useEffect(() => {
     let isCurrent = true;
 
-    void browserLocationPreferenceStore
-      .getLastLocationId(tenantId)
-      .then((savedLocationId) => {
+    const redirectToPreferredLocation = async () => {
+      try {
+        const savedLocationId =
+          await browserLocationPreferenceStore.getLastLocationId(tenantId);
         const location =
           locations.find(({ id }) => id === savedLocationId) ??
           locations.find(({ id }) => id === defaultLocationId);
@@ -35,16 +36,17 @@ export function LocationPreferenceRedirect({
         if (isCurrent && location) {
           router.replace(getLocationPath(location));
         }
-      });
+      } catch {
+        // The server-rendered location links remain usable if storage is blocked.
+      }
+    };
+
+    void redirectToPreferredLocation();
 
     return () => {
       isCurrent = false;
     };
   }, [defaultLocationId, locations, router, tenantId]);
 
-  return (
-    <div className="location-page-loading">
-      <p role="status">Opening your calendar…</p>
-    </div>
-  );
+  return null;
 }

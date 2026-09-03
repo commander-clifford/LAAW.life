@@ -5,21 +5,33 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/verify-static-export.mjs",
+    "calendar:check-public": "node scripts/verify-public-calendars.mjs",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "lint": "eslint app src e2e scripts next.config.ts playwright.config.ts vitest.config.ts eslint.config.mjs --max-warnings=0",
+    "preview": "node scripts/serve-static-export.mjs",
+    "release:check": "npm run check && npm run build && npm run test:e2e",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test:e2e": "playwright test",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "gsap": "^3.15.0",
     "next": "16.3.3",
+    "node-ical": "^0.27.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "temporal-polyfill": "^1.0.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
-    "typescript": "7.0.2",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "4.1.11"
   }
 }

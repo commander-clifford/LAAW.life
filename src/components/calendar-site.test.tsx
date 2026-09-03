@@ -16,11 +16,13 @@ describe("LocationCalendar", () => {
         }),
       );
 
-      expect(html.match(/<iframe/g)).toHaveLength(1);
+      expect(html).not.toContain("<iframe");
+      expect(html).toContain("data-calendar-placeholder");
       expect(html).toContain(location.calendarHeading);
-      expect(html).toContain(
-        `title="${location.calendarHeading} Calendar"`,
-      );
+      expect(html).toContain("Loading calendar…");
+      expect(html).toContain("Times are shown in Pacific Time.");
+      expect(html).toContain("Open the calendar in a new tab");
+      expect(html).toContain('target="_blank"');
       expect(html).toContain(location.calendar.src.replaceAll("&", "&amp;"));
 
       for (const otherLocation of laawLifeTenant.locations) {

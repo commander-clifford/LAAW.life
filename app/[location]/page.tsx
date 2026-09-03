@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getLocationBySlug } from "@/src/application/location-routing";
@@ -19,6 +20,23 @@ export async function generateStaticParams() {
   return tenant.locations.map((location) => ({
     location: location.slug,
   }));
+}
+
+export async function generateMetadata({
+  params,
+}: LocationPageProps): Promise<Metadata> {
+  const tenant = await siteCatalog.getDefaultTenant();
+  const { location: slug } = await params;
+  const location = getLocationBySlug(tenant, slug);
+
+  if (!location) {
+    notFound();
+  }
+
+  return {
+    title: `${location.displayName} Calendar`,
+    description: `View the ${location.displayName} calendar for LAAW Life.`,
+  };
 }
 
 export default async function LocationPage({ params }: LocationPageProps) {

@@ -1,7 +1,7 @@
 import type { Tenant } from "@/src/domain/site";
 
 const ivyStationCalendarSrc = [
-  "https://calendar.google.com/calendar/u/0/embed?height=600",
+  "https://calendar.google.com/calendar/embed?height=600",
   "&wkst=1",
   "&bgcolor=%23ffffff",
   "&ctz=America/Los_Angeles",
@@ -13,7 +13,6 @@ const ivyStationCalendarSrc = [
   "&mode=AGENDA",
   "&src=Y185OThnMTJnNzNmZmNwMHJiN2s0OXRrbHQyb0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t",
   "&src=bmZsXzI0XyU0Y29zKyU0MW5nZWxlcyslNDNoYXJnZXJzI3Nwb3J0c0Bncm91cC52LmNhbGVuZGFyLmdvb2dsZS5jb20",
-  "&src=bTBsY3J1Y2k0b3VqYmJsMWIxazBoNG8zZGtAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=Z2ZoNnRxdGczZGFsOTMzNjIycmRwdnFzNzBAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=N2x2dXFlbjFkazA5ajI2cXNiMW03ajVsNGNAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=bmhsXzhfJTRjb3MrJTQxbmdlbGVzKyU0YmluZ3Mjc3BvcnRzQGdyb3VwLnYuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
@@ -23,7 +22,7 @@ const ivyStationCalendarSrc = [
 ].join("");
 
 const hawthorneCalendarSrc = [
-  "https://calendar.google.com/calendar/u/0/embed?height=600",
+  "https://calendar.google.com/calendar/embed?height=600",
   "&wkst=1",
   "&bgcolor=%23ffffff",
   "&ctz=America/Los_Angeles",
@@ -35,7 +34,6 @@ const hawthorneCalendarSrc = [
   "&mode=AGENDA",
   "&src=aDQ1bGI1MmsycTk4ZjZsN2lwNzc3ZjFhZ2dAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=bmZsXzI0XyU0Y29zKyU0MW5nZWxlcyslNDNoYXJnZXJzI3Nwb3J0c0Bncm91cC52LmNhbGVuZGFyLmdvb2dsZS5jb20",
-  "&src=bTBsY3J1Y2k0b3VqYmJsMWIxazBoNG8zZGtAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=Z2ZoNnRxdGczZGFsOTMzNjIycmRwdnFzNzBAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=N2x2dXFlbjFkazA5ajI2cXNiMW03ajVsNGNAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=bmZsXzE0XyU0Y29zKyU0MW5nZWxlcyslNTJhbXMjc3BvcnRzQGdyb3VwLnYuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
@@ -44,7 +42,6 @@ const hawthorneCalendarSrc = [
   "&src=ZW4udXNhI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t",
   "&color=%23D81B60",
   "&color=%23F4511E",
-  "&color=%234285F4",
   "&color=%23616161",
   "&color=%23E67C73",
   "&color=%23B39DDB",

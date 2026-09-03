@@ -7,7 +7,10 @@ import { siteCatalog } from "@/src/infrastructure/static-site-catalog";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LAAW Life",
+  title: {
+    default: "LAAW Life",
+    template: "%s | LAAW Life",
+  },
 };
 
 type RootLayoutProps = Readonly<{

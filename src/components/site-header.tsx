@@ -13,7 +13,7 @@ import {
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
 
-const wideNavigationQuery = "(min-width: 48rem)";
+const wideNavigationQuery = "(min-width: 64rem)";
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 const pageCanvasSelector = "[data-page-canvas]";
 const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
@@ -30,8 +30,8 @@ function setPageInteractionSurfacesInert(isInert: boolean): void {
     });
 }
 
-function getDrawerOverlay(): HTMLButtonElement | null {
-  return document.querySelector<HTMLButtonElement>(".drawer-overlay");
+function getDrawerOverlay(): HTMLDivElement | null {
+  return document.querySelector<HTMLDivElement>(".drawer-overlay");
 }
 
 function setDrawerAvailable(drawer: HTMLElement, isAvailable: boolean): void {
@@ -79,7 +79,7 @@ export function SiteHeader({
   locations,
 }: SiteHeaderProps) {
   const pathname = usePathname();
-  const drawerRef = useRef<HTMLElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const animationRef = useRef<gsap.core.Timeline | null>(null);
@@ -290,8 +290,9 @@ export function SiteHeader({
   useEffect(() => {
     const drawer = drawerRef.current;
     const overlay = getDrawerOverlay();
+    const opener = menuButtonRef.current;
 
-    if (!drawer || !overlay) {
+    if (!drawer || !overlay || !opener) {
       return;
     }
 
@@ -312,11 +313,6 @@ export function SiteHeader({
       stopAnimation();
       const drawerWidth = drawer.getBoundingClientRect().width;
       const pageCanvasParts = getPageCanvasParts();
-      const opener = menuButtonRef.current;
-
-      if (!opener) {
-        return;
-      }
 
       if (drawerOpenRef.current) {
         drawerClosingRef.current = false;
@@ -357,7 +353,7 @@ export function SiteHeader({
     const syncViewportMode = () => {
       const previousMode = modeRef.current;
       const activeElement = document.activeElement;
-      const toggleHadFocus = activeElement === menuButtonRef.current;
+      const toggleHadFocus = activeElement === opener;
       const drawerContainedFocus =
         activeElement instanceof Element && drawer.contains(activeElement);
       const navigationHadFocus =
@@ -370,11 +366,6 @@ export function SiteHeader({
       stopAnimation();
       const isWide = wideViewport.matches;
       const pageCanvasParts = getPageCanvasParts();
-      const opener = menuButtonRef.current;
-
-      if (!opener) {
-        return;
-      }
 
       modeRef.current = isWide ? "wide" : "narrow";
       drawerOpenRef.current = false;
@@ -413,7 +404,7 @@ export function SiteHeader({
         gsap.set(document.body, { paddingLeft: 0 });
 
         if (previousMode === "wide" && navigationHadFocus) {
-          menuButtonRef.current?.focus();
+          opener.focus();
         }
       }
 
@@ -422,12 +413,6 @@ export function SiteHeader({
 
     const syncNarrowDrawerGeometry = () => {
       if (wideViewport.matches || modeRef.current === "wide") {
-        return;
-      }
-
-      const opener = menuButtonRef.current;
-
-      if (!opener) {
         return;
       }
 
@@ -487,11 +472,7 @@ export function SiteHeader({
       drawerOpenRef.current = false;
       drawerClosingRef.current = false;
       setPageInteractionSurfacesInert(false);
-      const opener = menuButtonRef.current;
-
-      if (opener) {
-        setOpenerAvailable(opener, true);
-      }
+      setOpenerAvailable(opener, true);
       unlockPageScroll();
       gsap.set(document.body, { clearProps: "paddingLeft" });
       gsap.set(getPageCanvasParts(), { clearProps: "transform" });
@@ -600,60 +581,50 @@ export function SiteHeader({
   }, [closeMobileDrawer, pathname]);
 
   const isDrawerAvailable = isWideNavigation || isMobileDrawerOpen;
+  const isNarrowNavigation = !isWideNavigation;
 
   return (
-    <>
-      <div className="site-canvas" data-page-canvas="">
-        <header className="site-header" data-page-interaction-surface="">
-          <a className="skip-link" href="#main-content">
-            Skip to calendar
-          </a>
-          <div className="site-header-inner">
-            <button
-              ref={menuButtonRef}
-              className="navigation-toggle"
-              type="button"
-              aria-controls="location-drawer"
-              aria-expanded={isMobileDrawerOpen}
-              aria-hidden={isMobileDrawerOpen || undefined}
-              disabled={!isNavigationReady || isMobileDrawerOpen}
-              aria-label="Open location navigation"
-              onClick={toggleMobileDrawer}
-            >
-              <span className="navigation-toggle-icon" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-            </button>
-            <Link className="site-brand" href="/">
-              {siteName}
-            </Link>
-          </div>
-        </header>
+    <div className="site-canvas">
+      <header
+        className="site-header"
+        data-page-canvas=""
+        data-page-interaction-surface=""
+      >
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
+        <div className="site-header-inner">
+          <button
+            ref={menuButtonRef}
+            className="navigation-toggle"
+            type="button"
+            aria-controls="location-drawer"
+            aria-expanded={isMobileDrawerOpen}
+            aria-haspopup="dialog"
+            aria-hidden={isMobileDrawerOpen || undefined}
+            disabled={!isNavigationReady || isMobileDrawerOpen}
+            aria-label="Open location navigation"
+            onClick={toggleMobileDrawer}
+          >
+            <span className="navigation-toggle-icon" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+          <Link className="site-brand" href="/">
+            {siteName}
+          </Link>
+        </div>
+      </header>
 
-        <main
-          className="site-main"
-          data-page-interaction-surface=""
-          id="main-content"
-          tabIndex={-1}
-        >
-          <div className="site-main-content">{children}</div>
-        </main>
-
-        <button
-          className="drawer-overlay"
-          type="button"
-          tabIndex={-1}
-          aria-label="Close location navigation"
-        />
-      </div>
-
-      <aside
+      <div
         ref={drawerRef}
         className="location-drawer"
         id="location-drawer"
         data-navigation-ready={isNavigationReady}
+        role={isNarrowNavigation ? "dialog" : "complementary"}
+        aria-modal={isNarrowNavigation || undefined}
         aria-labelledby="location-drawer-title"
         aria-hidden={!isDrawerAvailable}
       >
@@ -708,7 +679,23 @@ export function SiteHeader({
             })}
           </ul>
         </nav>
-      </aside>
-    </>
+      </div>
+
+      <main
+        className="site-main"
+        data-page-canvas=""
+        data-page-interaction-surface=""
+        id="main-content"
+        tabIndex={-1}
+      >
+        <div className="site-main-content">{children}</div>
+      </main>
+
+      <div
+        className="drawer-overlay"
+        data-page-canvas=""
+        aria-hidden="true"
+      />
+    </div>
   );
 }

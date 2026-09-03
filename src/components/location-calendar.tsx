@@ -1,4 +1,5 @@
 import type { CalendarProvider } from "@/src/application/ports";
+import { CalendarEmbed } from "@/src/components/calendar-embed";
 import type { Location } from "@/src/domain/site";
 
 type LocationCalendarProps = Readonly<{
@@ -16,11 +17,10 @@ export function LocationCalendar({
   return (
     <section className="location-page" aria-labelledby={headingId}>
       <h1 id={headingId}>{location.calendarHeading}</h1>
-      <iframe
-        className="calendar-frame"
+      <CalendarEmbed
+        key={location.id}
+        fallbackHref={embed.fallbackHref}
         src={embed.src}
-        frameBorder="0"
-        scrolling="no"
         title={`${location.calendarHeading} Calendar`}
       />
     </section>
