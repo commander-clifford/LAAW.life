@@ -43,7 +43,7 @@ There is currently **no scheduled Pages refresh**. GitHub scheduled workflows
 run from the default branch, which is still `main` and has no calendar-refresh
 dispatcher. The manual `refresh-calendar.yml` helper on `v2-dev` has no schedule
 and is not a replacement for registering a future default-branch dispatcher.
-Do not claim a 15-minute refresh cadence for this preview.
+Do not claim an automatic refresh cadence for this preview.
 
 The prepared FTP data-refresh workflow remains disabled and main-only. No
 HostGator credentials, uploads, or refresh activation are needed for Pages.

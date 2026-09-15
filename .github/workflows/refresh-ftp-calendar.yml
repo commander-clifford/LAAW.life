@@ -4,7 +4,7 @@ name: Refresh FTP-hosted calendar data
 # is confirmed. This workflow transfers one JSON file, never the site itself.
 on:
   schedule:
-    - cron: "11,26,41,56 * * * *"
+    - cron: "11,41 * * * *"
   workflow_dispatch:
     inputs:
       mode:

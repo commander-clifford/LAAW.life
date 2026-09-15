@@ -3,7 +3,7 @@
 The initial site upload includes `calendar-data/agendas.json`. The browser reads
 that same-origin file for current daily events. A static FTP upload cannot run
 the calendar generator itself, so the prepared GitHub Actions workflow refreshes
-only this file every 15 minutes. It does not rebuild or upload the website.
+only this file every 30 minutes. It does not rebuild or upload the website.
 
 **The workflow is disabled until its repository variable is explicitly enabled.**
 No host credentials or destination have been assumed. GitHub Pages refreshes are
@@ -75,7 +75,7 @@ and its public verification succeed for both locations, then set
 - Credentials are confined to the FTPS preflight or upload step, and server error text
   is suppressed to avoid exposing account details in logs.
 - GitHub schedules can be delayed, and public-repository schedules can be
-  disabled after prolonged repository inactivity. The 15-minute schedule is a
+  disabled after prolonged repository inactivity. The 30-minute schedule is a
   target, not a guarantee. Keep Actions failure notifications enabled and check
   the latest successful run if the agenda reports a refresh issue.
 
