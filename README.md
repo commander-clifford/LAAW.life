@@ -31,7 +31,7 @@ published correction for HostGator's inherited fallback rule.
 | --- | --- | --- |
 | [laaw.life](https://laaw.life/) on HostGator/Apache | Public production website | A reviewed root-path static export uploaded to the site's document root |
 | [GitHub Pages preview](https://commander-clifford.github.io/LAAW.life/) | Public preview of `v2-dev` | Push to `v2-dev`, or a manual Pages rebuild from `v2-dev` |
-| GitHub's default `main` branch | Source for the production calendar updater | Reviewed source changes promoted to `main`; scheduled runs require activation |
+| GitHub's default `main` branch | Source for the enabled 30-minute production calendar workflow | Reviewed source changes promoted to `main` |
 
 **Publish changes to GitHub before uploading production files.** This includes
 application changes, calendar-generation changes, and Apache configuration.
@@ -47,11 +47,12 @@ See [Pages preview setup](docs/github-pages-preview.md).
 
 ### Calendar activation status
 
-At the last confirmed setup checkpoint on September 15, 2026:
+Activation checkpoint on September 15, 2026:
 
 - The live Option 4 website and its route correction had been verified.
-- GitHub `main` and `v2-dev` were both at `1850863`. The 30-minute scheduling
-  change was local commit `023ac00`; pushing it was awaiting explicit approval.
+- The approved 30-minute interval (`023ac00`) and operating documentation
+  (`7954b29`) were published to both `main` and `v2-dev`. The activation revision
+  is `7954b298dbd156a1ffd41ae79fe9f5be24188d43`.
 - A dedicated FTP account had been created and its access confirmed to be
   limited to the site's `calendar-data` folder.
 - All three GitHub connection secrets were configured. The
@@ -60,13 +61,15 @@ At the last confirmed setup checkpoint on September 15, 2026:
 - The [first manual refresh](https://github.com/commander-clifford/LAAW.life/actions/runs/34958148032)
   passed generation, FTPS upload, and exact public HTTPS verification for both
   locations. Their public snapshots were generated at 10:29 UTC on September 15.
-- `FTP_CALENDAR_REFRESH_ENABLED` remains `false` until the 30-minute source
-  change is published. No successful scheduled refresh has been verified yet.
+- `FTP_CALENDAR_REFRESH_ENABLED` is `true`; scheduled uploads are enabled.
+  GitHub reports the workflow as active on default branch `main`. As of
+  September 15 at 11:18 UTC, the first scheduled run had not appeared in the
+  [workflow history](https://github.com/commander-clifford/LAAW.life/actions/workflows/refresh-ftp-calendar.yml).
+- The [Pages deployment for the activation revision](https://github.com/commander-clifford/LAAW.life/actions/runs/34959908222)
+  passed its quality, build, and deployment checks.
 
-**The live connection works; scheduled refresh is not yet operational.** Publish
-the approved interval, enable scheduled uploads, and verify a scheduled run
-before describing the 30-minute target as active. Update this checkpoint after
-activation; workflow results are the evidence of successful refreshes.
+The live connection and first manual refresh are verified. The automatic
+schedule is enabled; its first successful run is still awaiting verification.
 
 ## Source files and generated output
 
@@ -157,14 +160,14 @@ existing public calendars. Their refresh mechanisms are separate.
    through 35 days after generation.
 3. A full website build bundles that snapshot and copies it into
    `out/calendar-data/agendas.json`.
-4. Once activated, GitHub Actions runs the generator on `main` and uses FTPS to
+4. GitHub Actions runs the generator on `main` and uses FTPS to
    replace only HostGator's `calendar-data/agendas.json`. The website's HTML,
    JavaScript, styles, and OG page are untouched by this data-only operation.
 5. A visitor's browser reads the same-origin JSON on load, every five minutes,
    and when returning to the tab or regaining connectivity. It accepts valid,
    newer data and updates the custom card.
 
-The prepared schedule targets **every 30 minutes**, at minutes 11 and 41 of each
+The enabled schedule targets **every 30 minutes**, at minutes 11 and 41 of each
 hour. GitHub can delay scheduled jobs; generation, transfer, and the browser's
 next check add time. This is a refresh target, not a guaranteed deadline after a
 calendar edit. A resumed or new page also checks for updates. The displayed day
@@ -205,7 +208,7 @@ The values below are placeholders or documented settings, not account details.
 | `FTP_CALENDAR_DIRECTORY` | `/` for the dedicated account already verified to be restricted directly to `calendar-data` |
 | `FTP_CALENDAR_ACCOUNT_ROOT` | `true` for that verified calendar-only account |
 | `FTP_PORT` | `21`, or leave blank for the same default |
-| `FTP_CALENDAR_REFRESH_ENABLED` | Keep `false` until verification and the first refresh succeed |
+| `FTP_CALENDAR_REFRESH_ENABLED` | `true` for the verified production connection; keep `false` during a new setup until verification and the first refresh succeed |
 
 The `/` above is the **FTP account's restricted view** of the calendar folder,
 not the website's or server's root. For another account, verify its scope first;
