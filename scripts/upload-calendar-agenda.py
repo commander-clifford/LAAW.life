@@ -52,15 +52,20 @@ def read_configuration(environment):
 
     directory = values["FTP_CALENDAR_DIRECTORY"]
     path = PurePosixPath(directory)
+    # A dedicated account can be jailed directly into calendar-data. Only allow
+    # its FTP root after that account scope has been explicitly verified.
+    confirmed_calendar_root = (
+        directory == "/" and environment.get("FTP_CALENDAR_ACCOUNT_ROOT") == "true"
+    )
     if (
         not directory.startswith("/")
         or str(path) != directory
         or ".." in path.parts
         or "\\" in directory
-        or path.name != "calendar-data"
+        or (path.name != "calendar-data" and not confirmed_calendar_root)
     ):
         raise ConfigurationError(
-            "FTP_CALENDAR_DIRECTORY must be the exact absolute FTP path ending in /calendar-data."
+            "FTP_CALENDAR_DIRECTORY must end in /calendar-data, or be / for a confirmed calendar-only account."
         )
 
     try:
@@ -77,6 +82,10 @@ def read_agenda_payload(path=AGENDA_FILE, now=None):
     """Reject incomplete or old generation before opening an FTP connection."""
     with path.open("rb") as agenda_file:
         payload = agenda_file.read(MAXIMUM_BYTES + 1)
+    return validate_agenda_payload(payload, now)
+
+
+def validate_agenda_payload(payload, now=None):
     if not payload or len(payload) > MAXIMUM_BYTES:
         raise AgendaError("The generated agenda is empty or exceeds the upload size limit.")
     try:
@@ -119,6 +128,33 @@ def read_agenda_payload(path=AGENDA_FILE, now=None):
         if age < -timedelta(minutes=5) or age > timedelta(hours=2):
             raise AgendaError("Regenerate calendar data before uploading; its timestamp is not current.")
     return payload
+
+
+def read_remote_agenda(configuration, ftp_factory=ftplib.FTP_TLS):
+    """Verify an account and directory by reading, never writing, its agenda."""
+    ftp = ftp_factory(context=ssl.create_default_context(), timeout=45)
+    chunks = []
+    size = 0
+
+    def receive(chunk):
+        nonlocal size
+        size += len(chunk)
+        if size > MAXIMUM_BYTES:
+            raise AgendaError("The hosted agenda exceeds the size limit.")
+        chunks.append(chunk)
+
+    try:
+        ftp.connect(configuration.host, configuration.port)
+        ftp.auth()
+        ftp.login(configuration.username, configuration.password)
+        ftp.prot_p()
+        ftp.cwd(configuration.directory)
+        ftp.retrbinary(f"RETR {DESTINATION_NAME}", receive)
+        with contextlib.suppress(*ftplib.all_errors):
+            ftp.quit()
+        return b"".join(chunks)
+    finally:
+        ftp.close()
 
 
 def upload_agenda(configuration, payload, ftp_factory=ftplib.FTP_TLS):

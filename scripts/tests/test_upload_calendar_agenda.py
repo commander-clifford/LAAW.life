@@ -69,6 +69,15 @@ class ConfigurationTests(unittest.TestCase):
         environment = configuration_environment() | {"FTP_CALENDAR_DIRECTORY": "/calendar-data"}
         self.assertEqual(uploader.read_configuration(environment).directory, "/calendar-data")
 
+    def test_accepts_jailed_calendar_account_root_only_after_explicit_confirmation(self):
+        environment = configuration_environment() | {"FTP_CALENDAR_DIRECTORY": "/"}
+        with self.assertRaises(uploader.ConfigurationError):
+            uploader.read_configuration(environment)
+        confirmed = environment | {"FTP_CALENDAR_ACCOUNT_ROOT": "true"}
+        self.assertEqual(uploader.read_configuration(confirmed).directory, "/")
+        with self.assertRaises(uploader.ConfigurationError):
+            uploader.read_configuration(confirmed | {"FTP_CALENDAR_DIRECTORY": "/public_html"})
+
     def test_rejects_urls_and_unsupported_ports(self):
         for host in ("ftp://ftp.example.com", "https://example.com", "ftp.example.com:21"):
             with self.subTest(host=host), self.assertRaises(uploader.ConfigurationError):
@@ -191,6 +200,23 @@ class UploadTests(unittest.TestCase):
         self.ftp.login.assert_not_called()
         self.ftp.storbinary.assert_not_called()
         self.ftp.delete.assert_not_called()
+        self.ftp.close.assert_called_once()
+
+    def test_connection_preflight_reads_the_exact_agenda_without_remote_writes(self):
+        self.ftp.retrbinary.side_effect = lambda command, receive: receive(self.payload)
+        self.assertEqual(uploader.read_remote_agenda(self.configuration, self.factory), self.payload)
+        self.ftp.retrbinary.assert_called_once()
+        self.assertEqual(self.ftp.retrbinary.call_args.args[0], "RETR agendas.json")
+        self.ftp.storbinary.assert_not_called()
+        self.ftp.rename.assert_not_called()
+        self.ftp.delete.assert_not_called()
+        self.ftp.close.assert_called_once()
+
+    def test_connection_preflight_stops_oversized_downloads_without_writes(self):
+        self.ftp.retrbinary.side_effect = lambda command, receive: receive(self.payload)
+        with patch.object(uploader, "MAXIMUM_BYTES", 1), self.assertRaises(uploader.AgendaError):
+            uploader.read_remote_agenda(self.configuration, self.factory)
+        self.ftp.storbinary.assert_not_called()
         self.ftp.close.assert_called_once()
 
     def test_main_sanitizes_server_errors(self):

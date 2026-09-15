@@ -21,8 +21,11 @@ separate and do not change the copy served by laaw.life.
 3. Record the exact absolute FTP path to the uploaded `calendar-data` directory.
    It might be `/public_html/calendar-data` or `/calendar-data` for an account
    restricted to the site's root. These are examples, not the verified path.
-   The script requires an existing directory ending in `/calendar-data`, with no
-   trailing slash; it never guesses the document root or creates directories.
+   Prefer a dedicated FTP account restricted to the actual `calendar-data`
+   folder. For that verified account, its FTP-visible directory is `/` and
+   `FTP_CALENDAR_ACCOUNT_ROOT` must be `true`. Otherwise the script requires an
+   existing directory ending in `/calendar-data`, with no trailing slash. It
+   never guesses the document root or creates directories.
 4. Confirm permission to upload a temporary file, query its size, and rename it
    over `agendas.json` in that directory. A rename failure stops the refresh; the
    script never deletes the published file to work around a host restriction.
@@ -43,15 +46,19 @@ Add these **repository Actions variables**:
 | Variable | Value |
 | --- | --- |
 | `FTP_CALENDAR_DIRECTORY` | Exact absolute FTP path ending in `/calendar-data` |
+| `FTP_CALENDAR_ACCOUNT_ROOT` | `true` only after verifying the FTP account is restricted directly to `calendar-data`; use directory `/` for this account |
 | `FTP_PORT` | Optional explicit FTPS port; blank means `21` |
 | `FTP_CALENDAR_REFRESH_ENABLED` | Set to `true` only when ready to start uploads |
 
 The workflow file and generator must be on `main`, which must be the default
-branch for scheduled runs. Run **Refresh FTP-hosted calendar data** manually from
-`main` after enabling it. Confirm the run succeeds, then reload
-`https://laaw.life/calendar-data/agendas.json` and check `generatedAt` for both
-locations. Confirm each location's daily agenda in a browser. This first remote
-run and verification remain part of the launch discussion.
+branch for scheduled runs. Keep the enable variable unset or `false` during
+setup. Run **Refresh FTP-hosted calendar data** manually from `main` with mode
+`preflight` first: it verifies the TLS login and reads the existing file, then
+compares that file to the public HTTPS response without uploading anything.
+After preflight succeeds, run mode `refresh` for the first authorized upload.
+Manual refresh does not require the schedule-enable variable. Confirm the run
+and its public verification succeed for both locations, then set
+`FTP_CALENDAR_REFRESH_ENABLED` to `true`. Verify a later scheduled run succeeds.
 
 ## How refreshes fail safely
 
@@ -62,7 +69,10 @@ run and verification remain part of the launch discussion.
 - It uploads to a unique temporary filename, checks the remote byte count, and
   renames the complete file to `agendas.json`. Interrupted transfers leave the
   prior published file in place. It never uploads HTML, scripts, or `_next` assets.
-- All network credentials are confined to the final step, and server error text
+- A separate HTTPS check verifies that the public URL serves the exact fresh
+  JSON for both locations. An HTML fallback, older cached file, failed request,
+  or wrong destination fails the run even if FTP reported a successful upload.
+- Credentials are confined to the FTPS preflight or upload step, and server error text
   is suppressed to avoid exposing account details in logs.
 - GitHub schedules can be delayed, and public-repository schedules can be
   disabled after prolonged repository inactivity. The 15-minute schedule is a

@@ -6,6 +6,15 @@ on:
   schedule:
     - cron: "11,26,41,56 * * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify the existing destination or publish fresh calendar data
+        type: choice
+        required: true
+        default: preflight
+        options:
+          - preflight
+          - refresh
 
 permissions:
   contents: read
@@ -15,8 +24,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'preflight'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Verify FTPS login and public destination without writing
+        run: python3 -B scripts/verify-hosted-calendar.py --from-ftp
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ vars.FTP_PORT }}
+          FTP_CALENDAR_DIRECTORY: ${{ vars.FTP_CALENDAR_DIRECTORY }}
+          FTP_CALENDAR_ACCOUNT_ROOT: ${{ vars.FTP_CALENDAR_ACCOUNT_ROOT }}
+
   refresh:
-    if: github.ref == 'refs/heads/main' && vars.FTP_CALENDAR_REFRESH_ENABLED == 'true'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.mode == 'refresh') ||
+      (github.event_name == 'schedule' && vars.FTP_CALENDAR_REFRESH_ENABLED == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -54,3 +89,18 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_PORT: ${{ vars.FTP_PORT }}
           FTP_CALENDAR_DIRECTORY: ${{ vars.FTP_CALENDAR_DIRECTORY }}
+          FTP_CALENDAR_ACCOUNT_ROOT: ${{ vars.FTP_CALENDAR_ACCOUNT_ROOT }}
+
+      - name: Verify both refreshed agendas through the public website
+        run: python3 -B scripts/verify-hosted-calendar.py
+
+      - name: Report refresh failure and recovery
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'REPORT'
+          ## Calendar refresh failed
+
+          Review the failed step above. A generation or transfer failure leaves the prior published agenda in place. A public-verification failure means the upload may have completed, but visitors receiving the new data has not been confirmed.
+
+          Check the public calendar URL and the configured FTPS destination. After correcting the cause, rerun this workflow with mode `refresh`. Set `FTP_CALENDAR_REFRESH_ENABLED` to `false` to pause scheduled uploads.
+          REPORT
