@@ -39,10 +39,11 @@ browser reads it from the preview's own `calendar-data/agendas.json` path.
 Push a reviewed change or run the manual rebuild above to update the preview's
 calendar snapshot.
 
-There is currently **no scheduled Pages refresh**. GitHub scheduled workflows
-run from the default branch, which is still `main` and has no calendar-refresh
-dispatcher. The manual `refresh-calendar.yml` helper on `v2-dev` has no schedule
-and is not a replacement for registering a future default-branch dispatcher.
+There is currently **no scheduled Pages refresh**. The registered
+`refresh-calendar.yml` helper has no schedule and runs only when dispatched
+manually with `v2-dev` selected. GitHub schedules use the default `main` branch;
+the separate production-calendar workflow on that branch updates HostGator,
+not the Pages preview.
 Do not claim an automatic refresh cadence for this preview.
 
 The prepared FTP data-refresh workflow remains disabled and main-only. No
