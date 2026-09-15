@@ -1,3 +1,11 @@
+# Override the account-level single-page-app rewrite for missing paths.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ - [R=404,L]
+</IfModule>
+
 # Root-domain static export. Each route is a directory containing index.html.
 DirectoryIndex index.html
 DirectorySlash On
