@@ -45,7 +45,6 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   const contentBox = (await content.boundingBox())!;
   const calendarBox = (await calendar.boundingBox())!;
   const cardBox = (await card.boundingBox())!;
-  const headingBox = (await card.locator(".daily-information-heading").boundingBox())!;
   const dateBox = (await card.locator(".today-schedule-date").boundingBox())!;
   const eventsBox = (await card.getByRole("region", { name: "Daily events" }).boundingBox())!;
   const layoutWidth = await page.evaluate(() => document.documentElement.clientWidth);
@@ -61,14 +60,9 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   expect(cardBox.x).toBeGreaterThanOrEqual(0);
   expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewportWidth);
   expect(calendarBox.y).toBeGreaterThan(cardBox.y + cardBox.height);
-  if (viewportWidth === 320) {
-    const titleBox = (await card.getByRole("heading", { level: 1 }).boundingBox())!;
-    expect(dateBox.y).toBeGreaterThan(titleBox.y + titleBox.height);
-    expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
-  } else {
-    expect(eventsBox.x).toBeGreaterThan(headingBox.x + headingBox.width);
-    expect(Math.abs(eventsBox.y - headingBox.y)).toBeLessThan(1);
-  }
+  const titleBox = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
+  expect(dateBox.y).toBeGreaterThan(titleBox.y + titleBox.height);
+  expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
 }
 
 test.beforeEach(async ({ page }) => {

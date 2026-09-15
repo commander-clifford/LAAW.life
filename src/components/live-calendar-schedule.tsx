@@ -33,10 +33,9 @@ function getServerMinute(): null {
 type LiveCalendarScheduleProps = Readonly<{
   agenda: CalendarAgenda;
   locationId: string;
-  locationName: string;
 }>;
 
-export function LiveCalendarSchedule({ agenda, locationId, locationName }: LiveCalendarScheduleProps) {
+export function LiveCalendarSchedule({ agenda, locationId }: LiveCalendarScheduleProps) {
   const [refreshed, setRefreshed] = useState<{
     agenda: CalendarAgenda;
     locationId: string;
@@ -103,7 +102,7 @@ export function LiveCalendarSchedule({ agenda, locationId, locationName }: LiveC
       currentMinute - Date.parse(currentAgenda.generatedAt) >= staleAfterMilliseconds);
 
   return (
-    <TodaySchedule agenda={currentAgenda} locationName={locationName}>
+    <TodaySchedule agenda={currentAgenda}>
       {isStale ? (
         <p className="today-schedule-note" role="status">
           Calendar updates are delayed. Check the full calendar below for the latest events.

@@ -18,7 +18,6 @@ function getServerDateKey(): null {
 
 type TodayScheduleProps = Readonly<{
   agenda: CalendarAgenda;
-  locationName: string;
   children?: ReactNode;
 }>;
 
@@ -36,13 +35,20 @@ function getDateKey(date: Date, timeZone: string): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function formatDate(dateKey: string): string {
+function formatDate(dateKey: string): { weekday: string; calendarDate: string } {
   const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
 
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "full",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month - 1, day, 12)));
+  return {
+    weekday: new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    }).format(date),
+    calendarDate: new Intl.DateTimeFormat("en-US", {
+      dateStyle: "long",
+      timeZone: "UTC",
+    }).format(date),
+  };
 }
 
 function formatTime(date: Date, timeZone: string): string {
@@ -87,7 +93,6 @@ function formatEventTime(
 
 export function TodaySchedule({
   agenda,
-  locationName,
   children,
 }: TodayScheduleProps) {
   const subscribeToClock = useCallback((notify: () => void) => {
@@ -107,13 +112,17 @@ export function TodaySchedule({
     getCurrentDateKey,
     getServerDateKey,
   );
+  const formattedDate = currentDateKey === null ? null : formatDate(currentDateKey);
   const dateLine = (
     <p
       className="today-schedule-date"
       aria-hidden={currentDateKey === null || undefined}
     >
-      {currentDateKey === null ? null : (
-        <time dateTime={currentDateKey}>{formatDate(currentDateKey)}</time>
+      {currentDateKey === null || formattedDate === null ? null : (
+        <time dateTime={currentDateKey} aria-label={`${formattedDate.weekday}, ${formattedDate.calendarDate}`}>
+          <span className="today-schedule-weekday">{formattedDate.weekday}</span>{" "}
+          <span className="today-schedule-calendar-date">{formattedDate.calendarDate}</span>
+        </time>
       )}
     </p>
   );
@@ -128,7 +137,6 @@ export function TodaySchedule({
   return (
     <Card className="daily-information-card">
       <div className="daily-information-heading">
-        <h1 className="location-page-heading">{locationName}</h1>
         {dateLine}
       </div>
       <section

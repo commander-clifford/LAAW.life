@@ -21,10 +21,10 @@ export function LocationCalendar({
 
   return (
     <div className="location-page">
+      <h1 className="location-page-heading">{location.displayName}</h1>
       <LiveCalendarSchedule
         agenda={agenda}
         locationId={location.id}
-        locationName={location.displayName}
       />
       <CalendarEmbed
         key={location.id}
