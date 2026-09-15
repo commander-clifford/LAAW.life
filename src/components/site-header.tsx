@@ -13,7 +13,6 @@ import {
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
 
-const wideNavigationQuery = "(min-width: 64rem)";
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 const pageCanvasSelector = "[data-page-canvas]";
 const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
@@ -82,16 +81,15 @@ export function SiteHeader({
   const drawerRef = useRef<HTMLDivElement>(null);
   const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const animationRef = useRef<gsap.core.Timeline | null>(null);
   const drawerOpenRef = useRef(false);
   const drawerClosingRef = useRef(false);
-  const modeRef = useRef<"narrow" | "wide">("narrow");
   const reducedMotionRef = useRef(false);
   const previousPathnameRef = useRef(pathname);
-  const navigationHadFocusRef = useRef(false);
+  const navigationFocusPendingRef = useRef(false);
   const scrollLockStylesRef = useRef<ScrollLockStyles | null>(null);
-  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-  const [isWideNavigation, setIsWideNavigation] = useState(true);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   const currentSlug = getLocationSlugFromPath(pathname, locations);
@@ -103,6 +101,10 @@ export function SiteHeader({
   const stopAnimation = useCallback(() => {
     animationRef.current?.kill();
     animationRef.current = null;
+  }, []);
+
+  const focusMainContent = useCallback(() => {
+    mainRef.current?.focus({ preventScroll: true });
   }, []);
 
   const lockPageScroll = useCallback(() => {
@@ -131,7 +133,7 @@ export function SiteHeader({
     scrollLockStylesRef.current = null;
   }, []);
 
-  const closeMobileDrawer = useCallback(
+  const closeDrawer = useCallback(
     ({ immediate = false, restoreFocus = true }: CloseOptions = {}) => {
       const drawer = drawerRef.current;
       const overlay = getDrawerOverlay();
@@ -142,8 +144,7 @@ export function SiteHeader({
         !overlay ||
         !opener ||
         (!drawerOpenRef.current &&
-          !(immediate && drawerClosingRef.current)) ||
-        modeRef.current === "wide"
+          !(immediate && drawerClosingRef.current))
       ) {
         return;
       }
@@ -161,8 +162,7 @@ export function SiteHeader({
           return;
         }
 
-        setIsMobileDrawerOpen(false);
-        setDrawerAvailable(drawer, false);
+        setIsDrawerOpen(false);
         setPageInteractionSurfacesInert(false);
         setOpenerAvailable(opener, true);
         gsap.set(overlay, {
@@ -174,8 +174,13 @@ export function SiteHeader({
         unlockPageScroll();
 
         if (restoreFocus) {
-          opener.focus();
+          opener.focus({ preventScroll: true });
+        } else {
+          // A departing navigation link must not retain focus inside an inert drawer.
+          focusMainContent();
         }
+
+        setDrawerAvailable(drawer, false);
       };
 
       if (duration === 0) {
@@ -197,10 +202,10 @@ export function SiteHeader({
 
       animationRef.current = timeline;
     },
-    [stopAnimation, unlockPageScroll],
+    [focusMainContent, stopAnimation, unlockPageScroll],
   );
 
-  const openMobileDrawer = useCallback(() => {
+  const openDrawer = useCallback(() => {
     const drawer = drawerRef.current;
     const overlay = getDrawerOverlay();
     const opener = menuButtonRef.current;
@@ -211,8 +216,7 @@ export function SiteHeader({
       !overlay ||
       !opener ||
       !closeButton ||
-      drawerOpenRef.current ||
-      modeRef.current === "wide"
+      drawerOpenRef.current
     ) {
       return;
     }
@@ -220,7 +224,7 @@ export function SiteHeader({
     const shouldPreserveAnimationProgress = animationRef.current !== null;
     drawerOpenRef.current = true;
     drawerClosingRef.current = false;
-    setIsMobileDrawerOpen(true);
+    setIsDrawerOpen(true);
     stopAnimation();
 
     const drawerWidth = drawer.getBoundingClientRect().width;
@@ -228,6 +232,7 @@ export function SiteHeader({
     const duration = reducedMotionRef.current ? 0 : 0.32;
 
     setDrawerAvailable(drawer, true);
+    closeButton.focus({ preventScroll: true });
     setOpenerAvailable(opener, false);
     setPageInteractionSurfacesInert(true);
     lockPageScroll();
@@ -235,8 +240,6 @@ export function SiteHeader({
       pointerEvents: "auto",
       visibility: "visible",
     });
-    closeButton.focus();
-
     if (!shouldPreserveAnimationProgress) {
       gsap.set(drawer, { x: -drawerWidth });
       gsap.set(pageCanvasParts, { x: 0 });
@@ -270,13 +273,13 @@ export function SiteHeader({
     animationRef.current = timeline;
   }, [lockPageScroll, stopAnimation]);
 
-  const toggleMobileDrawer = useCallback(() => {
+  const toggleDrawer = useCallback(() => {
     if (drawerOpenRef.current) {
-      closeMobileDrawer();
+      closeDrawer();
     } else {
-      openMobileDrawer();
+      openDrawer();
     }
-  }, [closeMobileDrawer, openMobileDrawer]);
+  }, [closeDrawer, openDrawer]);
 
   useEffect(() => {
     if (currentLocationId) {
@@ -296,126 +299,9 @@ export function SiteHeader({
       return;
     }
 
-    const wideViewport = window.matchMedia(wideNavigationQuery);
     const reducedMotion = window.matchMedia(reducedMotionQuery);
 
-    const syncReducedMotion = () => {
-      reducedMotionRef.current = reducedMotion.matches;
-
-      if (
-        !reducedMotion.matches ||
-        !animationRef.current ||
-        modeRef.current === "wide"
-      ) {
-        return;
-      }
-
-      stopAnimation();
-      const drawerWidth = drawer.getBoundingClientRect().width;
-      const pageCanvasParts = getPageCanvasParts();
-
-      if (drawerOpenRef.current) {
-        drawerClosingRef.current = false;
-        setDrawerAvailable(drawer, true);
-        setOpenerAvailable(opener, false);
-        setPageInteractionSurfacesInert(true);
-        lockPageScroll();
-        gsap.set(drawer, { x: 0 });
-        gsap.set(pageCanvasParts, { x: drawerWidth });
-        gsap.set(overlay, {
-          autoAlpha: 0.16,
-          pointerEvents: "auto",
-        });
-      } else {
-        const drawerContainedFocus =
-          document.activeElement instanceof Element &&
-          drawer.contains(document.activeElement);
-
-        drawerClosingRef.current = false;
-        setIsMobileDrawerOpen(false);
-        setDrawerAvailable(drawer, false);
-        setOpenerAvailable(opener, true);
-        setPageInteractionSurfacesInert(false);
-        unlockPageScroll();
-        gsap.set(drawer, { x: -drawerWidth });
-        gsap.set(pageCanvasParts, { x: 0 });
-        gsap.set(overlay, {
-          autoAlpha: 0,
-          pointerEvents: "none",
-        });
-
-        if (drawerContainedFocus) {
-          opener.focus();
-        }
-      }
-    };
-
-    const syncViewportMode = () => {
-      const previousMode = modeRef.current;
-      const activeElement = document.activeElement;
-      const toggleHadFocus = activeElement === opener;
-      const drawerContainedFocus =
-        activeElement instanceof Element && drawer.contains(activeElement);
-      const navigationHadFocus =
-        toggleHadFocus ||
-        drawerContainedFocus ||
-        navigationHadFocusRef.current;
-      const drawerWasEngaged =
-        drawerOpenRef.current || drawerClosingRef.current;
-
-      stopAnimation();
-      const isWide = wideViewport.matches;
-      const pageCanvasParts = getPageCanvasParts();
-
-      modeRef.current = isWide ? "wide" : "narrow";
-      drawerOpenRef.current = false;
-      drawerClosingRef.current = false;
-      setIsMobileDrawerOpen(false);
-      setIsWideNavigation(isWide);
-      setPageInteractionSurfacesInert(false);
-      setOpenerAvailable(opener, true);
-      unlockPageScroll();
-      gsap.set(overlay, {
-        autoAlpha: 0,
-        pointerEvents: "none",
-      });
-
-      if (isWide) {
-        gsap.set(pageCanvasParts, { clearProps: "transform" });
-        setDrawerAvailable(drawer, true);
-        gsap.set(drawer, { x: 0 });
-        gsap.set(document.body, {
-          paddingLeft: drawer.getBoundingClientRect().width,
-        });
-
-        if (
-          previousMode === "narrow" &&
-          (navigationHadFocus || drawerWasEngaged)
-        ) {
-          const currentDrawerLink =
-            drawer.querySelector<HTMLElement>('[aria-current="page"]') ??
-            drawer.querySelector<HTMLElement>("a[href]");
-          currentDrawerLink?.focus();
-        }
-      } else {
-        setDrawerAvailable(drawer, false);
-        gsap.set(pageCanvasParts, { x: 0 });
-        gsap.set(drawer, { x: -drawer.getBoundingClientRect().width });
-        gsap.set(document.body, { paddingLeft: 0 });
-
-        if (previousMode === "wide" && navigationHadFocus) {
-          opener.focus();
-        }
-      }
-
-      setIsNavigationReady(true);
-    };
-
-    const syncNarrowDrawerGeometry = () => {
-      if (wideViewport.matches || modeRef.current === "wide") {
-        return;
-      }
-
+    const syncDrawerGeometry = () => {
       const drawerWidth = drawer.getBoundingClientRect().width;
       const pageCanvasParts = getPageCanvasParts();
 
@@ -441,8 +327,7 @@ export function SiteHeader({
 
       stopAnimation();
       drawerClosingRef.current = false;
-      setIsMobileDrawerOpen(false);
-      setDrawerAvailable(drawer, false);
+      setIsDrawerOpen(false);
       setOpenerAvailable(opener, true);
       setPageInteractionSurfacesInert(false);
       unlockPageScroll();
@@ -454,27 +339,35 @@ export function SiteHeader({
       });
 
       if (drawerContainedFocus) {
-        opener.focus();
+        opener.focus({ preventScroll: true });
+      }
+
+      setDrawerAvailable(drawer, false);
+    };
+
+    const syncReducedMotion = () => {
+      reducedMotionRef.current = reducedMotion.matches;
+
+      if (reducedMotion.matches && animationRef.current) {
+        syncDrawerGeometry();
       }
     };
 
     syncReducedMotion();
-    syncViewportMode();
-    wideViewport.addEventListener("change", syncViewportMode);
+    syncDrawerGeometry();
+    setIsNavigationReady(true);
     reducedMotion.addEventListener("change", syncReducedMotion);
-    window.addEventListener("resize", syncNarrowDrawerGeometry);
+    window.addEventListener("resize", syncDrawerGeometry);
 
     return () => {
-      wideViewport.removeEventListener("change", syncViewportMode);
       reducedMotion.removeEventListener("change", syncReducedMotion);
-      window.removeEventListener("resize", syncNarrowDrawerGeometry);
+      window.removeEventListener("resize", syncDrawerGeometry);
       stopAnimation();
       drawerOpenRef.current = false;
       drawerClosingRef.current = false;
       setPageInteractionSurfacesInert(false);
       setOpenerAvailable(opener, true);
       unlockPageScroll();
-      gsap.set(document.body, { clearProps: "paddingLeft" });
       gsap.set(getPageCanvasParts(), { clearProps: "transform" });
       gsap.set(drawer, { clearProps: "transform" });
       gsap.set(overlay, {
@@ -491,7 +384,7 @@ export function SiteHeader({
     }
 
     const handleOverlayClick = () => {
-      closeMobileDrawer();
+      closeDrawer();
     };
 
     overlay.addEventListener("click", handleOverlayClick);
@@ -499,7 +392,7 @@ export function SiteHeader({
     return () => {
       overlay.removeEventListener("click", handleOverlayClick);
     };
-  }, [closeMobileDrawer]);
+  }, [closeDrawer]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -509,15 +402,14 @@ export function SiteHeader({
       if (
         !drawer ||
         !toggle ||
-        (!drawerOpenRef.current && !drawerClosingRef.current) ||
-        modeRef.current === "wide"
+        (!drawerOpenRef.current && !drawerClosingRef.current)
       ) {
         return;
       }
 
       if (event.key === "Escape") {
         event.preventDefault();
-        closeMobileDrawer();
+        closeDrawer();
         return;
       }
 
@@ -554,34 +446,26 @@ export function SiteHeader({
       }
     };
 
-    const handleFocusIn = (event: FocusEvent) => {
-      const drawer = drawerRef.current;
-      const toggle = menuButtonRef.current;
-      const target = event.target;
-
-      navigationHadFocusRef.current =
-        target instanceof Element &&
-        (target === toggle || Boolean(drawer?.contains(target)));
-    };
-
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("focusin", handleFocusIn);
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("focusin", handleFocusIn);
     };
-  }, [closeMobileDrawer]);
+  }, [closeDrawer]);
 
   useEffect(() => {
     if (previousPathnameRef.current !== pathname) {
       previousPathnameRef.current = pathname;
-      closeMobileDrawer({ immediate: true, restoreFocus: false });
-    }
-  }, [closeMobileDrawer, pathname]);
+      const shouldFocusMain = navigationFocusPendingRef.current ||
+        drawerOpenRef.current || drawerClosingRef.current;
+      navigationFocusPendingRef.current = false;
+      closeDrawer({ immediate: true, restoreFocus: false });
 
-  const isDrawerAvailable = isWideNavigation || isMobileDrawerOpen;
-  const isNarrowNavigation = !isWideNavigation;
+      if (shouldFocusMain) {
+        focusMainContent();
+      }
+    }
+  }, [closeDrawer, focusMainContent, pathname]);
 
   return (
     <div className="site-canvas">
@@ -599,12 +483,12 @@ export function SiteHeader({
             className="navigation-toggle"
             type="button"
             aria-controls="location-drawer"
-            aria-expanded={isMobileDrawerOpen}
+            aria-expanded={isDrawerOpen}
             aria-haspopup="dialog"
-            aria-hidden={isMobileDrawerOpen || undefined}
-            disabled={!isNavigationReady || isMobileDrawerOpen}
+            aria-hidden={isDrawerOpen || undefined}
+            disabled={!isNavigationReady || isDrawerOpen}
             aria-label="Open location navigation"
-            onClick={toggleMobileDrawer}
+            onClick={toggleDrawer}
           >
             <span className="navigation-toggle-icon" aria-hidden="true">
               <span />
@@ -623,10 +507,11 @@ export function SiteHeader({
         className="location-drawer"
         id="location-drawer"
         data-navigation-ready={isNavigationReady}
-        role={isNarrowNavigation ? "dialog" : "complementary"}
-        aria-modal={isNarrowNavigation || undefined}
+        role="dialog"
+        aria-modal={isDrawerOpen || undefined}
         aria-label="Location navigation"
-        aria-hidden={!isDrawerAvailable}
+        aria-hidden={!isDrawerOpen}
+        inert={!isDrawerOpen}
       >
         <div className="location-drawer-header">
           <button
@@ -634,7 +519,7 @@ export function SiteHeader({
             className="drawer-close"
             type="button"
             aria-label="Close location navigation"
-            onClick={() => closeMobileDrawer()}
+            onClick={() => closeDrawer()}
           >
             <span aria-hidden="true">×</span>
           </button>
@@ -662,7 +547,9 @@ export function SiteHeader({
                         tenantId,
                         location.id,
                       );
-                      closeMobileDrawer({
+                      navigationFocusPendingRef.current =
+                        !isCurrent && !opensInAnotherContext;
+                      closeDrawer({
                         immediate: !isCurrent && !opensInAnotherContext,
                         restoreFocus: isCurrent || opensInAnotherContext,
                       });
@@ -681,6 +568,7 @@ export function SiteHeader({
       </div>
 
       <main
+        ref={mainRef}
         className="site-main"
         data-page-canvas=""
         data-page-interaction-surface=""

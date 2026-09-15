@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore, type ReactNode } from "react";
 
 import type {
   CalendarAgenda,
   CalendarAgendaItem,
 } from "@/src/application/ports";
+import { Card } from "@/src/components/card";
 
 const clockCheckIntervalMilliseconds = 60_000;
 
@@ -17,6 +18,8 @@ function getServerDateKey(): null {
 
 type TodayScheduleProps = Readonly<{
   agenda: CalendarAgenda;
+  locationName: string;
+  children?: ReactNode;
 }>;
 
 function getDateKey(date: Date, timeZone: string): string {
@@ -84,6 +87,8 @@ function formatEventTime(
 
 export function TodaySchedule({
   agenda,
+  locationName,
+  children,
 }: TodayScheduleProps) {
   const subscribeToClock = useCallback((notify: () => void) => {
     const interval = window.setInterval(
@@ -112,41 +117,31 @@ export function TodaySchedule({
       )}
     </p>
   );
-  if (currentDateKey === null) {
-    return (
-      <>
-        {dateLine}
-        <section
-          className="today-schedule"
-          aria-label="Daily events"
-          aria-busy="true"
-        >
-          <p className="today-schedule-message" role="status">
-            Loading today&apos;s schedule…
-          </p>
-        </section>
-      </>
-    );
-  }
-
-  const isDateAvailable = agenda.availableDateKeys.includes(currentDateKey);
+  const isDateAvailable = currentDateKey !== null && agenda.availableDateKeys.includes(currentDateKey);
   const hasNoAvailableSources =
     agenda.sourceCount > 0 &&
     agenda.failedSourceCount === agenda.sourceCount;
   const events = agenda.events.filter((event) =>
-    event.dateKeys.includes(currentDateKey),
+    currentDateKey !== null && event.dateKeys.includes(currentDateKey),
   );
 
   return (
-    <>
-      {dateLine}
+    <Card className="daily-information-card">
+      <div className="daily-information-heading">
+        <h1 className="location-page-heading">{locationName}</h1>
+        {dateLine}
+      </div>
       <section
         className="today-schedule"
         aria-label="Daily events"
-        aria-busy="false"
+        aria-busy={currentDateKey === null}
       >
         <div aria-live="polite">
-          {!isDateAvailable || hasNoAvailableSources ? (
+          {currentDateKey === null ? (
+            <p className="today-schedule-message" role="status">
+              Loading today&apos;s schedule…
+            </p>
+          ) : !isDateAvailable || hasNoAvailableSources ? (
             <p className="today-schedule-message">
               Today&apos;s schedule is temporarily unavailable. The full calendar
               is still available below.
@@ -159,27 +154,26 @@ export function TodaySchedule({
             <ol className="today-event-list">
               {events.map((event) => (
                 <li className="today-event" key={event.id}>
+                  <h2>{event.title}</h2>
                   <time
                     className="today-event-time"
                     dateTime={event.allDay ? currentDateKey : event.start}
                   >
                     {formatEventTime(event, currentDateKey, agenda.timeZone)}
                   </time>
-                  <div className="today-event-details">
-                    <h2>{event.title}</h2>
-                  </div>
                 </li>
               ))}
             </ol>
           )}
         </div>
 
-        {agenda.failedSourceCount > 0 && !hasNoAvailableSources ? (
+        {currentDateKey !== null && agenda.failedSourceCount > 0 && !hasNoAvailableSources ? (
           <p className="today-schedule-note" role="status">
             Some calendar sources could not be checked during the latest update.
           </p>
         ) : null}
+        {children}
       </section>
-    </>
+    </Card>
   );
 }

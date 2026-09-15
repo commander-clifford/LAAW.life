@@ -28,7 +28,7 @@ function pacificDay(dateKey: string): Date {
   return new Date(`${dateKey}T19:00:00Z`);
 }
 
-test.use({ timezoneId: "Asia/Tokyo" });
+test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
   await page.route("https://calendar.google.com/**", (route) =>
@@ -71,6 +71,7 @@ test("a new public snapshot refreshes an open page and failures keep the last go
   await page.clock.runFor(5 * 60_000);
   await expect.poll(() => requests).toBeGreaterThan(beforeOlder);
   await expect(events).toHaveText(["Updated community event"]);
+  await page.getByRole("button", { name: "Open location navigation" }).click();
   await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(events).not.toContainText(["Updated community event"]);
@@ -125,10 +126,14 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     await expect(dateLine).toHaveText(formatDate(currentDateKey));
     await expect(dateLine).toHaveAttribute("datetime", currentDateKey);
     await expect(card.locator("header")).toHaveCount(0);
+    const outerCard = page.locator(".daily-information-card");
+    await expect(outerCard.locator(".today-schedule-date time")).toHaveText(formatDate(currentDateKey));
+    await expect(outerCard.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
     const dateBox = (await dateLine.boundingBox())!;
-    const cardBox = (await card.boundingBox())!;
-    expect(dateBox.y + dateBox.height).toBeLessThan(cardBox.y);
-    expect(Math.abs(dateBox.x + dateBox.width / 2 - (cardBox.x + cardBox.width / 2))).toBeLessThan(1);
+    const eventsBox = (await card.boundingBox())!;
+    const outerBox = (await outerCard.boundingBox())!;
+    expect(dateBox.x + dateBox.width).toBeLessThan(eventsBox.x);
+    expect(dateBox.y + dateBox.height).toBeLessThan(outerBox.y + outerBox.height);
     await expect(card.locator(".today-schedule-date")).toHaveCount(0);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
     await expect(card.getByRole("heading", { level: 2 })).toHaveText(
@@ -143,6 +148,62 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     releaseScripts();
   }
 });
+
+for (const width of [1440, 320]) {
+  test(`the unified card sizes to content and wraps long schedules at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.clock.setFixedTime(pacificDay(agenda.initialDateKey));
+    let eventCount = 1;
+    await page.route("**/calendar-data/agendas.json", (route) => {
+      const payload = Object.fromEntries(Object.entries(agendas).map(([id, source]) => {
+        const seed = source.events.find((event) => event.dateKeys.includes(source.initialDateKey))!;
+        return [id, {
+          ...source,
+          generatedAt: new Date(Date.parse(source.generatedAt) + eventCount * 60_000).toISOString(),
+          events: Array.from({ length: eventCount }, (_, index) => ({
+            ...seed,
+            id: `${seed.id}-${index}`,
+            title: index === 0 ? "Community meetup" : index === 1
+              ? "A community celebration with live music, local food, and a very long event name that needs to wrap"
+              : "AReallyLongUnbrokenCommunityEventNameThatMustNeverEscapeTheCardBoundary",
+          })),
+        }];
+      }));
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(payload) });
+    });
+    for (const [slug, name] of [["ivy", "Ivy Station"], ["hawthorne", "Hawthorne"]]) {
+      eventCount = 1;
+      await page.goto(`${slug}/`);
+      const card = page.locator(".daily-information-card");
+      await expect(card.getByRole("heading", { level: 1 })).toHaveText(name);
+      await expect(card.locator(".today-event h2")).toHaveText(["Community meetup"]);
+      const compactBox = (await card.boundingBox())!;
+      expect(compactBox.width).toBeLessThan(width === 1440 ? 650 : 320);
+      expect(Math.abs(compactBox.x + compactBox.width / 2 - width / 2)).toBeLessThan(1);
+      const eventsBox = (await card.locator(".today-schedule").boundingBox())!;
+      const dateBox = (await card.locator(".today-schedule-date").boundingBox())!;
+      if (width === 320) expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
+      else expect(eventsBox.x).toBeGreaterThan(dateBox.x + dateBox.width);
+
+      eventCount = 3;
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect(card.locator(".today-event")).toHaveCount(3);
+      expect((await card.boundingBox())!.width).toBeLessThanOrEqual(Math.min(width, 832));
+      expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      for (const event of await card.locator(".today-event").all()) {
+        const title = (await event.locator("h2").boundingBox())!;
+        const time = (await event.locator("time").boundingBox())!;
+        expect(time.y).toBeGreaterThanOrEqual(title.y + title.height);
+      }
+      await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
+      const calendarBox = (await page.locator("iframe.calendar-frame").boundingBox())!;
+      const fullCardBox = (await card.boundingBox())!;
+      expect(calendarBox.y).toBeGreaterThan(fullCardBox.y + fullCardBox.height);
+      expect(calendarBox.width).toBeGreaterThan(compactBox.width);
+    }
+  });
+}
 
 test("the open card rolls over at Pacific midnight and handles expired coverage", async ({ page }) => {
   // Intl derives the UTC offset for this date so the regression also runs in

@@ -4,12 +4,12 @@ LAAW Life is a statically exported Next.js application that presents one
 configured location calendar at a time. Visitors can switch between `/ivy/`
 and `/hawthorne/`, and the root route returns them to the last location saved
 on their device. Ivy Station is the first-visit default. Each location page
-puts a concise, Pacific-time daily agenda above the full Google Calendar
-embed.
+groups its name, current Pacific date, and daily agenda in one compact card
+above the full Google Calendar embed. The card sizes to its content, with
+location/date beside the events on desktop and stacked above them on mobile.
 
-On wider screens, location navigation stays visible in a left sidebar. On
-narrower screens, an accessible hamburger opens the same navigation as a
-GSAP-animated push drawer.
+At every screen width, the hamburger opens location navigation in an accessible
+GSAP-animated push drawer. The closed drawer reserves no sidebar space.
 
 ## Project structure
 
