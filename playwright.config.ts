@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const previewOrigin = "http://127.0.0.1:4173";
+const previewOrigin = process.env.PLAYWRIGHT_PREVIEW_ORIGIN ?? "http://127.0.0.1:4173";
 const configuredBasePath = process.env.PLAYWRIGHT_BASE_PATH?.trim() ?? "";
 const previewBasePath = configuredBasePath
   ? `/${configuredBasePath.replace(/^\/+|\/+$/g, "")}`

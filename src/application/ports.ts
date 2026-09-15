@@ -5,7 +5,6 @@ import type {
 } from "@/src/domain/site";
 
 export type CalendarEmbed = Readonly<{
-  fallbackHref: string;
   src: string;
 }>;
 
@@ -24,13 +23,17 @@ export type CalendarAgenda = Readonly<{
   availableDateKeys: readonly string[];
   events: readonly CalendarAgendaItem[];
   failedSourceCount: number;
+  generatedAt: string;
   initialDateKey: string;
   sourceCount: number;
   timeZone: string;
 }>;
 
-export interface CalendarProvider {
+export interface CalendarAgendaProvider {
   getAgenda(source: CalendarSource): Promise<CalendarAgenda>;
+}
+
+export interface CalendarEmbedProvider {
   getEmbed(source: CalendarSource): CalendarEmbed;
 }
 

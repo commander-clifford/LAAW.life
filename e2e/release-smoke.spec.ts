@@ -1,4 +1,5 @@
 import { expect, test, type Route } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 const googleCalendarPattern = "https://calendar.google.com/**";
 
@@ -12,6 +13,19 @@ async function fulfillCalendarFixture(route: Route): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await page.route(googleCalendarPattern, fulfillCalendarFixture);
+});
+
+test("the fine-print footer opens the unchanged original site", async ({ page }) => {
+  await page.goto("ivy/");
+  const originalLink = page.getByRole("contentinfo").getByRole("link", { name: "OG — original LAAW.life site" });
+  await expect(originalLink).toHaveText("OG");
+  await expect(page.getByRole("navigation").getByText("OG", { exact: true })).toHaveCount(0);
+  await originalLink.click();
+  await expect(page).toHaveURL(/\/og\/$/);
+  await expect(page.locator("iframe")).toHaveCount(2);
+  await expect(page.locator(".site-header, .site-footer, script[src*='_next']")).toHaveCount(0);
+  const response = await page.request.get(page.url());
+  expect(await response.text()).toBe(readFileSync(new URL("../public/og/index.html", import.meta.url), "utf8"));
 });
 
 test("a first-time visitor reaches Ivy and can switch locations", async ({ page }) => {
@@ -30,7 +44,12 @@ test("a first-time visitor reaches Ivy and can switch locations", async ({ page 
     "content",
     "View the Ivy Station calendar for LAAW Life.",
   );
-  await expect(page.getByRole("heading", { level: 1, name: "Ivy Station" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
+  await expect(page.locator(".site-header")).not.toContainText("Ivy Station");
+  await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Full calendar" }),
+  ).toHaveCount(0);
   const calendarFrame = page.locator("iframe.calendar-frame");
   await expect(calendarFrame).toHaveCount(1);
   await expect(calendarFrame).toHaveAttribute("title", "Ivy Station Calendar");
@@ -40,7 +59,7 @@ test("a first-time visitor reaches Ivy and can switch locations", async ({ page 
   await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
   await expect(
     page.getByRole("link", { name: "Open the calendar in a new tab" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   const firstFrame = await calendarFrame.elementHandle();
   const reloadButton = page.getByRole("button", { name: "Reload calendar" });
@@ -76,7 +95,7 @@ test("a first-time visitor reaches Ivy and can switch locations", async ({ page 
   );
   await expect(
     page.getByRole("link", { name: "Open the calendar in a new tab" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(reloadButton).toBeVisible();
 
   await page.unroute(googleCalendarPattern);
@@ -92,7 +111,8 @@ test("a first-time visitor reaches Ivy and can switch locations", async ({ page 
     "content",
     "View the Hawthorne calendar for LAAW Life.",
   );
-  await expect(page.getByRole("heading", { level: 1, name: "Hawthorne" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
+  await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
   await expect(page.getByText("Loading calendar…")).toBeVisible();
   await expect(page.locator("iframe.calendar-frame")).toHaveClass(
     /calendar-frame-concealed/,
@@ -139,7 +159,8 @@ test("tablet navigation traps and restores keyboard focus", async ({ page }) => 
 
   await opener.focus();
   await page.keyboard.press("Enter");
-  const drawer = page.getByRole("dialog", { name: "Choose a location" });
+  const drawer = page.getByRole("dialog", { name: "Location navigation" });
+  await expect(drawer.getByRole("heading")).toHaveCount(0);
   await expect(drawer).toHaveAttribute("aria-modal", "true");
   await expect
     .poll(() =>
@@ -163,6 +184,26 @@ test("tablet navigation traps and restores keyboard focus", async ({ page }) => 
   await page.keyboard.press("Escape");
   await expect(opener).toBeFocused();
   await expect(drawer).toBeHidden();
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  const locationHeading = page.getByRole("heading", { level: 1 });
+  const brandBox = (await page.getByRole("link", { name: "LAAW.life", exact: true }).boundingBox())!;
+  const headingBox = (await locationHeading.boundingBox())!;
+  expect(headingBox.y).toBeGreaterThan(brandBox.y + brandBox.height);
+  expect(headingBox.x).toBeGreaterThanOrEqual(0);
+  expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(320);
+  const dateBox = (await page.locator(".today-schedule-date").boundingBox())!;
+  expect(dateBox.y).toBeGreaterThan(headingBox.y + headingBox.height);
+
+  await opener.click();
+  await page.getByRole("link", { name: "Hawthorne" }).click();
+  await expect(locationHeading).toHaveText("Hawthorne");
+  await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
+  await expect(drawer).toBeHidden();
+  const hawthorneBox = (await locationHeading.boundingBox())!;
+  expect(hawthorneBox.x + hawthorneBox.width).toBeLessThanOrEqual(320);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Daily events" })).toBeVisible();
 });
 
 test("persistent navigation starts only when the calendar has enough room", async ({ page }) => {
@@ -189,6 +230,8 @@ test("persistent navigation starts only when the calendar has enough room", asyn
   await expect(opener).toBeHidden();
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
   await expect(drawer).toHaveAttribute("role", "complementary");
+  await expect(drawer).toHaveAttribute("aria-label", "Location navigation");
+  await expect(drawer.locator(".location-drawer-header")).toBeHidden();
   await expect(drawer).not.toHaveAttribute("aria-modal", /.+/);
   await expect(page.getByRole("link", { name: /Ivy Station/ })).toBeFocused();
   await expect
@@ -203,7 +246,7 @@ test("persistent navigation starts only when the calendar has enough room", asyn
   const calendar = page.locator("iframe.calendar-frame");
   expect((await calendar.boundingBox())?.width).toBeGreaterThan(700);
 
-  const brand = page.getByRole("link", { name: "LAAW Life" });
+  const brand = page.getByRole("link", { name: "LAAW.life", exact: true });
   await brand.focus();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: /Ivy Station/ })).toBeFocused();
@@ -224,6 +267,7 @@ test("an unknown route has branded recovery and a working skip link", async ({
   const response = await page.goto("missing-page/");
 
   expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Page not found");
   await expect(page).toHaveTitle("Page not found | LAAW Life");
   await expect(
     page.getByRole("heading", { level: 1, name: "Page not found" }),
@@ -262,6 +306,7 @@ test.describe("without JavaScript", () => {
     await page.goto("./");
 
     const main = page.getByRole("main");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Choose a location");
     await expect(
       main.getByRole("heading", { level: 1, name: "Choose a location" }),
     ).toBeVisible();

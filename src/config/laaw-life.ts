@@ -53,7 +53,7 @@ const hawthorneCalendarSrc = [
 export const laawLifeTenant = {
   id: "laaw-life",
   slug: "laaw-life",
-  displayName: "LAAW Life",
+  displayName: "LAAW.life",
   defaultLocationId: "ivy-station",
   locations: [
     {

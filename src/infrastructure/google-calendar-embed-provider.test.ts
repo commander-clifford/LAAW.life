@@ -1,21 +1,37 @@
 import { describe, expect, it } from "vitest";
 
 import { googleCalendarEmbedProvider } from "@/src/infrastructure/google-calendar-embed-provider";
+import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
 const validSource =
   "https://calendar.google.com/calendar/embed?ctz=America%2FLos_Angeles&src=calendar%40example.com";
 
 describe("Google Calendar embed provider", () => {
-  it("returns validated embed and recovery URLs", () => {
+  it("returns the validated embed URL", () => {
     expect(
       googleCalendarEmbedProvider.getEmbed({
         provider: "google-calendar-embed",
         src: validSource,
       }),
     ).toEqual({
-      fallbackHref: validSource,
       src: validSource,
     });
+  });
+
+  it("deduplicates repeated calendar sources for agenda generation", () => {
+    const parsed = parseGoogleCalendarEmbed(
+      `${validSource}&src=calendar%40example.com`,
+    );
+
+    expect(parsed.calendarIds).toEqual(["calendar@example.com"]);
+  });
+
+  it("rejects whitespace or control characters in plain calendar IDs", () => {
+    expect(() =>
+      parseGoogleCalendarEmbed(
+        "https://calendar.google.com/calendar/embed?src=%0Acalendar%40example.com",
+      ),
+    ).toThrow("Invalid Google Calendar ID");
   });
 
   it.each([

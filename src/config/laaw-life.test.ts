@@ -71,7 +71,6 @@ describe("LAAW Life configuration", () => {
       }
       expect(googleCalendarEmbedProvider.getEmbed(location.calendar)).toEqual(
         {
-          fallbackHref: location.calendar.src,
           src: location.calendar.src,
         },
       );

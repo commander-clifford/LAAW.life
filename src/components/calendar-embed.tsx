@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,7 +12,6 @@ const slowLoadDelayMilliseconds = 10_000;
 type CalendarStatus = "error" | "loading" | "ready" | "slow";
 
 type CalendarEmbedProps = Readonly<{
-  fallbackHref: string;
   src: string;
   title: string;
 }>;
@@ -37,12 +35,7 @@ function getServerReadiness(): boolean {
   return false;
 }
 
-export function CalendarEmbed({
-  fallbackHref,
-  src,
-  title,
-}: CalendarEmbedProps) {
-  const helpId = useId();
+export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const isClientReady = useSyncExternalStore(
     subscribeToClientReadiness,
@@ -101,7 +94,6 @@ export function CalendarEmbed({
           <iframe
             key={attempt}
             ref={frameRef}
-            aria-describedby={helpId}
             aria-hidden={isFrameConcealed || undefined}
             className={`calendar-frame${
               isFrameConcealed ? " calendar-frame-concealed" : ""
@@ -120,20 +112,8 @@ export function CalendarEmbed({
           />
         )}
       </div>
-      <div className="calendar-recovery" id={helpId}>
-        <p>
-          Times are shown in Pacific Time. Trouble viewing the embed?{" "}
-          <a
-            className="calendar-link"
-            href={fallbackHref}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Open the calendar in a new tab
-          </a>
-          .
-        </p>
-        {canRetry ? (
+      {canRetry ? (
+        <div className="calendar-recovery">
           <button
             className="calendar-retry"
             type="button"
@@ -141,8 +121,8 @@ export function CalendarEmbed({
           >
             Reload calendar
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

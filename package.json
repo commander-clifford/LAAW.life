@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "tsx scripts/generate-calendar-agendas.ts",
+    "predev": "npm run calendar:generate",
     "dev": "next dev",
     "build": "next build && node scripts/verify-static-export.mjs",
     "calendar:check-public": "node scripts/verify-public-calendars.mjs",
+    "calendar:fingerprint": "node scripts/calendar-feed-fingerprint.mjs",
+    "calendar:generate": "tsx scripts/generate-calendar-agendas.ts",
     "check": "npm run lint && npm run typecheck && npm test",
     "lint": "eslint app src e2e scripts next.config.ts playwright.config.ts vitest.config.ts eslint.config.mjs --max-warnings=0",
     "preview": "node scripts/serve-static-export.mjs",
@@ -31,6 +35,7 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.3",
+    "tsx": "^4.23.13",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "4.1.11"
   }

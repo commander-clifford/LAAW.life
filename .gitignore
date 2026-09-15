@@ -1,4 +1,6 @@
 node_modules/
+.calendar-data/
+public/calendar-data/
 .next/
 dist/
 out/

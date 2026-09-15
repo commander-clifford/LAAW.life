@@ -1,0 +1,5 @@
+# Root-domain static export. Each route is a directory containing index.html.
+DirectoryIndex index.html
+DirectorySlash On
+FallbackResource disabled
+ErrorDocument 404 /404.html

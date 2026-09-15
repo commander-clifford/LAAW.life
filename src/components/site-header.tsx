@@ -625,7 +625,7 @@ export function SiteHeader({
         data-navigation-ready={isNavigationReady}
         role={isNarrowNavigation ? "dialog" : "complementary"}
         aria-modal={isNarrowNavigation || undefined}
-        aria-labelledby="location-drawer-title"
+        aria-label="Location navigation"
         aria-hidden={!isDrawerAvailable}
       >
         <div className="location-drawer-header">
@@ -638,7 +638,6 @@ export function SiteHeader({
           >
             <span aria-hidden="true">×</span>
           </button>
-          <h2 id="location-drawer-title">Choose a location</h2>
         </div>
         <nav aria-label="Location calendars">
           <ul className="location-list">
@@ -690,6 +689,14 @@ export function SiteHeader({
       >
         <div className="site-main-content">{children}</div>
       </main>
+
+      <footer
+        className="site-footer"
+        data-page-canvas=""
+        data-page-interaction-surface=""
+      >
+        <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`} aria-label="OG — original LAAW.life site">OG</a>
+      </footer>
 
       <div
         className="drawer-overlay"
