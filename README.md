@@ -21,9 +21,10 @@ not run the application or generate the calendar data.
   its original styling.
 - Missing addresses return the branded recovery page with an HTTP 404 status.
 
-The [September 15 release record](docs/release-2026-09-15.md) documents the live
-Option 4 release, archive hash, original-page verification, and the separately
-published correction for HostGator's inherited fallback rule.
+The [V2 closeout record](docs/release-2026-09-16-v2.md) tracks verification and
+publication of `v2.0.0`. The [September 15 release record](docs/release-2026-09-15.md)
+preserves the initial Option 4 archive hash, original-page verification, and the
+separately published correction for HostGator's inherited fallback rule.
 
 ## Where the website and automation run
 
@@ -38,6 +39,8 @@ application changes, calendar-generation changes, and Apache configuration.
 Keep the tested source revision identifiable so the live files can be traced
 back to it. A Pages deployment is a preview deployment; it does not publish the
 HostGator site or activate production calendar refreshes.
+Creating a GitHub tag or release also does not deploy HostGator: the workflows
+have no tag or release trigger. Full-site publication is a separate static upload.
 
 The Pages workflow runs application checks, Python uploader tests, a root-path
 release check, then a second build and browser check with the Pages base path.
@@ -45,11 +48,16 @@ Pull requests targeting `main` or `v2-dev` run quality checks without publishing
 The `github-pages` environment should allow deployments only from `v2-dev`.
 See [Pages preview setup](docs/github-pages-preview.md).
 
-### Calendar activation status
+### Production and calendar verification
 
-Activation checkpoint on September 15, 2026:
+Verification checkpoint on September 16, 2026:
 
-- The live Option 4 website and its route correction had been verified.
+- The live `/`, `/ivy/`, and `/hawthorne/` HTML matched the deployed GA4-enabled
+  export byte-for-byte. Each includes the verified public measurement ID
+  `G-6YWHB69NED`. The source through `de7f9a5` includes these analytics changes
+  without changing the Option 4 design.
+- `/og/` returned HTTP 200 and retained the original HTML hash. It has no
+  analytics instrumentation.
 - The approved 30-minute interval (`023ac00`) and operating documentation
   (`7954b29`) were published to both `main` and `v2-dev`. The activation revision
   is `7954b298dbd156a1ffd41ae79fe9f5be24188d43`.
@@ -62,14 +70,17 @@ Activation checkpoint on September 15, 2026:
   passed generation, FTPS upload, and exact public HTTPS verification for both
   locations. Their public snapshots were generated at 10:29 UTC on September 15.
 - `FTP_CALENDAR_REFRESH_ENABLED` is `true`; scheduled uploads are enabled.
-  GitHub reports the workflow as active on default branch `main`. As of
-  September 15 at 11:18 UTC, the first scheduled run had not appeared in the
-  [workflow history](https://github.com/commander-clifford/LAAW.life/actions/workflows/refresh-ftp-calendar.yml).
+  The [verified scheduled run](https://github.com/commander-clifford/LAAW.life/actions/runs/35090646732)
+  started on September 16 at 11:30:07 UTC from `main` revision `53cc549` and
+  passed generation, FTPS upload, and exact public HTTPS validation.
+  An independent public check matched its generated timestamps:
+  `2026-09-16T11:30:32.061Z` for Ivy Station and
+  `2026-09-16T11:30:33.367Z` for Hawthorne.
 - The [Pages deployment for the activation revision](https://github.com/commander-clifford/LAAW.life/actions/runs/34959908222)
   passed its quality, build, and deployment checks.
 
-The live connection and first manual refresh are verified. The automatic
-schedule is enabled; its first successful run is still awaiting verification.
+The live connection, manual refresh, and a real automatic scheduled refresh
+are verified. The schedule targets 30 minutes; GitHub may delay execution.
 
 ## Source files and generated output
 
@@ -101,8 +112,10 @@ Hawthorne. There is no database, CMS, or visitor identity service in this versio
 
 ## Local setup and everyday commands
 
-Optional free GA4 analytics is prepared but remains disabled until a verified
-measurement ID is supplied for a production build. See the
+Free GA4 analytics is active on production. Keep
+`NEXT_PUBLIC_GA_MEASUREMENT_ID=G-6YWHB69NED` in each full production build so the
+tag remains present. Local and Pages previews do not collect live analytics;
+the original `/og/` page remains uninstrumented. See the
 [analytics setup and verification guide](docs/google-analytics.md).
 
 Use Node.js 24 and npm, matching the GitHub workflows. Python 3.13 matches the
@@ -252,8 +265,9 @@ receive the exact uploaded JSON, not a fallback HTML page or an older copy.
 ## Publish a complete website update
 
 Use the [HostGator upload and rollback guide](docs/hostgator-release.md) alongside
-the [actual release record](docs/release-2026-09-15.md). The release record captures
-the production-specific routing correction that followed the initial archive.
+the [V2 closeout record](docs/release-2026-09-16-v2.md). The historical
+[September 15 record](docs/release-2026-09-15.md) captures the production-specific
+routing correction that followed the initial archive.
 
 1. Finish the source changes, tests, and review. Commit and push the approved
    source to GitHub **before** changing production. Promote calendar updater
@@ -269,7 +283,8 @@ the production-specific routing correction that followed the initial archive.
    python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
    env -u PAGES_BASE_PATH -u NEXT_PUBLIC_BASE_PATH \
      -u NEXT_PUBLIC_CALENDAR_AGENDA_URL -u PLAYWRIGHT_BASE_PATH \
-     -u PLAYWRIGHT_PREVIEW_ORIGIN -u PREVIEW_BASE_PATH npm run release:check
+     -u PLAYWRIGHT_PREVIEW_ORIGIN -u PREVIEW_BASE_PATH \
+     NEXT_PUBLIC_GA_MEASUREMENT_ID=G-6YWHB69NED npm run release:check
    npm run calendar:check-public
    node scripts/package-hostgator-release.mjs /tmp/laaw-life-release-YYYY-MM-DD.tar.gz
    tar -tzf /tmp/laaw-life-release-YYYY-MM-DD.tar.gz
@@ -278,6 +293,8 @@ the production-specific routing correction that followed the initial archive.
    Replace the date placeholder and use a new archive filename each time.
    The packaging script refuses to overwrite an existing archive. A later build
    fetches newer calendar data, so its archive hash can legitimately differ.
+   The measurement ID is a public identifier, not a credential; omitting it
+   from a full production build removes analytics from the generated pages.
 4. Back up the complete live document root and hidden files outside public
    hosting. Preserve the current production `.htaccess`, including required
    host-specific rules, so it can be restored. Verify the destination belongs
@@ -303,6 +320,9 @@ the production-specific routing correction that followed the initial archive.
   workflow's verification step checks this automatically after a data refresh.
 - Verify the OG page remains unchanged. Its original SHA-256 is
   `89498f5e44981f74607672dbfffb8c98800e20c5d36b350590b73c2d5ede343f`.
+- Confirm the modern pages retain the production GA4 tag and follow the
+  [analytics verification guide](docs/google-analytics.md). `/og/` must remain
+  uninstrumented.
 
 ## Pause, recover, or roll back
 

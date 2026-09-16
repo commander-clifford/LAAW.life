@@ -3,6 +3,8 @@
 Preview address: [commander-clifford.github.io/LAAW.life](https://commander-clifford.github.io/LAAW.life/).
 The preview follows **`v2-dev`**, while `main` remains the default branch.
 The HostGator site at `laaw.life` and its FTPS upload workflow are separate.
+See the [V2 closeout record](release-2026-09-16-v2.md) for release verification
+and publication status.
 
 ## What publishes
 
@@ -18,19 +20,22 @@ The HostGator site at `laaw.life` and its FTPS upload workflow are separate.
 
 Only the verified `out/` artifact is published. Next's internal `.next` output
 is never uploaded, and no custom domain is attached to the preview.
+Creating a GitHub tag or release does not trigger this workflow or deploy
+HostGator. Production full-site uploads remain a separate operation.
 
 ## Required repository setting
 
-Use **GitHub Actions** as the Pages build source. In the `github-pages`
-environment's deployment branch policies, replace the `main` branch entry with
-one exact `v2-dev` branch entry. This allows preview deployments and prevents
-an older workflow still on `main` from replacing them. Retain the environment's
-other settings. The Pages API can retain `source.branch: main` metadata when
+Use **GitHub Actions** as the Pages build source. Keep the `github-pages`
+environment's deployment branch policies limited to one exact `v2-dev` branch
+entry. This allows preview deployments and prevents other branches from
+replacing them. Retain the environment's other settings. The Pages API can
+retain `source.branch: main` metadata when
 `build_type` is `workflow`; the workflow trigger and environment branch policy
 control this Actions deployment.
 
-Changing the default branch or merging the preview into `main` is not required.
-Apply and verify the environment setting before the first preview publication.
+Keep `main` as the default branch for production calendar scheduling. Promoting
+reviewed source into `main` does not change the preview's `v2-dev` deployment
+policy. Verify that policy before changing the Pages configuration.
 
 ## Calendar freshness in the preview
 
@@ -46,5 +51,8 @@ the separate production-calendar workflow on that branch updates HostGator,
 not the Pages preview.
 Do not claim an automatic refresh cadence for this preview.
 
-The prepared FTP data-refresh workflow remains disabled and main-only. No
-HostGator credentials, uploads, or refresh activation are needed for Pages.
+The separate main-only FTP data-refresh workflow is enabled. Its
+[verified scheduled run on September 16](https://github.com/commander-clifford/LAAW.life/actions/runs/35090646732)
+updated HostGator's JSON and passed exact public HTTPS verification. Its
+30-minute target does not apply to Pages, and GitHub scheduling can be delayed.
+No HostGator credentials, uploads, or refresh activation are needed for Pages.
