@@ -1,7 +1,19 @@
 # Google Analytics (GA4)
 
-Status: integration prepared, with no measurement ID configured or collection
-verified. This uses standard free GA4; no paid subscription is required.
+Status (September 16, 2026): free GA4 property and web stream created; the local
+production-build configuration contains the verified measurement ID. The site
+integration has not yet been published and live collection is not verified.
+
+- Analytics account: Clifford (`139887211`).
+- Property: LAAW.life (`554538162`), Pacific reporting time, US dollars.
+- Web stream: LAAW.life website (`15788764289`), `https://laaw.life`.
+- Measurement ID: `G-6YWHB69NED` (public tag identifier, not a credential).
+- Enhanced measurement: page loads, browser-history page changes, outbound clicks,
+  and scrolling enabled. Site search, form, video, and download events disabled.
+- The owner's new Google login has verified property-level Administrator access.
+  The original administrator remains in place; no existing access was removed.
+
+This uses standard free GA4; no paid subscription is required.
 
 ## Activate
 
