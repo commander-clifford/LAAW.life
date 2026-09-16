@@ -34,7 +34,8 @@ export function LocationPreferenceRedirect({
           locations.find(({ id }) => id === defaultLocationId);
 
         if (isCurrent && location) {
-          router.replace(getLocationPath(location));
+          // Keep campaign/source parameters when the home page selects a location.
+          router.replace(`${getLocationPath(location)}${window.location.search}${window.location.hash}`);
         }
       } catch {
         // The server-rendered location links remain usable if storage is blocked.

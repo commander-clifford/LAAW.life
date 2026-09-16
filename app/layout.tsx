@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { SiteHeader } from "@/src/components/site-header";
+import { GoogleAnalytics } from "@/src/components/google-analytics";
 import { siteCatalog } from "@/src/infrastructure/static-site-catalog";
 
 import "./globals.css";
@@ -28,6 +29,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>
+        <GoogleAnalytics />
         <SiteHeader
           siteName={tenant.displayName}
           tenantId={tenant.id}

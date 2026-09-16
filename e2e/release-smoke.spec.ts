@@ -69,6 +69,11 @@ test.beforeEach(async ({ page }) => {
   await page.route(googleCalendarPattern, fulfillCalendarFixture);
 });
 
+test("the home redirect preserves traffic-source parameters", async ({ page }) => {
+  await page.goto("./?utm_source=newsletter&utm_medium=email&utm_campaign=calendar");
+  await expect(page).toHaveURL(/\/ivy\/\?utm_source=newsletter&utm_medium=email&utm_campaign=calendar$/);
+});
+
 test("the fine-print footer opens the unchanged original site", async ({ page }) => {
   await page.goto("ivy/");
   const originalLink = page.getByRole("contentinfo").getByRole("link", { name: "OG — original LAAW.life site" });

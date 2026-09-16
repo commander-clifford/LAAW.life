@@ -101,6 +101,10 @@ Hawthorne. There is no database, CMS, or visitor identity service in this versio
 
 ## Local setup and everyday commands
 
+Optional free GA4 analytics is prepared but remains disabled until a verified
+measurement ID is supplied for a production build. See the
+[analytics setup and verification guide](docs/google-analytics.md).
+
 Use Node.js 24 and npm, matching the GitHub workflows. Python 3.13 matches the
 uploader's workflow runtime; Python is used for its checks and transfer tools.
 The packaging command also uses `tar`. Run commands from the repository root.

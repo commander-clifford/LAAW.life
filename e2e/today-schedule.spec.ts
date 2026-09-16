@@ -28,6 +28,15 @@ function pacificDay(dateKey: string): Date {
   return new Date(`${dateKey}T19:00:00Z`);
 }
 
+// A build made after Pacific noon must not look hours into the future relative
+// to the test clock: the application correctly rejects future-dated snapshots.
+function snapshotDay(): Date {
+  return new Date(Math.max(
+    pacificDay(agenda.initialDateKey).getTime(),
+    ...Object.values(agendas).map((source) => Date.parse(source.generatedAt)),
+  ));
+}
+
 test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
@@ -40,7 +49,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("a new public snapshot refreshes an open page and failures keep the last good schedule", async ({ page }) => {
-  await page.clock.install({ time: pacificDay(agenda.initialDateKey) });
+  await page.clock.install({ time: snapshotDay() });
   const seed = agenda.events.find((event) => event.dateKeys.includes(agenda.initialDateKey))!;
   expect(seed).toBeTruthy();
   const updated = {
@@ -156,7 +165,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
 for (const width of [1440, 393, 320]) {
   test(`the unified card fills available width up to 512px and wraps long schedules at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.clock.setFixedTime(pacificDay(agenda.initialDateKey));
+    await page.clock.setFixedTime(snapshotDay());
     let eventCount = 1;
     await page.route("**/calendar-data/agendas.json", (route) => {
       const payload = Object.fromEntries(Object.entries(agendas).map(([id, source]) => {
