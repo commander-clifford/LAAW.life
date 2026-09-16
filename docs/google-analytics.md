@@ -1,8 +1,8 @@
 # Google Analytics (GA4)
 
-Status (September 16, 2026): free GA4 property and web stream created; the local
-production-build configuration contains the verified measurement ID. The site
-integration has not yet been published and live collection is not verified.
+Status (September 16, 2026): deployed to HostGator and collecting live visits.
+GA4 Realtime confirmed an active user, the Ivy Station page view, `first_visit`,
+and `session_start`. See the [release record](release-2026-09-16-ga4.md).
 
 - Analytics account: Clifford (`139887211`).
 - Property: LAAW.life (`554538162`), Pacific reporting time, US dollars.
@@ -15,12 +15,11 @@ integration has not yet been published and live collection is not verified.
 
 This uses standard free GA4; no paid subscription is required.
 
-## Activate
+## Maintain or rebuild
 
-1. In [Google Analytics](https://analytics.google.com/), select the owner's
-   appropriate account. Reuse an existing LAAW.life GA4 property/web stream if
-   present; otherwise create one for `https://laaw.life`, using Pacific reporting
-   time. Copy its **Measurement ID** (`G-…`), not the numeric property ID.
+1. In [Google Analytics](https://analytics.google.com/), select the existing
+   LAAW.life property listed above. Reuse its **Measurement ID** (`G-…`), not
+   the numeric property ID; do not create another property for this site.
 2. Under Admin → Data streams → the web stream → Enhanced measurement, enable
    **Page views**, including browser history changes, and **Outbound clicks**.
    Automatic initial page views and history views are the only page-view
