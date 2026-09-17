@@ -24,6 +24,14 @@ not run the application or generate the calendar data.
 - The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/).
   Its HTML is preserved byte-for-byte, with both original calendar embeds and
   its original styling.
+- The compact footer links to the locations, OG Regular, and Clifford's public
+  GitHub profile. Its **Appearance** control follows the device by default, or
+  saves an explicit light or muted charcoal theme in this browser. The original
+  OG page and Google's embedded calendar retain their own appearance.
+- **Buy Clifford a beer** opens an accessible tip dialog with preset amounts and
+  a custom amount, including $2. Payments are not connected yet: the dialog
+  explicitly says so and checkout is disabled until a payment destination is
+  confirmed. No payment account or destination is assumed.
 - Missing addresses return the branded recovery page with an HTTP 404 status.
 
 The [V2 closeout record](docs/release-2026-09-16-v2.md) tracks verification and

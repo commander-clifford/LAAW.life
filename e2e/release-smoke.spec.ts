@@ -77,11 +77,11 @@ test("the home redirect preserves traffic-source parameters", async ({ page }) =
   await expect(page).toHaveURL(/\/ivy\/\?utm_source=newsletter&utm_medium=email&utm_campaign=calendar$/);
 });
 
-test("the drawer opens the unchanged original site without a redundant footer link", async ({ page }) => {
+test("the drawer opens the unchanged original site", async ({ page }) => {
   await page.goto("ivy/");
-  await expect(page.locator("footer, .site-footer")).toHaveCount(0);
+  await expect(page.getByRole("contentinfo")).toBeVisible();
   await page.getByRole("button", { name: "Open location navigation" }).click();
-  const originalLink = page.getByRole("navigation").getByRole("link", { name: "OG Regular", exact: true });
+  const originalLink = page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "OG Regular", exact: true });
   await originalLink.click();
   await expect(page).toHaveURL(/\/og\/$/);
   await expect(page.locator("iframe")).toHaveCount(2);
@@ -168,7 +168,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   });
   await page.getByRole("button", { name: "Open location navigation" }).click();
   await page.getByRole("radio", { name: "Hawthorne", exact: true }).check();
-  await page.getByRole("link", { name: "Hawthorne" }).click();
+  await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne" }).click();
 
   await expect(page).toHaveURL(/\/hawthorne\/$/);
   await expect(page).toHaveTitle("Hawthorne Calendar | LAAW Life");
@@ -271,7 +271,7 @@ test("blocked storage reports an unsaved remember choice without preventing navi
   await remember.click();
   await expect(remember).not.toBeChecked();
   await expect(page.getByRole("status").filter({ hasText: "This browser couldn't save your choice." })).toBeVisible();
-  await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
+  await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(page).toHaveURL(/\/hawthorne\/$/);
 });
 

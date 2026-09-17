@@ -81,7 +81,7 @@ test("a new public snapshot refreshes an open page and failures keep the last go
   await expect.poll(() => requests).toBeGreaterThan(beforeOlder);
   await expect(events).toHaveText(["Updated community event"]);
   await page.getByRole("button", { name: "Open location navigation" }).click();
-  await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
+  await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(events).not.toContainText(["Updated community event"]);
 });
@@ -278,18 +278,18 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   expect(calendarRequests).toBe(1);
   await page.getByRole("button", { name: "Open location navigation" }).click();
-  await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
+  await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(calendarRequests).toBe(1);
 });
 
-test("main fits its content and major blocks share the outer gutter without a footer", async ({ page }, testInfo) => {
+test("main fits its content and major blocks share the outer gutter with a compact footer", async ({ page }, testInfo) => {
   for (const [width, height] of [[320, 667], [393, 852], [430, 932], [393, 1200], [1440, 1000]]) {
     await page.setViewportSize({ width, height });
     for (const slug of ["ivy", "hawthorne"]) {
       await page.goto(`${slug}/`);
       await expect(page.locator(".today-schedule")).toHaveAttribute("aria-busy", "false");
-      await expect(page.locator("footer, .site-footer")).toHaveCount(0);
+      await expect(page.getByRole("contentinfo")).toHaveCount(1);
       for (const open of [false, true]) {
         if (open) {
           await page.getByRole("button", { name: "Open calendar", exact: true }).click();
@@ -300,14 +300,16 @@ test("main fits its content and major blocks share the outer gutter without a fo
         expect(main.height).toBeCloseTo(content.height, 0);
         expect(content.x).toBeCloseTo(Math.min(32, Math.max(16, width * 0.04)), 0);
         expect(width - content.x - content.width).toBeCloseTo(content.x, 0);
-        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner"]) {
+        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner", ".site-footer"]) {
           expect((await page.locator(selector).boundingBox())!.x).toBeCloseTo(content.x, 0);
         }
         if (width < 512) {
           expect((await page.locator(".daily-information-card").boundingBox())!.width).toBeCloseTo(content.width, 0);
         }
         const pageSize = await page.evaluate(() => ({height:document.documentElement.scrollHeight,width:document.documentElement.scrollWidth}));
-        expect(pageSize.height).toBeLessThanOrEqual(Math.ceil(Math.max(height, main.y + main.height)) + 1);
+        const footer = (await page.getByRole("contentinfo").boundingBox())!;
+        expect(footer.y).toBeCloseTo(main.y + main.height, 0);
+        expect(pageSize.height).toBeLessThanOrEqual(Math.ceil(Math.max(height, footer.y + footer.height)) + 1);
         expect(pageSize.width).toBeLessThanOrEqual(width);
         if (slug === "ivy" && [393, 1440].includes(width) && height !== 1200) {
           const screenshotPath = testInfo.outputPath(`layout-${width}-${open ? "open" : "closed"}.png`);

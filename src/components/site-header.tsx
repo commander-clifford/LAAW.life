@@ -12,6 +12,7 @@ import {
 } from "@/src/application/location-routing";
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
+import { SiteFooter } from "@/src/components/site-footer";
 
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 const pageCanvasSelector = "[data-page-canvas]";
@@ -613,6 +614,8 @@ export function SiteHeader({
       >
         <div className="site-main-content">{children}</div>
       </main>
+
+      <SiteFooter locations={locations} />
 
       <div
         className="drawer-overlay"
