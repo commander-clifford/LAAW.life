@@ -13,14 +13,14 @@ export function createLocationPreferenceStore(
   return {
     async getLastLocationId(tenantId) {
       try {
-        return getStorage()?.getItem(getPreferenceKey(tenantId)) ?? null;
+        return getStorage()?.getItem(getPreferenceKey(tenantId)) || null;
       } catch {
         return null;
       }
     },
     async setLastLocationId(tenantId, locationId) {
       try {
-        getStorage()?.setItem(getPreferenceKey(tenantId), locationId);
+        getStorage()?.setItem(getPreferenceKey(tenantId), locationId ?? "");
       } catch {
         // Browsing modes that disable storage should not block navigation.
       }

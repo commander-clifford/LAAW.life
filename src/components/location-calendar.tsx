@@ -2,7 +2,7 @@ import type {
   CalendarAgenda,
   CalendarEmbedProvider,
 } from "@/src/application/ports";
-import { CalendarEmbed } from "@/src/components/calendar-embed";
+import { CalendarDisclosure } from "@/src/components/calendar-disclosure";
 import { LiveCalendarSchedule } from "@/src/components/live-calendar-schedule";
 import type { Location } from "@/src/domain/site";
 
@@ -26,7 +26,7 @@ export function LocationCalendar({
         agenda={agenda}
         locationId={location.id}
       />
-      <CalendarEmbed
+      <CalendarDisclosure
         key={location.id}
         src={embed.src}
         title={`${location.calendarHeading} Calendar`}

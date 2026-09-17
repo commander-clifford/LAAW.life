@@ -40,7 +40,9 @@ describe("LocationCalendar", () => {
       );
 
       expect(html).not.toContain("<iframe");
-      expect(html).toContain("data-calendar-placeholder");
+      expect(html).not.toContain("data-calendar-placeholder");
+      expect(html).toContain("Open calendar");
+      expect(html).toContain('aria-expanded="false"');
       expect(html).not.toContain("today-schedule-header");
       expect(html).not.toContain("<h2");
       expect(html).toContain('aria-label="Daily events"');
@@ -52,10 +54,10 @@ describe("LocationCalendar", () => {
       expect(html).not.toContain("<time");
       expect(html).not.toContain("Thursday, September 3, 2026");
       expect(html).not.toContain("Coffee social");
-      expect(html).not.toContain("Full calendar");
+      expect(html).toContain('aria-label="Full calendar"');
       expect(html.match(/<h1\b/g)).toHaveLength(1);
       expect(html).toContain(`<h1 class="location-page-heading">${location.displayName}</h1>`);
-      expect(html).toContain("Loading calendar…");
+      expect(html).not.toContain("Loading calendar…");
       expect(html).not.toContain("Times are shown in Pacific Time.");
       expect(html).not.toContain("Trouble viewing the embed");
       expect(html).not.toContain("Open the calendar in a new tab");

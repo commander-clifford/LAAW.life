@@ -38,6 +38,9 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   await expect(drawer).not.toBeInViewport();
   await expect(drawer).not.toHaveAttribute("aria-modal", "true");
   await expectPageInteractionState(page, false);
+  if (await page.getByRole("button", { name: "Open calendar", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  }
   await expect(calendar).toBeVisible();
   await expect(card.locator(".today-schedule-date time")).toBeVisible();
 
@@ -53,10 +56,10 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   expect(Math.abs(mainBox.x)).toBeLessThan(1);
   expect(Math.abs(mainBox.width - layoutWidth)).toBeLessThan(1);
   expect(Math.abs(contentBox.x + contentBox.width / 2 - layoutWidth / 2)).toBeLessThan(1);
-  expect(Math.abs(cardBox.x + cardBox.width / 2 - layoutWidth / 2)).toBeLessThan(1);
+  expect(Math.abs(cardBox.x - contentBox.x)).toBeLessThan(1);
   expect(Math.abs(calendarBox.x - contentBox.x)).toBeLessThan(1);
-  expect(Math.abs(calendarBox.width - contentBox.width)).toBeLessThan(1);
-  expect(calendarBox.width).toBeGreaterThan(layoutWidth - 40);
+  expect(calendarBox.width).toBeCloseTo(Math.min(800, contentBox.width - 48), 0);
+  expect(calendarBox.height).toBeLessThanOrEqual(448);
   expect(cardBox.x).toBeGreaterThanOrEqual(0);
   expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewportWidth);
   expect(calendarBox.y).toBeGreaterThan(cardBox.y + cardBox.height);
@@ -74,11 +77,11 @@ test("the home redirect preserves traffic-source parameters", async ({ page }) =
   await expect(page).toHaveURL(/\/ivy\/\?utm_source=newsletter&utm_medium=email&utm_campaign=calendar$/);
 });
 
-test("the fine-print footer opens the unchanged original site", async ({ page }) => {
+test("the drawer opens the unchanged original site without a redundant footer link", async ({ page }) => {
   await page.goto("ivy/");
-  const originalLink = page.getByRole("contentinfo").getByRole("link", { name: "OG — original LAAW.life site" });
-  await expect(originalLink).toHaveText("OG");
-  await expect(page.getByRole("navigation").getByText("OG", { exact: true })).toHaveCount(0);
+  await expect(page.locator("footer, .site-footer")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open location navigation" }).click();
+  const originalLink = page.getByRole("navigation").getByRole("link", { name: "OG Regular", exact: true });
   await originalLink.click();
   await expect(page).toHaveURL(/\/og\/$/);
   await expect(page.locator("iframe")).toHaveCount(2);
@@ -109,6 +112,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(
     page.getByRole("heading", { level: 2, name: "Full calendar" }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   const calendarFrame = page.locator("iframe.calendar-frame");
   await expect(calendarFrame).toHaveCount(1);
   await expect(calendarFrame).toHaveAttribute("title", "Ivy Station Calendar");
@@ -163,6 +167,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
     hawthorneCalendarRoutes.push(route);
   });
   await page.getByRole("button", { name: "Open location navigation" }).click();
+  await page.getByRole("radio", { name: "Hawthorne", exact: true }).check();
   await page.getByRole("link", { name: "Hawthorne" }).click();
 
   await expect(page).toHaveURL(/\/hawthorne\/$/);
@@ -173,20 +178,17 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   );
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
+  await expect(page.getByRole("main")).toBeFocused();
+  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   await expect(page.getByText("Loading calendar…")).toBeVisible();
-  await expect(page.locator("iframe.calendar-frame")).toHaveClass(
-    /calendar-frame-concealed/,
-  );
+  await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => hawthorneCalendarRoutes.length).toBe(1);
   await fulfillCalendarFixture(hawthorneCalendarRoutes[0]);
   await expect(page.locator(".calendar-shell")).toHaveAttribute(
     "aria-busy",
     "false",
   );
-  await expect(page.locator("iframe.calendar-frame")).not.toHaveClass(
-    /calendar-frame-concealed/,
-  );
-  await expect(page.getByRole("main")).toBeFocused();
+  await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expectPageInteractionState(page, false);
 
   await page.unroute(googleCalendarPattern);
@@ -207,13 +209,69 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await page.goBack();
   await expect(page).toHaveURL(/\/ivy\/$/);
 
-  // A direct location URL also updates the next visit to the root chooser.
-  await page.goto("hawthorne/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
+  // Visiting another location must not replace the explicitly remembered one.
+  await page.goto("ivy/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
   await expect.poll(() => page.evaluate(() =>
     window.localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
   )).toBe("hawthorne");
   await page.goto("./");
+  await expect(page).toHaveURL(/\/hawthorne\/$/);
+});
+
+test("drawer choices explicitly remember a destination, including OG Regular", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 667 });
+  await page.goto("ivy/");
+  const opener = page.getByRole("button", { name: "Open location navigation" });
+  await opener.click();
+  const drawer = page.locator("#location-drawer");
+  const rememberIvy = drawer.getByRole("radio", { name: "Ivy Station", exact: true });
+  const rememberOriginal = drawer.getByRole("radio", { name: "OG Regular", exact: true });
+  const original = drawer.getByRole("link", { name: "OG Regular", exact: true });
+  const defaults = drawer.getByRole("group", { name: "Start here next time" });
+  await expect(defaults).toHaveCount(1);
+  await expect(defaults.getByRole("radio")).toHaveCount(3);
+  await expect(defaults.locator("input:checked")).toHaveCount(0);
+  await expect(defaults).toContainText("Choose where LAAW.life opens.");
+  await expect(original).toHaveAttribute("href", /\/og\/$/);
+  const hawthorneBox = (await drawer.getByRole("link", { name: "Hawthorne", exact: true }).boundingBox())!;
+  expect((await original.boundingBox())!.y).toBeGreaterThan(hawthorneBox.y + hawthorneBox.height + 20);
+  expect(await drawer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await rememberIvy.click();
+  await expect(rememberIvy).toBeChecked();
+  await page.keyboard.press("ArrowDown");
+  await expect(defaults.getByRole("radio", { name: "Hawthorne", exact: true })).toBeChecked();
+  await page.keyboard.press("Tab");
+  await expect(drawer.getByRole("button", { name: "Clear preference" })).toBeFocused();
+  await rememberOriginal.click();
+  await expect(rememberOriginal).toBeChecked();
+  await expect(rememberIvy).not.toBeChecked();
+  await drawer.getByRole("button", { name: "Clear preference" }).click();
+  await expect(rememberOriginal).not.toBeChecked();
+  await rememberOriginal.click();
+  await original.click();
+  await expect(page).toHaveURL(/\/og\/$/);
+  await page.goto("hawthorne/");
+  await opener.click();
+  await expect(rememberOriginal).toBeChecked();
+  await page.goto("./?utm_source=remember-test#calendar");
+  await expect(page).toHaveURL(/\/og\/\?utm_source=remember-test#calendar$/);
+  await expect(page.locator("iframe")).toHaveCount(2);
+});
+
+test("blocked storage reports an unsaved remember choice without preventing navigation", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() { throw new DOMException("Storage is blocked", "SecurityError"); },
+    });
+  });
+  await page.goto("ivy/");
+  await page.getByRole("button", { name: "Open location navigation" }).click();
+  const remember = page.getByRole("radio", { name: "Hawthorne", exact: true });
+  await remember.click();
+  await expect(remember).not.toBeChecked();
+  await expect(page.getByRole("status").filter({ hasText: "This browser couldn't save your choice." })).toBeVisible();
+  await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(page).toHaveURL(/\/hawthorne\/$/);
 });
 
@@ -255,7 +313,7 @@ for (const storageState of ["invalid", "blocked"] as const) {
 }
 
 for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 1440]] as const) {
-  test(`${device} navigation traps focus, dismisses, and restores the correct target`, async ({ page }) => {
+  test(`${device} navigation traps focus, dismisses, and restores the correct target`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("ivy/");
 
@@ -264,6 +322,7 @@ for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 144
     const close = drawer.getByRole("button", { name: "Close location navigation" });
     const current = drawer.getByRole("link", { name: /Ivy Station/ });
     const hawthorne = drawer.getByRole("link", { name: "Hawthorne" });
+    const original = drawer.getByRole("link", { name: "OG Regular", exact: true });
     await expect(opener).toBeVisible();
     await expect(opener).toBeEnabled();
     await expect(opener).toHaveAttribute("aria-haspopup", "dialog");
@@ -277,13 +336,19 @@ for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 144
     await expect(current).toHaveAttribute("aria-current", "page");
     await expect(close).toBeFocused();
     await expectPageInteractionState(page, true);
+    if (width !== 768) {
+      await expect.poll(async () => Math.abs((await drawer.boundingBox())!.x)).toBeLessThan(1);
+      const screenshotPath = testInfo.outputPath(`drawer-${width}.png`);
+      await page.screenshot({ path: screenshotPath });
+      await testInfo.attach("drawer", { path: screenshotPath, contentType: "image/png" });
+    }
 
     await page.keyboard.press("Shift+Tab");
-    await expect(hawthorne).toBeFocused();
+    await expect(original).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(close).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(current).toBeFocused();
+    await expect(drawer.getByRole("radio", { name: "Ivy Station", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(opener).toBeFocused();
     await expect(drawer).toHaveAttribute("aria-hidden", "true");
@@ -303,7 +368,7 @@ for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 144
 
     await opener.click();
     await expect(close).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
+    await hawthorne.focus();
     await expect(hawthorne).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/hawthorne\/$/);
@@ -324,7 +389,7 @@ test("drawer state survives resizing and closed content uses the full width", as
 
   const opener = page.getByRole("button", { name: "Open location navigation" });
   const drawer = page.locator("#location-drawer");
-  const hawthorne = drawer.getByRole("link", { name: "Hawthorne" });
+  const original = drawer.getByRole("link", { name: "OG Regular", exact: true });
   await expectClosedNavigationLayout(page, 1023);
   await opener.click();
   await expect(drawer.getByRole("button", { name: "Close location navigation" })).toBeFocused();
@@ -338,7 +403,7 @@ test("drawer state survives resizing and closed content uses the full width", as
     await expect(drawer).toHaveJSProperty("inert", false);
     await expect(drawer).toBeInViewport();
     await expect(drawer.locator(".location-drawer-header")).toBeVisible();
-    await expect(hawthorne).toBeFocused();
+    await expect(original).toBeFocused();
     await expect(page.locator(".navigation-toggle")).toBeDisabled();
     await expectPageInteractionState(page, true);
   }

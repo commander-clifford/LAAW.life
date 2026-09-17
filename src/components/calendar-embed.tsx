@@ -46,7 +46,6 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
   const [status, setStatus] = useState<CalendarStatus>("loading");
   const canRetry = status === "error" || status === "slow";
   const isLoading = status === "loading";
-  const isFrameConcealed = status === "error" || isLoading;
 
   useEffect(() => {
     if (!isClientReady || status !== "loading") {
@@ -94,14 +93,10 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
           <iframe
             key={attempt}
             ref={frameRef}
-            aria-hidden={isFrameConcealed || undefined}
-            className={`calendar-frame${
-              isFrameConcealed ? " calendar-frame-concealed" : ""
-            }`}
+            className="calendar-frame"
             onLoad={() => setStatus("ready")}
             referrerPolicy="strict-origin-when-cross-origin"
             src={src}
-            tabIndex={isFrameConcealed ? -1 : undefined}
             title={title}
           />
         ) : (
@@ -121,6 +116,9 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
           >
             Reload calendar
           </button>
+          <a href={src} target="_blank" rel="noreferrer">
+            Open in Google Calendar
+          </a>
         </div>
       ) : null}
     </div>

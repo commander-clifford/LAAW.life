@@ -23,6 +23,10 @@ describe("browser location preference store", () => {
       "laaw-life:laaw-life:last-location:v1",
       "laaw-life:another-tenant:last-location:v1",
     ]);
+    await store.setLastLocationId("laaw-life", "og");
+    await expect(store.getLastLocationId("laaw-life")).resolves.toBe("og");
+    await store.setLastLocationId("laaw-life", null);
+    await expect(store.getLastLocationId("laaw-life")).resolves.toBeNull();
   });
 
   it("treats unavailable or blocked storage as an empty preference", async () => {

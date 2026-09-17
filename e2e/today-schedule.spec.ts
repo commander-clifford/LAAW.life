@@ -91,6 +91,7 @@ test("an old offline snapshot tells visitors to check the live calendar", async 
   await page.route("**/calendar-data/agendas.json", (route) => route.fulfill({ status: 503, body: "Unavailable" }));
   await page.goto("ivy/");
   await expect(page.getByRole("status").filter({ hasText: "Calendar updates are delayed." })).toBeVisible();
+  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
 });
 
@@ -153,6 +154,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
       agenda.events.filter((event) => event.dateKeys.includes(currentDateKey)).map((event) => event.title),
     );
     await expect(card.locator(".today-schedule-count, .today-event-details p")).toHaveCount(0);
+    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
     await expect(page.locator("iframe.calendar-frame")).toBeVisible();
     const renderStates: string[] = await page.evaluate(() => Reflect.get(window, "todayRenderStates"));
     expect(renderStates.some((state) => state.includes(formatDate(agenda.initialDateKey)))).toBe(false);
@@ -176,6 +178,9 @@ for (const width of [1440, 393, 320]) {
           events: Array.from({ length: eventCount }, (_, index) => ({
             ...seed,
             id: `${seed.id}-${index}`,
+            allDay: index === 0,
+            start: `${source.initialDateKey}T${index === 1 ? "16" : "18"}:00:00.000Z`,
+            end: `${source.initialDateKey}T${index === 1 ? "17" : "20"}:00:00.000Z`,
             title: index === 0 ? "Community meetup" : index === 1
               ? "A community celebration with live music, local food, and a very long event name that needs to wrap"
               : "AReallyLongUnbrokenCommunityEventNameThatMustNeverEscapeTheCardBoundary",
@@ -189,6 +194,7 @@ for (const width of [1440, 393, 320]) {
       await page.goto(`${slug}/`);
       const card = page.locator(".daily-information-card");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("text-align", "left");
       await expect(card.getByRole("heading", { level: 1 })).toHaveCount(0);
       await expect(card.locator(".today-event h2")).toHaveText(["Community meetup"]);
       const compactBox = (await card.boundingBox())!;
@@ -196,10 +202,17 @@ for (const width of [1440, 393, 320]) {
       expect(compactBox.y).toBeGreaterThan(locationBox.y + locationBox.height);
       const contentWidth = (await page.locator(".site-main-content").boundingBox())!.width;
       expect(Math.abs(compactBox.width - Math.min(contentWidth, 512))).toBeLessThan(1);
-      expect(Math.abs(compactBox.x + compactBox.width / 2 - width / 2)).toBeLessThan(1);
+      expect(Math.abs(compactBox.x - (await page.locator(".site-main-content").boundingBox())!.x)).toBeLessThan(1);
       const eventsBox = (await card.locator(".today-schedule").boundingBox())!;
       const dateBox = (await card.locator(".today-schedule-date").boundingBox())!;
       expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
+      const headingTextLeft = await page.getByRole("heading", { level: 1 }).evaluate((heading) => {
+        const range = document.createRange();
+        range.selectNodeContents(heading);
+        return range.getBoundingClientRect().x;
+      });
+      expect(Math.abs(headingTextLeft - compactBox.x)).toBeLessThan(1);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-weight", "300");
 
       eventCount = 3;
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -207,21 +220,104 @@ for (const width of [1440, 393, 320]) {
       expect(Math.abs((await card.boundingBox())!.width - Math.min(contentWidth, 512))).toBeLessThan(1);
       expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const listBox = (await card.locator(".today-event-list").boundingBox())!;
+      const firstTitleBox = (await card.locator(".today-event h2").first().boundingBox())!;
+      expect(new Set(await card.locator(".today-event time").allTextContents()).size).toBe(3);
       for (const event of await card.locator(".today-event").all()) {
         const title = (await event.locator("h2").boundingBox())!;
         const time = (await event.locator("time").boundingBox())!;
-        expect(time.x).toBeGreaterThan(title.x + title.width);
+        expect(title.x).toBeGreaterThan(time.x + time.width);
+        expect(Math.abs(time.x - listBox.x)).toBeLessThan(1);
+        expect(Math.abs(title.x - firstTitleBox.x)).toBeLessThan(1);
+        expect(title.x + title.width).toBeLessThanOrEqual(listBox.x + listBox.width + 1);
+        expect(await event.locator(":scope > :first-child").evaluate((element) => element.tagName)).toBe("TIME");
         // The smaller time shares the title's first baseline.
         expect(Math.abs(time.y - title.y)).toBeLessThan(4);
       }
       await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Open calendar", exact: true }).click();
       const calendarBox = (await page.locator("iframe.calendar-frame").boundingBox())!;
       const fullCardBox = (await card.boundingBox())!;
       expect(calendarBox.y).toBeGreaterThan(fullCardBox.y + fullCardBox.height);
-      expect(calendarBox.width).toBeGreaterThanOrEqual(compactBox.width);
+      expect(calendarBox.x).toBeCloseTo(compactBox.x, 0);
+      expect(calendarBox.width).toBeCloseTo(Math.min(800, contentWidth - 48), 0);
+      expect(calendarBox.height).toBeLessThanOrEqual(448);
+      const statusBox = (await page.locator(".calendar-status").boundingBox())!;
+      expect(statusBox.x).toBeCloseTo(compactBox.x, 0);
     }
   });
 }
+
+test("the calendar loads on first opening and keeps its loaded frame when closed", async ({ page }) => {
+  let calendarRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().startsWith("https://calendar.google.com/")) calendarRequests++;
+  });
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto("ivy/");
+  const toggle = page.getByRole("button", { name: "Open calendar", exact: true });
+  await expect(page.locator(".today-schedule")).toHaveAttribute("aria-busy", "false");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(toggle).toHaveCSS("text-decoration-line", "underline");
+  await expect(page.locator("iframe.calendar-frame")).toHaveCount(0);
+  expect(calendarRequests).toBe(0);
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  const close = page.getByRole("button", { name: "Close calendar", exact: true });
+  await expect(close).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("iframe.calendar-frame")).toBeVisible();
+  await expect.poll(() => calendarRequests).toBe(1);
+  const frame = (await page.locator("iframe.calendar-frame").boundingBox())!;
+  expect(393 - frame.x - frame.width).toBeGreaterThanOrEqual(56);
+  await close.focus();
+  await page.keyboard.press("Space");
+  await expect(toggle).toBeFocused();
+  await expect(page.locator("iframe.calendar-frame")).toBeHidden();
+  await expect(page.locator("iframe.calendar-frame")).toHaveCount(1);
+  await toggle.click();
+  await expect(page.locator("iframe.calendar-frame")).toBeVisible();
+  expect(calendarRequests).toBe(1);
+  await page.getByRole("button", { name: "Open location navigation" }).click();
+  await page.getByRole("link", { name: "Hawthorne", exact: true }).click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(calendarRequests).toBe(1);
+});
+
+test("main fits its content and major blocks share the outer gutter without a footer", async ({ page }, testInfo) => {
+  for (const [width, height] of [[320, 667], [393, 852], [430, 932], [393, 1200], [1440, 1000]]) {
+    await page.setViewportSize({ width, height });
+    for (const slug of ["ivy", "hawthorne"]) {
+      await page.goto(`${slug}/`);
+      await expect(page.locator(".today-schedule")).toHaveAttribute("aria-busy", "false");
+      await expect(page.locator("footer, .site-footer")).toHaveCount(0);
+      for (const open of [false, true]) {
+        if (open) {
+          await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+          await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
+        }
+        const main = (await page.locator(".site-main").boundingBox())!;
+        const content = (await page.locator(".site-main-content").boundingBox())!;
+        expect(main.height).toBeCloseTo(content.height, 0);
+        expect(content.x).toBeCloseTo(Math.min(32, Math.max(16, width * 0.04)), 0);
+        expect(width - content.x - content.width).toBeCloseTo(content.x, 0);
+        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner"]) {
+          expect((await page.locator(selector).boundingBox())!.x).toBeCloseTo(content.x, 0);
+        }
+        if (width < 512) {
+          expect((await page.locator(".daily-information-card").boundingBox())!.width).toBeCloseTo(content.width, 0);
+        }
+        const pageSize = await page.evaluate(() => ({height:document.documentElement.scrollHeight,width:document.documentElement.scrollWidth}));
+        expect(pageSize.height).toBeLessThanOrEqual(Math.ceil(Math.max(height, main.y + main.height)) + 1);
+        expect(pageSize.width).toBeLessThanOrEqual(width);
+        if (slug === "ivy" && [393, 1440].includes(width) && height !== 1200) {
+          const screenshotPath = testInfo.outputPath(`layout-${width}-${open ? "open" : "closed"}.png`);
+          await page.screenshot({ path: screenshotPath, fullPage: true });
+          await testInfo.attach("layout", { path: screenshotPath, contentType: "image/png" });
+        }
+      }
+    }
+  }
+});
 
 test("the open card rolls over at Pacific midnight and handles expired coverage", async ({ page }) => {
   // Intl derives the UTC offset for this date so the regression also runs in
@@ -260,6 +356,7 @@ test("the open card rolls over at Pacific midnight and handles expired coverage"
   await expect(card.locator(".today-schedule-count, .today-event")).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
   await expect(page.getByRole("heading", { name: "Full calendar" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   await expect(page.locator("iframe.calendar-frame")).toHaveAttribute("title", "Ivy Station Calendar");
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
 });

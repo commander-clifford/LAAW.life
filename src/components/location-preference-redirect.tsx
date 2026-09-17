@@ -29,6 +29,11 @@ export function LocationPreferenceRedirect({
       try {
         const savedLocationId =
           await browserLocationPreferenceStore.getLastLocationId(tenantId);
+        if (isCurrent && savedLocationId === "og") {
+          // The original is a static document outside the Next.js route tree.
+          window.location.replace(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/${window.location.search}${window.location.hash}`);
+          return;
+        }
         const location =
           locations.find(({ id }) => id === savedLocationId) ??
           locations.find(({ id }) => id === defaultLocationId);

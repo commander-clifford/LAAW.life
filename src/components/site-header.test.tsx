@@ -48,9 +48,12 @@ describe("SiteHeader", () => {
     expect(html).toContain(
       '<a class="site-brand" href="/">LAAW.life</a>',
     );
-    expect(html.match(/data-page-canvas=""/g)).toHaveLength(4);
-    expect(html.indexOf('<footer')).toBeGreaterThan(html.indexOf('</main>'));
-    expect(html).toContain('href="/og/" aria-label="OG — original LAAW.life site">OG</a>');
+    expect(html.match(/data-page-canvas=""/g)).toHaveLength(3);
+    expect(html).not.toContain("<footer");
+    expect(html).toContain('href="/og/">OG Regular</a>');
+    expect(html).toContain("<legend>Start here next time</legend>");
+    expect(html.match(/type="radio"/g)).toHaveLength(3);
+    expect(html).not.toContain("checked=");
     expect(html).toContain(
       '<a class="skip-link" href="#main-content">Skip to main content</a>',
     );

@@ -91,12 +91,17 @@ export function SiteHeader({
   const scrollLockStylesRef = useRef<ScrollLockStyles | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+  const [rememberedId, setRememberedId] = useState<string | null>(null);
+  const [preferenceMessage, setPreferenceMessage] = useState("");
 
   const currentSlug = getLocationSlugFromPath(pathname, locations);
-  const currentLocation = locations.find(
-    (location) => location.slug === currentSlug,
-  );
-  const currentLocationId = currentLocation?.id;
+
+  const rememberDestination = async (id: string | null) => {
+    await browserLocationPreferenceStore.setLastLocationId(tenantId, id);
+    const savedId = await browserLocationPreferenceStore.getLastLocationId(tenantId);
+    setRememberedId(savedId);
+    setPreferenceMessage(savedId === id ? "" : "This browser couldn't save your choice.");
+  };
 
   const stopAnimation = useCallback(() => {
     animationRef.current?.kill();
@@ -282,13 +287,18 @@ export function SiteHeader({
   }, [closeDrawer, openDrawer]);
 
   useEffect(() => {
-    if (currentLocationId) {
-      void browserLocationPreferenceStore.setLastLocationId(
-        tenantId,
-        currentLocationId,
-      );
-    }
-  }, [currentLocationId, tenantId]);
+    let active = true;
+    const readPreference = async () => {
+      const id = await browserLocationPreferenceStore.getLastLocationId(tenantId);
+      if (active) setRememberedId(id);
+    };
+    void readPreference();
+    window.addEventListener("storage", readPreference);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", readPreference);
+    };
+  }, [tenantId]);
 
   useEffect(() => {
     const drawer = drawerRef.current;
@@ -421,7 +431,7 @@ export function SiteHeader({
         drawerOpenRef.current || drawerClosingRef.current
         ? Array.from(
             drawer.querySelectorAll<HTMLElement>(
-              'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+              'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
             ),
           ).filter((target) => !target.closest("[inert]"))
         : [];
@@ -524,6 +534,28 @@ export function SiteHeader({
             <span aria-hidden="true">×</span>
           </button>
         </div>
+        <fieldset className="default-location" aria-describedby="default-location-hint">
+          <legend>Start here next time</legend>
+          <p id="default-location-hint">Choose where LAAW.life opens.</p>
+          {[...locations, { id: "og", displayName: "OG Regular" }].map((destination) => (
+            <label className="default-location-option" key={destination.id}>
+              <input
+                type="radio"
+                name="default-location"
+                value={destination.id}
+                checked={rememberedId === destination.id}
+                onChange={() => void rememberDestination(destination.id)}
+              />
+              <span>{destination.displayName}</span>
+            </label>
+          ))}
+          {rememberedId ? (
+            <button className="clear-default-location" type="button" onClick={() => void rememberDestination(null)}>
+              Clear preference
+            </button>
+          ) : null}
+          <p className="remember-status" role="status">{preferenceMessage}</p>
+        </fieldset>
         <nav aria-label="Location calendars">
           <ul className="location-list">
             {locations.map((location) => {
@@ -543,10 +575,6 @@ export function SiteHeader({
                         event.altKey ||
                         event.button !== 0;
 
-                      void browserLocationPreferenceStore.setLastLocationId(
-                        tenantId,
-                        location.id,
-                      );
                       navigationFocusPendingRef.current =
                         !isCurrent && !opensInAnotherContext;
                       closeDrawer({
@@ -564,6 +592,14 @@ export function SiteHeader({
               );
             })}
           </ul>
+          <div className="original-destination">
+            <a
+              className="original-link"
+              href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`}
+            >
+              OG Regular
+            </a>
+          </div>
         </nav>
       </div>
 
@@ -577,14 +613,6 @@ export function SiteHeader({
       >
         <div className="site-main-content">{children}</div>
       </main>
-
-      <footer
-        className="site-footer"
-        data-page-canvas=""
-        data-page-interaction-surface=""
-      >
-        <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`} aria-label="OG — original LAAW.life site">OG</a>
-      </footer>
 
       <div
         className="drawer-overlay"

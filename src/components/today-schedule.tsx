@@ -162,13 +162,13 @@ export function TodaySchedule({
             <ol className="today-event-list">
               {events.map((event) => (
                 <li className="today-event" key={event.id}>
-                  <h2>{event.title}</h2>
                   <time
                     className="today-event-time"
                     dateTime={event.allDay ? currentDateKey : event.start}
                   >
                     {formatEventTime(event, currentDateKey, agenda.timeZone)}
                   </time>
+                  <h2>{event.title}</h2>
                 </li>
               ))}
             </ol>

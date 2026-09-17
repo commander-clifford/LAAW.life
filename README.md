@@ -7,16 +7,21 @@ not run the application or generate the calendar data.
 
 ## What visitors see
 
-- The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). Later visits
-  open the last location selected on that browser/device. Preferences use local
+- The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). The drawer's
+  **Start here next time** radio group explicitly chooses the starting page for
+  later visits on that browser/device, including **OG Regular**. No radio is
+  selected without a saved preference. Visiting another page does not replace
+  that choice; **Clear preference** clears it. Preferences use local
   storage, with no account or sign-in requirement.
 - The hamburger opens the location menu at every screen width. The drawer
   supports keyboard navigation, Escape, focus restoration, and reduced motion.
 - Each location name sits above the current daily card. The published Option 4
   layout has a prominent Pacific weekday, a quieter full date, and event names
   beside their times. The card grows to the available width up to 512 px; long
-  names wrap. The full Google Calendar is below it.
-- The small **OG** footer link opens the [original single-file site](https://laaw.life/og/).
+  names wrap. The underlined **Open calendar** control loads the full Google
+  Calendar on first opening. It keeps that frame when closed and reopened, caps
+  its height at 448 px, and leaves a right-side gutter for scrolling the page.
+- The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/).
   Its HTML is preserved byte-for-byte, with both original calendar embeds and
   its original styling.
 - Missing addresses return the branded recovery page with an HTTP 404 status.
@@ -199,7 +204,7 @@ calendar JSON.
 If a fetch fails, the page keeps its bundled or last successful snapshot. After
 48 hours it shows a delayed-update notice; if its date coverage expires, it
 explains that the daily schedule is unavailable and keeps the full calendar
-below. The Google embed continues to load directly from Google.
+below. On first opening, the embed loads directly from Google.
 
 `NEXT_PUBLIC_CALENDAR_AGENDA_URL` is an optional **build-time** override for the
 JSON URL. The normal production configuration leaves it unset and uses the

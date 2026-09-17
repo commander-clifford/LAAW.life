@@ -44,7 +44,7 @@ export interface SiteCatalog {
 // The current adapter is device-local; a cookie or database can replace it later.
 export interface LocationPreferenceStore {
   getLastLocationId(tenantId: string): Promise<string | null>;
-  setLastLocationId(tenantId: string, locationId: string): Promise<void>;
+  setLastLocationId(tenantId: string, locationId: string | null): Promise<void>;
 }
 
 // Authentication remains outside the page until the product needs accounts.
