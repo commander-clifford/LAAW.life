@@ -37,10 +37,7 @@ not run the application or generate the calendar data.
   a links dialog with Instagram and **Buy me a brew**. Without JavaScript the
   credit links directly to Instagram. The header and footer have a subtle gray
   background in light mode.
-- **Buy me a brew** opens the tip view with preset amounts and
-  a custom amount, including $2. Payments are not connected yet: the dialog
-  explicitly says so and checkout is disabled until a payment destination is
-  confirmed. No payment account or destination is assumed.
+- **Buy me a brew** links directly to Clifford's Cash App profile.
 - Missing addresses return the branded recovery page with an HTTP 404 status.
 
 The [V2 closeout record](docs/release-2026-09-16-v2.md) tracks verification and
