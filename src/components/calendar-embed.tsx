@@ -86,7 +86,7 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
         role={status === "ready" ? undefined : "status"}
         aria-live={status === "ready" ? undefined : "polite"}
       >
-        {statusMessages[status] || "\u00a0"}
+        {statusMessages[status]}
       </p>
       <div className="calendar-frame-stage">
         {isClientReady ? (

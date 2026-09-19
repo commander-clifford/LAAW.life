@@ -202,17 +202,19 @@ for (const width of [1440, 393, 320]) {
       expect(compactBox.y).toBeGreaterThan(locationBox.y + locationBox.height);
       const contentWidth = (await page.locator(".site-main-content").boundingBox())!.width;
       expect(Math.abs(compactBox.width - Math.min(contentWidth, 512))).toBeLessThan(1);
-      expect(Math.abs(compactBox.x - (await page.locator(".site-main-content").boundingBox())!.x)).toBeLessThan(1);
+      expect(compactBox.x + compactBox.width / 2).toBeCloseTo(width / 2, 0);
       const eventsBox = (await card.locator(".today-schedule").boundingBox())!;
       const dateBox = (await card.locator(".today-schedule-date").boundingBox())!;
       expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
-      const headingTextLeft = await page.getByRole("heading", { level: 1 }).evaluate((heading) => {
-        const range = document.createRange();
-        range.selectNodeContents(heading);
-        return range.getBoundingClientRect().x;
-      });
-      expect(Math.abs(headingTextLeft - compactBox.x)).toBeLessThan(1);
+      const headingBox = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
+      expect(headingBox.x + headingBox.width / 2).toBeCloseTo(compactBox.x + compactBox.width / 2, 0);
       await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-weight", "300");
+      await expect(card.locator(".today-schedule-weekday")).toHaveCSS("text-align", "left");
+      await expect(card.locator(".today-schedule-calendar-date")).toHaveCSS("text-align", "left");
+      await expect(card.locator(".today-event-time").first()).toHaveCSS(
+        "color",
+        await card.locator(".today-schedule-date").evaluate((element) => getComputedStyle(element).color),
+      );
 
       eventCount = 3;
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -237,13 +239,13 @@ for (const width of [1440, 393, 320]) {
       await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: "Open calendar", exact: true }).click();
       const calendarBox = (await page.locator("iframe.calendar-frame").boundingBox())!;
+      const disclosureBox = (await page.locator(".calendar-disclosure").boundingBox())!;
       const fullCardBox = (await card.boundingBox())!;
       expect(calendarBox.y).toBeGreaterThan(fullCardBox.y + fullCardBox.height);
-      expect(calendarBox.x).toBeCloseTo(compactBox.x, 0);
-      expect(calendarBox.width).toBeCloseTo(Math.min(800, contentWidth - 48), 0);
+      expect(calendarBox.x).toBeCloseTo(disclosureBox.x, 0);
+      expect(calendarBox.width).toBeCloseTo(disclosureBox.width, 0);
       expect(calendarBox.height).toBeLessThanOrEqual(448);
-      const statusBox = (await page.locator(".calendar-status").boundingBox())!;
-      expect(statusBox.x).toBeCloseTo(compactBox.x, 0);
+      await expect(page.locator(".calendar-status")).toBeHidden();
     }
   });
 }
@@ -268,7 +270,8 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => calendarRequests).toBe(1);
   const frame = (await page.locator("iframe.calendar-frame").boundingBox())!;
-  expect(393 - frame.x - frame.width).toBeGreaterThanOrEqual(56);
+  expect(frame.x).toBeCloseTo(393 - frame.x - frame.width, 0);
+  expect(393 - frame.x - frame.width).toBeGreaterThanOrEqual(16);
   await close.focus();
   await page.keyboard.press("Space");
   await expect(toggle).toBeFocused();
@@ -283,7 +286,7 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   expect(calendarRequests).toBe(1);
 });
 
-test("main fits its content and major blocks share the outer gutter with a compact footer", async ({ page }, testInfo) => {
+test("the centered app shell fills mobile and stays intentional on wide screens", async ({ page }, testInfo) => {
   for (const [width, height] of [[320, 667], [393, 852], [430, 932], [393, 1200], [1440, 1000]]) {
     await page.setViewportSize({ width, height });
     for (const slug of ["ivy", "hawthorne"]) {
@@ -298,17 +301,26 @@ test("main fits its content and major blocks share the outer gutter with a compa
         const main = (await page.locator(".site-main").boundingBox())!;
         const content = (await page.locator(".site-main-content").boundingBox())!;
         expect(main.height).toBeCloseTo(content.height, 0);
-        expect(content.x).toBeCloseTo(Math.min(32, Math.max(16, width * 0.04)), 0);
         expect(width - content.x - content.width).toBeCloseTo(content.x, 0);
-        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner", ".site-footer-inner"]) {
-          expect((await page.locator(selector).boundingBox())!.x).toBeCloseTo(content.x, 0);
+        expect(content.width).toBeCloseTo(Math.min(width - 2 * Math.min(32, Math.max(16, width * 0.04)), 1024), 0);
+        for (const selector of [".location-heading-section", ".today-section", ".calendar-disclosure", ".site-header-inner", ".site-footer-inner"]) {
+          const box = (await page.locator(selector).boundingBox())!;
+          expect(box.x + box.width / 2).toBeCloseTo(width / 2, 0);
         }
         const calendarControl = (await page.locator(".calendar-disclosure-toggle").boundingBox())!;
         const card = (await page.locator(".daily-information-card").boundingBox())!;
         expect(calendarControl.x + calendarControl.width / 2).toBeCloseTo(card.x + card.width / 2, 0);
-        expect(calendarControl.y - card.y - card.height).toBeCloseTo(6, 0);
+        expect(calendarControl.y - card.y - card.height).toBeCloseTo(32, 0);
         if (width < 512) {
           expect((await page.locator(".daily-information-card").boundingBox())!.width).toBeCloseTo(content.width, 0);
+        }
+        if (open) {
+          const disclosure = (await page.locator(".calendar-disclosure").boundingBox())!;
+          const frame = (await page.locator(".calendar-frame").boundingBox())!;
+          expect(frame.x).toBeCloseTo(disclosure.x, 0);
+          expect(frame.width).toBeCloseTo(disclosure.width, 0);
+          expect(width - frame.x - frame.width).toBeGreaterThanOrEqual(Math.min(32, Math.max(16, width * 0.04)));
+          expect(frame.y - calendarControl.y - calendarControl.height).toBeCloseTo(0, 0);
         }
         const pageSize = await page.evaluate(() => ({
           height: document.documentElement.scrollHeight,

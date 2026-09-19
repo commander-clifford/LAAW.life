@@ -56,9 +56,10 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   expect(Math.abs(mainBox.x)).toBeLessThan(1);
   expect(Math.abs(mainBox.width - layoutWidth)).toBeLessThan(1);
   expect(Math.abs(contentBox.x + contentBox.width / 2 - layoutWidth / 2)).toBeLessThan(1);
-  expect(Math.abs(cardBox.x - contentBox.x)).toBeLessThan(1);
-  expect(Math.abs(calendarBox.x - contentBox.x)).toBeLessThan(1);
-  expect(calendarBox.width).toBeCloseTo(Math.min(800, contentBox.width - 48), 0);
+  expect(cardBox.x + cardBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
+  expect(cardBox.width).toBeCloseTo(Math.min(512, contentBox.width), 0);
+  expect(calendarBox.x + calendarBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
+  expect(calendarBox.width).toBeCloseTo(Math.min(800, contentBox.width), 0);
   expect(calendarBox.height).toBeLessThanOrEqual(448);
   expect(cardBox.x).toBeGreaterThanOrEqual(0);
   expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewportWidth);
