@@ -18,7 +18,7 @@ describe("SiteHeader", () => {
     vi.mocked(usePathname).mockReturnValue("/ivy/");
   });
 
-  it("renders a closed inert modal drawer before hydration at every width", () => {
+  it("renders a closed inert drawer and one header toggle before hydration", () => {
     const html = renderToStaticMarkup(
       <SiteHeader
         locations={locations}
@@ -35,7 +35,7 @@ describe("SiteHeader", () => {
     const openerTag = html.match(/<button[^>]*class="navigation-toggle"[^>]*>/)?.[0];
 
     expect(drawerTag).toBeDefined();
-    expect(drawerTag).toContain('role="dialog"');
+    expect(drawerTag).not.toContain('role="dialog"');
     expect(drawerTag).toContain('aria-hidden="true"');
     expect(drawerTag).toContain('inert=""');
     expect(drawerTag).not.toContain("aria-modal");
@@ -48,27 +48,35 @@ describe("SiteHeader", () => {
     expect(html).toContain(
       '<a class="site-brand" href="/">LAAW.life</a>',
     );
-    expect(html.match(/data-page-canvas=""/g)).toHaveLength(4);
+    expect(html.match(/data-page-canvas=""/g)).toHaveLength(2);
     expect(html).toContain("<footer");
-    expect(html).toContain("Buy Clifford a beer");
-    expect(html).toContain('href="/og/">OG Regular</a>');
-    expect(html).toContain("<legend>Start here next time</legend>");
-    expect(html.match(/type="radio"/g)).toHaveLength(3);
-    expect(html).not.toContain("checked=");
+    expect(html).toContain("Buy me a brew");
+    expect(html).toContain('href="/og/">OG Regular<svg');
+    expect(html).not.toContain("Start here next time");
+    expect(html).not.toContain('type="radio"');
+    expect(html).not.toContain(">Current<");
+    expect(html).toContain('class="location-drawer-settings"');
+    const footer = html.slice(html.indexOf("<footer"), html.indexOf("</footer>"));
+    expect(footer).toContain("Brewed by ");
+    expect(footer).toContain('aria-haspopup="dialog">Clifford</a>.');
+    expect(footer).not.toContain("brew</");
+    expect(footer).not.toContain("—");
+    expect(footer).not.toContain("<nav");
+    expect(footer).not.toContain("github.com");
+    expect(footer).not.toContain("Appearance");
     expect(html).toContain(
       '<a class="skip-link" href="#main-content">Skip to main content</a>',
     );
     expect(html).not.toContain("Skip to calendar");
     expect(html).not.toContain("Choose a location");
     expect(html).not.toContain("location-drawer-title");
-    expect(html).toContain('aria-label="Location navigation"');
+    expect(html).toContain('aria-label="Location calendars"');
     expect(html).not.toContain('role="complementary"');
     expect(html).not.toContain("aria-modal");
-    expect(html.match(/aria-label="Close location navigation"/g)).toHaveLength(
-      1,
-    );
+    expect(html).not.toContain('aria-label="Close location navigation"');
+    expect(html).not.toContain('class="drawer-close"');
     expect(html).toContain(
-      '<div class="drawer-overlay" data-page-canvas="" aria-hidden="true"></div>',
+      '<div class="drawer-overlay" aria-hidden="true"></div>',
     );
   });
 

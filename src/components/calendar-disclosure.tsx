@@ -23,7 +23,7 @@ export function CalendarDisclosure({ src, title }: Readonly<{ src: string; title
       >
         {isOpen ? "Close calendar" : "Open calendar"}
       </button>
-      <div id={panelId} hidden={!isOpen}>
+      <div className="calendar-disclosure-panel" id={panelId} hidden={!isOpen}>
         {hasOpened ? <CalendarEmbed src={src} title={title} /> : null}
       </div>
     </section>

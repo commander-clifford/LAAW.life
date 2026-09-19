@@ -258,7 +258,7 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   const toggle = page.getByRole("button", { name: "Open calendar", exact: true });
   await expect(page.locator(".today-schedule")).toHaveAttribute("aria-busy", "false");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await expect(toggle).toHaveCSS("text-decoration-line", "underline");
+  await expect(toggle).toHaveCSS("text-decoration-line", "none");
   await expect(page.locator("iframe.calendar-frame")).toHaveCount(0);
   expect(calendarRequests).toBe(0);
   await toggle.focus();
@@ -300,16 +300,24 @@ test("main fits its content and major blocks share the outer gutter with a compa
         expect(main.height).toBeCloseTo(content.height, 0);
         expect(content.x).toBeCloseTo(Math.min(32, Math.max(16, width * 0.04)), 0);
         expect(width - content.x - content.width).toBeCloseTo(content.x, 0);
-        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner", ".site-footer"]) {
+        for (const selector of [".location-page-heading", ".daily-information-card", ".calendar-disclosure", ".site-header-inner", ".site-footer-inner"]) {
           expect((await page.locator(selector).boundingBox())!.x).toBeCloseTo(content.x, 0);
         }
+        const calendarControl = (await page.locator(".calendar-disclosure-toggle").boundingBox())!;
+        const card = (await page.locator(".daily-information-card").boundingBox())!;
+        expect(calendarControl.x + calendarControl.width / 2).toBeCloseTo(card.x + card.width / 2, 0);
+        expect(calendarControl.y - card.y - card.height).toBeCloseTo(6, 0);
         if (width < 512) {
           expect((await page.locator(".daily-information-card").boundingBox())!.width).toBeCloseTo(content.width, 0);
         }
-        const pageSize = await page.evaluate(() => ({height:document.documentElement.scrollHeight,width:document.documentElement.scrollWidth}));
+        const pageSize = await page.evaluate(() => ({
+          height: document.documentElement.scrollHeight,
+          width: document.documentElement.scrollWidth,
+          scrollY: window.scrollY,
+        }));
         const footer = (await page.getByRole("contentinfo").boundingBox())!;
         expect(footer.y).toBeCloseTo(main.y + main.height, 0);
-        expect(pageSize.height).toBeLessThanOrEqual(Math.ceil(Math.max(height, footer.y + footer.height)) + 1);
+        expect(pageSize.height).toBeLessThanOrEqual(Math.ceil(Math.max(height, footer.y + footer.height + pageSize.scrollY)) + 1);
         expect(pageSize.width).toBeLessThanOrEqual(width);
         if (slug === "ivy" && [393, 1440].includes(width) && height !== 1200) {
           const screenshotPath = testInfo.outputPath(`layout-${width}-${open ? "open" : "closed"}.png`);

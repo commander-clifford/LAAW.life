@@ -7,28 +7,37 @@ not run the application or generate the calendar data.
 
 ## What visitors see
 
-- The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). The drawer's
-  **Start here next time** radio group explicitly chooses the starting page for
-  later visits on that browser/device, including **OG Regular**. No radio is
-  selected without a saved preference. Visiting another page does not replace
-  that choice; **Clear preference** clears it. Preferences use local
-  storage, with no account or sign-in requirement.
-- The hamburger opens the location menu at every screen width. The drawer
-  supports keyboard navigation, Escape, focus restoration, and reduced motion.
+- The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). Later visits
+  automatically return to the last location opened in that browser. Opening
+  **OG Regular** from the drawer also saves it as the next starting page. There
+  are no preference controls or account requirements; the browser uses local
+  storage to remember the last destination.
+- The header stays visible while scrolling. Its right-side hamburger changes to
+  an X when the location drawer opens beneath it from the right, and the same
+  button closes the drawer.
+  The drawer supports keyboard navigation, Escape, focus restoration, and
+  reduced motion.
+- The SVG menu strokes, drawer, page, and overlay share one GSAP timeline with
+  the same 320 ms duration and `power2.inOut` easing in both directions. Every
+  moving part starts and finishes together, including when a click reverses
+  an unfinished transition. Reduced motion switches all parts immediately.
 - Each location name sits above the current daily card. The published Option 4
   layout has a prominent Pacific weekday, a quieter full date, and event names
   beside their times. The card grows to the available width up to 512 px; long
-  names wrap. The underlined **Open calendar** control loads the full Google
+  names wrap. The centered **Open calendar** control loads the full Google
   Calendar on first opening. It keeps that frame when closed and reopened, caps
   its height at 448 px, and leaves a right-side gutter for scrolling the page.
 - The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/).
   Its HTML is preserved byte-for-byte, with both original calendar embeds and
   its original styling.
-- The compact footer links to the locations, OG Regular, and Clifford's public
-  GitHub profile. Its **Appearance** control follows the device by default, or
-  saves an explicit light or muted charcoal theme in this browser. The original
-  OG page and Google's embedded calendar retain their own appearance.
-- **Buy Clifford a beer** opens an accessible tip dialog with preset amounts and
+- The **Appearance** control at the bottom of the location drawer follows the
+  device by default, or saves an explicit light or muted charcoal theme in this
+  browser. The original OG page and Google's embedded calendar retain their
+  own appearance. The footer says **Brewed by Clifford**; clicking Clifford opens
+  a links dialog with Instagram and **Buy me a brew**. Without JavaScript the
+  credit links directly to Instagram. The header and footer have a subtle gray
+  background in light mode.
+- **Buy me a brew** opens the tip view with preset amounts and
   a custom amount, including $2. Payments are not connected yet: the dialog
   explicitly says so and checkout is disabled until a payment destination is
   confirmed. No payment account or destination is assumed.

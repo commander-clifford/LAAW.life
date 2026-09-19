@@ -1,6 +1,7 @@
 "use client";
 
 import gsap from "gsap";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -13,10 +14,37 @@ import {
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
 import { SiteFooter } from "@/src/components/site-footer";
+import { ThemeControl } from "@/src/components/theme-control";
 
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 const pageCanvasSelector = "[data-page-canvas]";
 const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
+const navigationMotion = { duration: 0.32, ease: "power2.inOut" } as const;
+
+function setMenuIcon(
+  button: HTMLButtonElement,
+  isOpen: boolean,
+  timeline?: gsap.core.Timeline,
+): void {
+  const strokes = [
+    [".navigation-toggle-line-top", { y: isOpen ? 0 : -8, rotation: isOpen ? 45 : 0 }],
+    [".navigation-toggle-line-middle", { scaleX: isOpen ? 0 : 1 }],
+    [".navigation-toggle-line-bottom", { y: isOpen ? 0 : 8, rotation: isOpen ? -45 : 0 }],
+  ] as const;
+
+  for (const [selector, transform] of strokes) {
+    const stroke = button.querySelector<SVGLineElement>(selector);
+    if (!stroke) continue;
+    // Use each stroke's local center; svgOrigin is shifted by its current translation.
+    const properties = { ...transform, transformOrigin: "50% 50%", smoothOrigin: false };
+    if (timeline) {
+      // All strokes inherit the drawer's duration and ease, beginning at time zero.
+      timeline.to(stroke, properties, 0);
+    } else {
+      gsap.set(stroke, properties);
+    }
+  }
+}
 
 function getPageCanvasParts(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>(pageCanvasSelector));
@@ -37,20 +65,6 @@ function getDrawerOverlay(): HTMLDivElement | null {
 function setDrawerAvailable(drawer: HTMLElement, isAvailable: boolean): void {
   drawer.inert = !isAvailable;
   drawer.setAttribute("aria-hidden", String(!isAvailable));
-}
-
-function setOpenerAvailable(
-  opener: HTMLButtonElement,
-  isAvailable: boolean,
-): void {
-  opener.disabled = !isAvailable;
-  opener.inert = !isAvailable;
-
-  if (isAvailable) {
-    opener.removeAttribute("aria-hidden");
-  } else {
-    opener.setAttribute("aria-hidden", "true");
-  }
 }
 
 type NavigationLocation = Pick<Location, "id" | "slug" | "displayName">;
@@ -79,8 +93,9 @@ export function SiteHeader({
   locations,
 }: SiteHeaderProps) {
   const pathname = usePathname();
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
-  const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const animationRef = useRef<gsap.core.Timeline | null>(null);
@@ -92,17 +107,9 @@ export function SiteHeader({
   const scrollLockStylesRef = useRef<ScrollLockStyles | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
-  const [rememberedId, setRememberedId] = useState<string | null>(null);
-  const [preferenceMessage, setPreferenceMessage] = useState("");
 
   const currentSlug = getLocationSlugFromPath(pathname, locations);
-
-  const rememberDestination = async (id: string | null) => {
-    await browserLocationPreferenceStore.setLastLocationId(tenantId, id);
-    const savedId = await browserLocationPreferenceStore.getLastLocationId(tenantId);
-    setRememberedId(savedId);
-    setPreferenceMessage(savedId === id ? "" : "This browser couldn't save your choice.");
-  };
+  const currentLocationId = locations.find((location) => location.slug === currentSlug)?.id;
 
   const stopAnimation = useCallback(() => {
     animationRef.current?.kill();
@@ -159,7 +166,7 @@ export function SiteHeader({
       drawerClosingRef.current = true;
       stopAnimation();
 
-      const duration = immediate || reducedMotionRef.current ? 0 : 0.28;
+      const duration = immediate || reducedMotionRef.current ? 0 : navigationMotion.duration;
       const drawerWidth = drawer.getBoundingClientRect().width;
       const pageCanvasParts = getPageCanvasParts();
 
@@ -170,7 +177,6 @@ export function SiteHeader({
 
         setIsDrawerOpen(false);
         setPageInteractionSurfacesInert(false);
-        setOpenerAvailable(opener, true);
         gsap.set(overlay, {
           autoAlpha: 0,
           pointerEvents: "none",
@@ -190,21 +196,24 @@ export function SiteHeader({
       };
 
       if (duration === 0) {
-        gsap.set(drawer, { x: -drawerWidth });
+        setMenuIcon(opener, false);
+        gsap.set(drawer, { x: drawerWidth });
         gsap.set(pageCanvasParts, { x: 0 });
         finishClose();
         return;
       }
 
       const timeline = gsap.timeline({
-        defaults: { duration, ease: "power2.inOut" },
+        defaults: navigationMotion,
         onComplete: finishClose,
       });
 
       timeline
-        .to(drawer, { x: -drawerWidth }, 0)
+        .to(drawer, { x: drawerWidth }, 0)
         .to(pageCanvasParts, { x: 0 }, 0)
         .to(overlay, { opacity: 0 }, 0);
+
+      setMenuIcon(opener, false, timeline);
 
       animationRef.current = timeline;
     },
@@ -215,13 +224,11 @@ export function SiteHeader({
     const drawer = drawerRef.current;
     const overlay = getDrawerOverlay();
     const opener = menuButtonRef.current;
-    const closeButton = drawerCloseButtonRef.current;
 
     if (
       !drawer ||
       !overlay ||
       !opener ||
-      !closeButton ||
       drawerOpenRef.current
     ) {
       return;
@@ -235,11 +242,10 @@ export function SiteHeader({
 
     const drawerWidth = drawer.getBoundingClientRect().width;
     const pageCanvasParts = getPageCanvasParts();
-    const duration = reducedMotionRef.current ? 0 : 0.32;
+    const duration = reducedMotionRef.current ? 0 : navigationMotion.duration;
 
     setDrawerAvailable(drawer, true);
-    closeButton.focus({ preventScroll: true });
-    setOpenerAvailable(opener, false);
+    opener.focus({ preventScroll: true });
     setPageInteractionSurfacesInert(true);
     lockPageScroll();
     gsap.set(overlay, {
@@ -247,21 +253,22 @@ export function SiteHeader({
       visibility: "visible",
     });
     if (!shouldPreserveAnimationProgress) {
-      gsap.set(drawer, { x: -drawerWidth });
+      gsap.set(drawer, { x: drawerWidth });
       gsap.set(pageCanvasParts, { x: 0 });
       gsap.set(overlay, { opacity: 0 });
     }
 
     if (duration === 0) {
+      setMenuIcon(opener, true);
       gsap.set(drawer, { x: 0 });
-      gsap.set(pageCanvasParts, { x: drawerWidth });
+      gsap.set(pageCanvasParts, { x: -drawerWidth });
       gsap.set(overlay, { opacity: 0.16 });
       animationRef.current = null;
       return;
     }
 
     const timeline = gsap.timeline({
-      defaults: { duration, ease: "power2.out" },
+      defaults: navigationMotion,
       onComplete: () => {
         if (!drawerOpenRef.current) {
           return;
@@ -273,8 +280,10 @@ export function SiteHeader({
 
     timeline
       .to(drawer, { x: 0 }, 0)
-      .to(pageCanvasParts, { x: drawerWidth }, 0)
+      .to(pageCanvasParts, { x: -drawerWidth }, 0)
       .to(overlay, { opacity: 0.16 }, 0);
+
+    setMenuIcon(opener, true, timeline);
 
     animationRef.current = timeline;
   }, [lockPageScroll, stopAnimation]);
@@ -288,18 +297,37 @@ export function SiteHeader({
   }, [closeDrawer, openDrawer]);
 
   useEffect(() => {
-    let active = true;
-    const readPreference = async () => {
-      const id = await browserLocationPreferenceStore.getLastLocationId(tenantId);
-      if (active) setRememberedId(id);
+    const header = headerRef.current;
+    if (!header) return;
+
+    const syncHeaderHeight = () => {
+      document.documentElement.style.setProperty(
+        "--site-header-height",
+        `${header.getBoundingClientRect().height}px`,
+      );
     };
-    void readPreference();
-    window.addEventListener("storage", readPreference);
+    syncHeaderHeight();
+    const observer = new ResizeObserver(syncHeaderHeight);
+    observer.observe(header);
     return () => {
-      active = false;
-      window.removeEventListener("storage", readPreference);
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--site-header-height");
     };
-  }, [tenantId]);
+  }, []);
+
+  useEffect(() => {
+    if (!currentLocationId) return;
+
+    const rememberLocation = () => {
+      void browserLocationPreferenceStore.setLastLocationId(tenantId, currentLocationId);
+    };
+    rememberLocation();
+    // Returning from the original page may restore this page from the browser cache.
+    window.addEventListener("pageshow", rememberLocation);
+    return () => {
+      window.removeEventListener("pageshow", rememberLocation);
+    };
+  }, [currentLocationId, tenantId]);
 
   useEffect(() => {
     const drawer = drawerRef.current;
@@ -319,12 +347,12 @@ export function SiteHeader({
       if (drawerOpenRef.current) {
         stopAnimation();
         drawerClosingRef.current = false;
+        setMenuIcon(opener, true);
         setDrawerAvailable(drawer, true);
-        setOpenerAvailable(opener, false);
         setPageInteractionSurfacesInert(true);
         lockPageScroll();
         gsap.set(drawer, { x: 0 });
-        gsap.set(pageCanvasParts, { x: drawerWidth });
+        gsap.set(pageCanvasParts, { x: -drawerWidth });
         gsap.set(overlay, {
           autoAlpha: 0.16,
           pointerEvents: "auto",
@@ -339,10 +367,10 @@ export function SiteHeader({
       stopAnimation();
       drawerClosingRef.current = false;
       setIsDrawerOpen(false);
-      setOpenerAvailable(opener, true);
+      setMenuIcon(opener, false);
       setPageInteractionSurfacesInert(false);
       unlockPageScroll();
-      gsap.set(drawer, { x: -drawerWidth });
+      gsap.set(drawer, { x: drawerWidth });
       gsap.set(pageCanvasParts, { x: 0 });
       gsap.set(overlay, {
         autoAlpha: 0,
@@ -376,8 +404,8 @@ export function SiteHeader({
       stopAnimation();
       drawerOpenRef.current = false;
       drawerClosingRef.current = false;
+      setMenuIcon(opener, false);
       setPageInteractionSurfacesInert(false);
-      setOpenerAvailable(opener, true);
       unlockPageScroll();
       gsap.set(getPageCanvasParts(), { clearProps: "transform" });
       gsap.set(drawer, { clearProps: "transform" });
@@ -408,10 +436,12 @@ export function SiteHeader({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const drawer = drawerRef.current;
+      const navigation = navigationRef.current;
       const toggle = menuButtonRef.current;
 
       if (
         !drawer ||
+        !navigation ||
         !toggle ||
         (!drawerOpenRef.current && !drawerClosingRef.current)
       ) {
@@ -428,18 +458,11 @@ export function SiteHeader({
         return;
       }
 
-      const drawerTargets =
-        drawerOpenRef.current || drawerClosingRef.current
-        ? Array.from(
-            drawer.querySelectorAll<HTMLElement>(
-              'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-            ),
-          ).filter((target) => !target.closest("[inert]"))
-        : [];
-      const focusTargets =
-        drawerOpenRef.current || drawerClosingRef.current
-        ? drawerTargets
-        : [toggle];
+      const focusTargets = Array.from(
+        navigation.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((target) => !target.closest("[inert]"));
       const firstFocusTarget = focusTargets[0] ?? toggle;
       const currentIndex = focusTargets.indexOf(
         document.activeElement as HTMLElement,
@@ -480,128 +503,110 @@ export function SiteHeader({
 
   return (
     <div className="site-canvas">
-      <header
-        className="site-header"
-        data-page-canvas=""
-        data-page-interaction-surface=""
-      >
-        <a className="skip-link" href="#main-content">
-          Skip to main content
-        </a>
-        <div className="site-header-inner">
-          <button
-            ref={menuButtonRef}
-            className="navigation-toggle"
-            type="button"
-            aria-controls="location-drawer"
-            aria-expanded={isDrawerOpen}
-            aria-haspopup="dialog"
-            aria-hidden={isDrawerOpen || undefined}
-            disabled={!isNavigationReady || isDrawerOpen}
-            aria-label="Open location navigation"
-            onClick={toggleDrawer}
-          >
-            <span className="navigation-toggle-icon" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-          </button>
-          <Link className="site-brand" href="/">
-            {siteName}
-          </Link>
-        </div>
-      </header>
-
       <div
-        ref={drawerRef}
-        className="location-drawer"
-        id="location-drawer"
-        data-navigation-ready={isNavigationReady}
-        role="dialog"
+        ref={navigationRef}
+        className="site-navigation"
+        role={isDrawerOpen ? "dialog" : undefined}
         aria-modal={isDrawerOpen || undefined}
-        aria-label="Location navigation"
-        aria-hidden={!isDrawerOpen}
-        inert={!isDrawerOpen}
+        aria-label={isDrawerOpen ? "Location navigation" : undefined}
       >
-        <div className="location-drawer-header">
-          <button
-            ref={drawerCloseButtonRef}
-            className="drawer-close"
-            type="button"
-            aria-label="Close location navigation"
-            onClick={() => closeDrawer()}
-          >
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        <fieldset className="default-location" aria-describedby="default-location-hint">
-          <legend>Start here next time</legend>
-          <p id="default-location-hint">Choose where LAAW.life opens.</p>
-          {[...locations, { id: "og", displayName: "OG Regular" }].map((destination) => (
-            <label className="default-location-option" key={destination.id}>
-              <input
-                type="radio"
-                name="default-location"
-                value={destination.id}
-                checked={rememberedId === destination.id}
-                onChange={() => void rememberDestination(destination.id)}
-              />
-              <span>{destination.displayName}</span>
-            </label>
-          ))}
-          {rememberedId ? (
-            <button className="clear-default-location" type="button" onClick={() => void rememberDestination(null)}>
-              Clear preference
-            </button>
-          ) : null}
-          <p className="remember-status" role="status">{preferenceMessage}</p>
-        </fieldset>
-        <nav aria-label="Location calendars">
-          <ul className="location-list">
-            {locations.map((location) => {
-              const isCurrent = location.slug === currentSlug;
-
-              return (
-                <li key={location.id}>
-                  <Link
-                    className="location-link"
-                    href={getLocationPath(location)}
-                    aria-current={isCurrent ? "page" : undefined}
-                    onClick={(event) => {
-                      const opensInAnotherContext =
-                        event.metaKey ||
-                        event.ctrlKey ||
-                        event.shiftKey ||
-                        event.altKey ||
-                        event.button !== 0;
-
-                      navigationFocusPendingRef.current =
-                        !isCurrent && !opensInAnotherContext;
-                      closeDrawer({
-                        immediate: !isCurrent && !opensInAnotherContext,
-                        restoreFocus: isCurrent || opensInAnotherContext,
-                      });
-                    }}
-                  >
-                    <span>{location.displayName}</span>
-                    {isCurrent ? (
-                      <span className="current-location-label">Current</span>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="original-destination">
-            <a
-              className="original-link"
-              href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`}
+        <header
+          ref={headerRef}
+          className="site-header"
+        >
+          <a className="skip-link" href="#main-content" inert={isDrawerOpen}>
+            Skip to main content
+          </a>
+          <div className="site-header-inner">
+            <Link className="site-brand" href="/">
+              {siteName}
+            </Link>
+            <button
+              ref={menuButtonRef}
+              className="navigation-toggle"
+              type="button"
+              aria-controls="location-drawer"
+              aria-expanded={isDrawerOpen}
+              aria-haspopup="dialog"
+              disabled={!isNavigationReady}
+              aria-label={isDrawerOpen ? "Close location navigation" : "Open location navigation"}
+              onClick={toggleDrawer}
             >
-              OG Regular
-            </a>
+              <svg
+                className="navigation-toggle-icon"
+                viewBox="0 0 32 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <line className="navigation-toggle-line navigation-toggle-line-top" x1="3" y1="12" x2="29" y2="12" transform="translate(0 -8)" />
+                <line className="navigation-toggle-line navigation-toggle-line-middle" x1="3" y1="12" x2="29" y2="12" />
+                <line className="navigation-toggle-line navigation-toggle-line-bottom" x1="3" y1="12" x2="29" y2="12" transform="translate(0 8)" />
+              </svg>
+            </button>
           </div>
-        </nav>
+        </header>
+
+        <div
+          ref={drawerRef}
+          className="location-drawer"
+          id="location-drawer"
+          data-navigation-ready={isNavigationReady}
+          aria-hidden={!isDrawerOpen}
+          inert={!isDrawerOpen}
+        >
+          <nav aria-label="Location calendars">
+            <ul className="location-list">
+              {locations.map((location) => {
+                const isCurrent = location.slug === currentSlug;
+
+                return (
+                  <li key={location.id}>
+                    <Link
+                      className="location-link"
+                      href={getLocationPath(location)}
+                      aria-current={isCurrent ? "page" : undefined}
+                      onClick={(event) => {
+                        const opensInAnotherContext =
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.altKey ||
+                          event.button !== 0;
+
+                        navigationFocusPendingRef.current =
+                          !isCurrent && !opensInAnotherContext;
+                        closeDrawer({
+                          immediate: !isCurrent && !opensInAnotherContext,
+                          restoreFocus: isCurrent || opensInAnotherContext,
+                        });
+                      }}
+                    >
+                      <span>{location.displayName}</span>
+                      <ArrowRight className="location-link-icon" aria-hidden="true" />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="original-destination">
+              <a
+                className="original-link"
+                href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`}
+                onClick={(event) => {
+                  if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
+                    void browserLocationPreferenceStore.setLastLocationId(tenantId, "og");
+                  }
+                }}
+              >
+                OG Regular
+                <ExternalLink className="original-link-icon" aria-hidden="true" />
+              </a>
+            </div>
+          </nav>
+          <div className="location-drawer-settings">
+            <ThemeControl />
+          </div>
+        </div>
       </div>
 
       <main
@@ -615,11 +620,10 @@ export function SiteHeader({
         <div className="site-main-content">{children}</div>
       </main>
 
-      <SiteFooter locations={locations} />
+      <SiteFooter />
 
       <div
         className="drawer-overlay"
-        data-page-canvas=""
         aria-hidden="true"
       />
     </div>
