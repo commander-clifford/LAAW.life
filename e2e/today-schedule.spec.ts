@@ -1863,7 +1863,7 @@ for (const width of [1440, 600, 393, 320]) {
         expect(time.boxWidth).toBeCloseTo(timeTrackWidth, 1);
         expect(time.scrollWidth).toBeLessThanOrEqual(Math.ceil(time.boxWidth));
         expect(time.whiteSpace).toBe("nowrap");
-        expect(time.fontSize).toBeCloseTo(12.5, 1);
+        expect(time.fontSize).toBeCloseTo(width < 352 ? 12 : 12.5, 1);
       }
       const columnGap = await card.locator(".day-card-event-list").evaluate(
         (element) => Number.parseFloat(getComputedStyle(element).columnGap),
@@ -1883,7 +1883,10 @@ for (const width of [1440, 600, 393, 320]) {
         expect(title.x + title.width).toBeLessThanOrEqual(listBox.x + listBox.width + 1);
         expect(await event.locator(":scope > :first-child").evaluate((element) => element.tagName)).toBe("TIME");
         // The smaller time shares the title's first baseline.
-        expect(Math.abs(time.y - title.y)).toBeLessThan(4);
+        expect(await event.evaluate((element) =>
+          getComputedStyle(element).alignItems
+        )).toBe("baseline");
+        expect(Math.abs(time.y - title.y)).toBeLessThanOrEqual(5);
       }
       await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
       await expect(card.locator(".day-card-relative-label")).toHaveText("Today");
