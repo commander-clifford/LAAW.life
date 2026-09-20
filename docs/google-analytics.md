@@ -13,6 +13,8 @@ by default. See the [recovery record](release-2026-09-19-ga4-recovery.md).
   and scrolling enabled. Site search, form, video, and download events disabled.
 - Custom `location_switch` event fires when a visitor selects the other location
   from the navigation menu, with `from_location` and `to_location` slugs.
+- Custom `og_link_open` event counts menu clicks through to the preserved OG
+  page, with the page the visitor clicked from. The OG page remains untagged.
 - The owner's new Google login has verified property-level Administrator access.
   The original administrator remains in place; no existing access was removed.
 
@@ -38,7 +40,8 @@ This uses standard free GA4; no paid subscription is required.
    settings alone cannot change already-built files. Keep the ID in every later
    full-site build; calendar-only refreshes do not change the tag.
 5. Verify a live visit in GA4 Realtime/DebugView. Navigate between Ivy Station and
-   Hawthorne and confirm one page view and `location_switch` per selection. Test an actual outbound
+   Hawthorne and confirm one page view and `location_switch` per selection.
+   Select the OG menu link and confirm `og_link_open`. Test an actual outbound
    link when the site has one, and confirm a `click` event with `link_url`.
    Use Traffic acquisition for session source/medium and Pages and screens for
    page visits. Standard reports may populate later than Realtime.

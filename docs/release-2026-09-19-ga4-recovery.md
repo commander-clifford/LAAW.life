@@ -9,8 +9,9 @@ without that local file therefore omitted analytics.
 The fix versions the public measurement ID in `.env.production`, which Next.js
 loads for production builds, and exempts that file from the blanket env-file
 ignore rule. It remains guarded to the production domain. A `location_switch`
-event now records a deliberate menu selection of the other location, with
-source and destination slugs. Normal page views remain automatic and unchanged.
+event records deliberate menu selections of the other location, with source and
+destination slugs. An `og_link_open` event counts selections of the OG link,
+with the source location. The OG page itself stays unchanged and untagged.
 
 The site code and design come from current `origin/main`. The latest-source
 production export built successfully and includes the measurement ID on the

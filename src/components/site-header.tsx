@@ -13,7 +13,10 @@ import {
 } from "@/src/application/location-routing";
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
-import { trackLocationSwitch } from "@/src/infrastructure/google-analytics";
+import {
+  trackLocationSwitch,
+  trackOgLinkOpen,
+} from "@/src/infrastructure/google-analytics";
 import { SiteFooter } from "@/src/components/site-footer";
 import { ThemeControl } from "@/src/components/theme-control";
 
@@ -597,6 +600,9 @@ export function SiteHeader({
                 className="original-link"
                 href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`}
                 onClick={(event) => {
+                  if (event.button === 0) {
+                    trackOgLinkOpen(currentSlug ?? "other");
+                  }
                   if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
                     void browserLocationPreferenceStore.setLastLocationId(tenantId, "og");
                   }
