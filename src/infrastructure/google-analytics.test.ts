@@ -1,9 +1,18 @@
 import { runInNewContext } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { googleAnalyticsScript } from "./google-analytics";
+import {
+  googleAnalyticsScript,
+  trackGoogleAnalyticsEvent,
+  trackLocationSwitch,
+  trackOgLinkOpen,
+} from "./google-analytics";
 
 describe("Google Analytics bootstrap", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("does nothing without an ID and rejects malformed configuration", () => {
     expect(googleAnalyticsScript(undefined)).toBeNull();
     expect(googleAnalyticsScript(" ")).toBeNull();
@@ -46,4 +55,40 @@ describe("Google Analytics bootstrap", () => {
       }]);
     },
   );
+
+  it("forwards custom events only through the initialized tag", () => {
+    const calls: unknown[][] = [];
+    vi.stubGlobal("window", {
+      gtag: (...args: unknown[]) => calls.push(args),
+    });
+
+    trackGoogleAnalyticsEvent("carousel_navigation", {
+      from_index: 0,
+      interaction_method: "arrow",
+      location_id: "ivy-station",
+      to_index: 1,
+    });
+    trackLocationSwitch("ivy", "hawthorne");
+    trackOgLinkOpen("hawthorne");
+
+    expect(calls).toEqual([
+      ["event", "carousel_navigation", {
+        from_index: 0,
+        interaction_method: "arrow",
+        location_id: "ivy-station",
+        to_index: 1,
+      }],
+      ["event", "location_switch", {
+        from_location: "ivy",
+        to_location: "hawthorne",
+      }],
+      ["event", "og_link_open", { from_location: "hawthorne" }],
+    ]);
+
+    vi.stubGlobal("window", {});
+    expect(() => trackGoogleAnalyticsEvent(
+      "carousel_navigation",
+      { interaction_method: "arrow" },
+    )).not.toThrow();
+  });
 });

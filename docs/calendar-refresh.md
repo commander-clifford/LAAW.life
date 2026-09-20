@@ -65,7 +65,7 @@ and its public verification succeed for both locations, then set
 - Each run checks the application and uploader, then generates both locations
   from their public calendar feeds. A failed feed stops the run before uploading.
 - The uploader requires generation within the last two hours and date coverage
-  for today and tomorrow in Pacific time.
+  for Today through the next six days in Pacific time.
 - It uploads to a unique temporary filename, checks the remote byte count, and
   renames the complete file to `agendas.json`. Interrupted transfers leave the
   prior published file in place. It never uploads HTML, scripts, or `_next` assets.

@@ -17,8 +17,10 @@ from zoneinfo import ZoneInfo
 
 AGENDA_FILE = Path(__file__).resolve().parents[1] / "public/calendar-data/agendas.json"
 DESTINATION_NAME = "agendas.json"
-EXPECTED_LOCATIONS = {"ivy-station", "hawthorne"}
+EXPECTED_SOURCE_COUNTS = {"ivy-station": 8, "hawthorne": 8}
+EXPECTED_LOCATIONS = set(EXPECTED_SOURCE_COUNTS)
 MAXIMUM_BYTES = 10_000_000
+DAY_CARD_COUNT = 7
 
 
 class ConfigurationError(ValueError):
@@ -97,14 +99,17 @@ def validate_agenda_payload(payload, now=None):
 
     current_time = now or datetime.now(timezone.utc)
     local_date = current_time.astimezone(ZoneInfo("America/Los_Angeles")).date()
-    required_dates = {local_date.isoformat(), (local_date + timedelta(days=1)).isoformat()}
-    for agenda in agendas.values():
+    required_dates = {
+        (local_date + timedelta(days=day_offset)).isoformat()
+        for day_offset in range(DAY_CARD_COUNT)
+    }
+    for location_id, agenda in agendas.items():
         if not isinstance(agenda, dict):
             raise AgendaError("The generated agenda has an invalid location record.")
         source_count = agenda.get("sourceCount")
         if (
             type(source_count) is not int
-            or source_count < 1
+            or source_count != EXPECTED_SOURCE_COUNTS[location_id]
             or type(agenda.get("failedSourceCount")) is not int
             or agenda["failedSourceCount"] != 0
         ):
@@ -117,7 +122,9 @@ def validate_agenda_payload(payload, now=None):
             or not all(isinstance(date, str) for date in available_dates)
             or not required_dates.issubset(available_dates)
         ):
-            raise AgendaError("The generated agenda must cover today and tomorrow in Pacific time.")
+            raise AgendaError(
+                "The generated agenda must cover today and the next six days in Pacific time."
+            )
         try:
             generated_at = datetime.fromisoformat(agenda["generatedAt"].replace("Z", "+00:00"))
             if generated_at.utcoffset() is None:

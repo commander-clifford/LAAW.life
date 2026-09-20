@@ -1,10 +1,7 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes } from "react";
 
-type CardProps = Readonly<{
-  children: ReactNode;
-  className?: string;
-}>;
+type CardProps = Readonly<HTMLAttributes<HTMLDivElement>>;
 
-export function Card({ children, className = "" }: CardProps) {
-  return <div className={`card ${className}`.trim()}>{children}</div>;
+export function Card({ className = "", ...props }: CardProps) {
+  return <div className={`card ${className}`.trim()} {...props} />;
 }

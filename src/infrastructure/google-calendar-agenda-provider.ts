@@ -299,7 +299,7 @@ export const googleCalendarAgendaProvider: CalendarAgendaProvider = {
 
     if (failedSourceCount > 0) {
       console.warn(
-        `Today schedule could not load ${failedSourceCount} of ${results.length} public calendar feeds.`,
+        `Day Card schedule could not load ${failedSourceCount} of ${results.length} public calendar feeds.`,
       );
     }
 

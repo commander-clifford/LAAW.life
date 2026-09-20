@@ -39,4 +39,4 @@ await writeFile(temporaryPublicOutputFile, serializedAgendas, "utf8");
 await rename(temporaryPublicOutputFile, publicOutputFile);
 await rename(temporaryOutputFile, outputFile);
 
-console.log(`Generated Today agendas for ${agendaEntries.length} locations.`);
+console.log(`Generated calendar agendas for ${agendaEntries.length} locations.`);

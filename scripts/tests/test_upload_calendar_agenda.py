@@ -35,7 +35,10 @@ def agendas():
         location: {
             "generatedAt": NOW.isoformat(),
             "initialDateKey": "2026-09-15",
-            "availableDateKeys": ["2026-09-15", "2026-09-16"],
+            "availableDateKeys": [
+                "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18",
+                "2026-09-19", "2026-09-20", "2026-09-21",
+            ],
             "timeZone": "America/Los_Angeles",
             "sourceCount": 8,
             "failedSourceCount": 0,
@@ -114,6 +117,14 @@ class PayloadTests(unittest.TestCase):
         with self.assertRaises(uploader.AgendaError):
             self.validate(data)
 
+    def test_refuses_incomplete_or_unexpected_source_counts(self):
+        for source_count in (1, 7, 9):
+            with self.subTest(source_count=source_count):
+                data = agendas()
+                data["ivy-station"]["sourceCount"] = source_count
+                with self.assertRaises(uploader.AgendaError):
+                    self.validate(data)
+
     def test_refuses_stale_future_and_unzoned_timestamps(self):
         for timestamp in (
             (NOW - timedelta(hours=3)).isoformat(),
@@ -126,11 +137,13 @@ class PayloadTests(unittest.TestCase):
                 with self.assertRaises(uploader.AgendaError):
                     self.validate(data)
 
-    def test_refuses_missing_tomorrow(self):
-        data = agendas()
-        data["hawthorne"]["availableDateKeys"] = ["2026-09-15"]
-        with self.assertRaises(uploader.AgendaError):
-            self.validate(data)
+    def test_refuses_any_missing_day_in_the_day_card_window(self):
+        for missing_date in ("2026-09-15", "2026-09-18", "2026-09-21"):
+            with self.subTest(missing_date=missing_date):
+                data = agendas()
+                data["hawthorne"]["availableDateKeys"].remove(missing_date)
+                with self.assertRaisesRegex(uploader.AgendaError, "next six days"):
+                    self.validate(data)
 
     def test_refuses_non_json_and_oversized_data(self):
         with tempfile.TemporaryDirectory() as directory:
