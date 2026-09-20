@@ -25,3 +25,19 @@ export function googleAnalyticsScript(measurementId: string | undefined): string
     })();
   `;
 }
+
+/** Record a deliberate switch from one location calendar to the other. */
+export function trackLocationSwitch(
+  fromLocation: string,
+  toLocation: string,
+): void {
+  if (typeof window === "undefined") return;
+
+  const gtag = (window as Window & {
+    gtag?: (...args: unknown[]) => void;
+  }).gtag;
+  gtag?.("event", "location_switch", {
+    from_location: fromLocation,
+    to_location: toLocation,
+  });
+}

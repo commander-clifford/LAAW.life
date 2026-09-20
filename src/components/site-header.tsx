@@ -13,6 +13,7 @@ import {
 } from "@/src/application/location-routing";
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
+import { trackLocationSwitch } from "@/src/infrastructure/google-analytics";
 import { SiteFooter } from "@/src/components/site-footer";
 import { ThemeControl } from "@/src/components/theme-control";
 
@@ -575,6 +576,9 @@ export function SiteHeader({
 
                         navigationFocusPendingRef.current =
                           !isCurrent && !opensInAnotherContext;
+                        if (!isCurrent && !opensInAnotherContext && currentSlug) {
+                          trackLocationSwitch(currentSlug, location.slug);
+                        }
                         closeDrawer({
                           immediate: !isCurrent && !opensInAnotherContext,
                           restoreFocus: isCurrent || opensInAnotherContext,
