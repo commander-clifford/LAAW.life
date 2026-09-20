@@ -621,7 +621,7 @@ export function SiteHeader({
                   }
                 }}
               >
-                OG Regular
+                Old version
                 <ExternalLink className="original-link-icon" aria-hidden="true" />
               </a>
             </div>

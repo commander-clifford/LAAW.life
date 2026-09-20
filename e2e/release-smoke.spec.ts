@@ -89,7 +89,7 @@ test("the drawer opens the unchanged original site in a new tab", async ({ page,
   await page.goto("ivy/");
   await expect(page.getByRole("contentinfo")).toBeVisible();
   await page.getByRole("button", { name: "Open location navigation" }).click();
-  const originalLink = page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "OG Regular", exact: true });
+  const originalLink = page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Old version", exact: true });
   await expect(originalLink).toHaveAttribute("target", "_blank");
   await expect(originalLink).toHaveAttribute("rel", "noopener noreferrer");
   const originalPagePromise = context.waitForEvent("page");
@@ -112,7 +112,7 @@ test("the location drawer uses grayscale state and destination icons", async ({ 
   const drawer = page.getByRole("navigation", { name: "Location calendars" });
   const current = drawer.getByRole("link", { name: "Hawthorne", exact: true });
   const locationLinks = drawer.locator(".location-link");
-  const original = drawer.getByRole("link", { name: "OG Regular", exact: true });
+  const original = drawer.getByRole("link", { name: "Old version", exact: true });
 
   await expect(locationLinks).toHaveCount(2);
   await expect(locationLinks.locator("svg")).toHaveCount(2);
@@ -272,13 +272,13 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(page).toHaveURL(/\/ivy\/$/);
 });
 
-test("navigation automatically remembers the last destination after reopening, including OG Regular", async ({ page, context }) => {
+test("navigation automatically remembers the last destination after reopening, including Old version", async ({ page, context }) => {
   await page.setViewportSize({ width: 320, height: 667 });
   await page.goto("ivy/");
   const opener = page.getByRole("button", { name: "Open location navigation" });
   await opener.click();
   const drawer = page.locator("#location-drawer");
-  const original = drawer.getByRole("link", { name: "OG Regular", exact: true });
+  const original = drawer.getByRole("link", { name: "Old version", exact: true });
   await expect(drawer.getByRole("link")).toHaveCount(3);
   await expect(drawer.getByRole("radio")).toHaveCount(0);
   await expect(drawer).not.toContainText("Start here next time");
@@ -301,7 +301,7 @@ test("navigation automatically remembers the last destination after reopening, i
   await expect(returning).toHaveURL(/\/hawthorne\/$/);
   await returning.getByRole("button", { name: "Open location navigation" }).click();
   const originalPagePromise = context.waitForEvent("page");
-  await returning.getByRole("link", { name: "OG Regular", exact: true }).click();
+  await returning.getByRole("link", { name: "Old version", exact: true }).click();
   const originalPage = await originalPagePromise;
   await originalPage.waitForLoadState();
   await expect(returning).toHaveURL(/\/hawthorne\/$/);

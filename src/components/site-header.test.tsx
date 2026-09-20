@@ -57,7 +57,7 @@ describe("SiteHeader", () => {
     expect(originalLinkTag).toContain('href="/og/"');
     expect(originalLinkTag).toContain('target="_blank"');
     expect(originalLinkTag).toContain('rel="noopener noreferrer"');
-    expect(html).toContain("OG Regular<svg");
+    expect(html).toContain("Old version<svg");
     expect(html).not.toContain("Start here next time");
     expect(html).not.toContain('type="radio"');
     expect(html).not.toContain(">Current<");
