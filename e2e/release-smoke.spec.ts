@@ -272,7 +272,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(page).toHaveURL(/\/ivy\/$/);
 });
 
-test("navigation automatically remembers the last destination after reopening, including Old version", async ({ page, context }) => {
+test("navigation remembers only modern locations and ignores Old version", async ({ page, context }) => {
   await page.setViewportSize({ width: 320, height: 667 });
   await page.goto("ivy/");
   const opener = page.getByRole("button", { name: "Open location navigation" });
@@ -306,10 +306,21 @@ test("navigation automatically remembers the last destination after reopening, i
   await originalPage.waitForLoadState();
   await expect(returning).toHaveURL(/\/hawthorne\/$/);
   await expect(originalPage).toHaveURL(/\/og\/$/);
+  await expect.poll(() => returning.evaluate(() =>
+    localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
+  )).toBe("hawthorne");
+  await expect.poll(() => originalPage.evaluate(() =>
+    localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
+  )).toBe("hawthorne");
   await originalPage.close();
+  await returning.goto("og/");
+  await expect(returning).toHaveURL(/\/og\/$/);
+  await expect.poll(() => returning.evaluate(() =>
+    localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
+  )).toBe("hawthorne");
   await returning.goto("./?utm_source=remember-test#calendar");
-  await expect(returning).toHaveURL(/\/og\/\?utm_source=remember-test#calendar$/);
-  await expect(returning.locator("iframe")).toHaveCount(2);
+  await expect(returning).toHaveURL(/\/hawthorne\/\?utm_source=remember-test#calendar$/);
+  await expect(returning.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await returning.goto("ivy/");
   await expect.poll(() => returning.evaluate(() =>
     localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
@@ -352,11 +363,14 @@ test("a returning visitor reaches the saved location", async ({ page }) => {
   ).toBeVisible();
 });
 
-for (const storageState of ["invalid", "blocked"] as const) {
+for (const storageState of ["legacy", "invalid", "blocked"] as const) {
   test(`the root falls back to Ivy when saved storage is ${storageState}`, async ({ page }) => {
     await page.addInitScript((state) => {
-      if (state === "invalid") {
-        window.localStorage.setItem("laaw-life:laaw-life:last-location:v1", "missing-location");
+      if (state === "legacy" || state === "invalid") {
+        window.localStorage.setItem(
+          "laaw-life:laaw-life:last-location:v1",
+          state === "legacy" ? "og" : "missing-location",
+        );
       } else {
         Object.defineProperty(window, "localStorage", {
           get() { throw new DOMException("Storage is blocked", "SecurityError"); },
@@ -369,6 +383,11 @@ for (const storageState of ["invalid", "blocked"] as const) {
     await expect(page).toHaveURL(/\/ivy\/$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
     await expect(page.getByRole("button", { name: "Open location navigation" })).toBeEnabled();
+    if (storageState !== "blocked") {
+      await expect.poll(() => page.evaluate(() =>
+        window.localStorage.getItem("laaw-life:laaw-life:last-location:v1"),
+      )).toBe("ivy-station");
+    }
     expect(errors).toEqual([]);
   });
 }

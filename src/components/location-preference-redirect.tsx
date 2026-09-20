@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { getLocationPath } from "@/src/application/location-routing";
+import {
+  getLocationPath,
+  getPreferredLocation,
+} from "@/src/application/location-routing";
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
 
@@ -29,16 +32,14 @@ export function LocationPreferenceRedirect({
       try {
         const savedLocationId =
           await browserLocationPreferenceStore.getLastLocationId(tenantId);
-        if (isCurrent && savedLocationId === "og") {
-          // The original is a static document outside the Next.js route tree.
-          window.location.replace(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/${window.location.search}${window.location.hash}`);
-          return;
-        }
-        const location =
-          locations.find(({ id }) => id === savedLocationId) ??
-          locations.find(({ id }) => id === defaultLocationId);
+        // Only configured modern locations may influence the root redirect.
+        // Legacy or otherwise stale values fall back to the configured default.
+        const location = getPreferredLocation(
+          { defaultLocationId, id: tenantId, locations },
+          savedLocationId,
+        );
 
-        if (isCurrent && location) {
+        if (isCurrent) {
           // Keep campaign/source parameters when the home page selects a location.
           router.replace(`${getLocationPath(location)}${window.location.search}${window.location.hash}`);
         }

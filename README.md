@@ -8,8 +8,8 @@ not run the application or generate the calendar data.
 ## What visitors see
 
 - The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). Later visits
-  automatically return to the last location opened in that browser. Opening
-  **Old version** from the drawer also saves it as the next starting page. There
+  automatically return to the last modern location opened in that browser.
+  Opening **Old version** does not change that remembered location. There
   are no preference controls or account requirements; the browser uses local
   storage to remember the last destination.
 - The header stays visible while scrolling. Its right-side hamburger changes to
