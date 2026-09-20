@@ -13,10 +13,16 @@ export function getLocationBySlug(
   return tenant.locations.find((location) => location.slug === slug) ?? null;
 }
 
-export function getPreferredLocation(
-  tenant: Tenant,
+export function getPreferredLocation<
+  TLocation extends Pick<Location, "id">,
+>(
+  tenant: Readonly<{
+    defaultLocationId: string;
+    id: string;
+    locations: readonly TLocation[];
+  }>,
   savedLocationId: string | null,
-): Location {
+): TLocation {
   const savedLocation = tenant.locations.find(
     (location) => location.id === savedLocationId,
   );

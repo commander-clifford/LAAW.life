@@ -8,8 +8,8 @@ not run the application or generate the calendar data.
 ## What visitors see
 
 - The first visit to `/` opens [Ivy Station](https://laaw.life/ivy/). Later visits
-  automatically return to the last location opened in that browser. Opening
-  **OG Regular** from the drawer also saves it as the next starting page. There
+  automatically return to the last modern location opened in that browser.
+  Opening **Old version** does not change that remembered location. There
   are no preference controls or account requirements; the browser uses local
   storage to remember the last destination.
 - The header stays visible while scrolling. Its right-side hamburger changes to
@@ -38,7 +38,7 @@ not run the application or generate the calendar data.
   centered **Open calendar** control loads the full Google
   Calendar on first opening. It keeps that frame when closed and reopened, caps
   its height at 448 px, and leaves a right-side gutter for scrolling the page.
-- The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/)
+- The drawer's **Old version** link opens the [original single-file site](https://laaw.life/og/)
   in a new tab.
   Its HTML is preserved byte-for-byte, with both original calendar embeds and
   its original styling.

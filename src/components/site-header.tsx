@@ -616,12 +616,9 @@ export function SiteHeader({
                   if (event.button === 0) {
                     trackOgLinkOpen(currentSlug ?? "other");
                   }
-                  if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
-                    void browserLocationPreferenceStore.setLastLocationId(tenantId, "og");
-                  }
                 }}
               >
-                OG Regular
+                Old version
                 <ExternalLink className="original-link-icon" aria-hidden="true" />
               </a>
             </div>
