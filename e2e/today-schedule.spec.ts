@@ -1403,6 +1403,19 @@ for (const width of [320, 1440]) {
 
     const rowCue = await busySchedule.evaluate((element) => {
       const scheduleRect = element.getBoundingClientRect();
+      const scheduleStyle = getComputedStyle(element);
+      const list = element.querySelector<HTMLElement>(".day-card-event-list");
+      const sampleTitle = element.querySelector<HTMLElement>(".day-card-event h3");
+      if (!list || !sampleTitle) {
+        throw new Error("The busy schedule needs an event list and title.");
+      }
+      const rowGap = Number.parseFloat(getComputedStyle(list).rowGap);
+      const normalRowHeight = Number.parseFloat(
+        getComputedStyle(sampleTitle).lineHeight,
+      );
+      const contentHeight = element.clientHeight -
+        Number.parseFloat(scheduleStyle.paddingTop) -
+        Number.parseFloat(scheduleStyle.paddingBottom);
       const rows = [
         ...element.querySelectorAll<HTMLElement>(".day-card-event"),
       ].slice(0, 4).map((row) => {
@@ -1420,16 +1433,22 @@ for (const width of [320, 1440]) {
       });
       return {
         bottom: scheduleRect.bottom,
+        normalRowCapacity:
+          (contentHeight + rowGap) / (normalRowHeight + rowGap),
         rows,
         top: scheduleRect.top,
       };
     });
     expect(rowCue.rows).toHaveLength(4);
-    for (const row of rowCue.rows.slice(0, 3)) {
+    expect(rowCue.normalRowCapacity).toBeGreaterThan(3.4);
+    expect(rowCue.normalRowCapacity).toBeLessThan(3.6);
+    for (const row of rowCue.rows.slice(0, 2)) {
       expect(row.top).toBeGreaterThanOrEqual(rowCue.top - 1);
       expect(row.bottom).toBeLessThanOrEqual(rowCue.bottom + 1);
     }
-    expect(rowCue.rows[3].visibleHeight).toBeGreaterThan(4);
+    // Live titles may wrap, but the viewport still exposes the third row and
+    // clips the fourth while the bottom fade advertises more content.
+    expect(rowCue.rows[2].visibleHeight).toBeGreaterThan(4);
     expect(rowCue.rows[3].visibleHeight).toBeLessThan(
       rowCue.rows[3].height - 4,
     );
