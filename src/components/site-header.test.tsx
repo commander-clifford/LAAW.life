@@ -51,7 +51,13 @@ describe("SiteHeader", () => {
     expect(html.match(/data-page-canvas=""/g)).toHaveLength(2);
     expect(html).toContain("<footer");
     expect(html).toContain("Buy me a brew");
-    expect(html).toContain('href="/og/">OG Regular<svg');
+    const originalLinkTag = html.match(
+      /<a[^>]*class="original-link"[^>]*>/,
+    )?.[0];
+    expect(originalLinkTag).toContain('href="/og/"');
+    expect(originalLinkTag).toContain('target="_blank"');
+    expect(originalLinkTag).toContain('rel="noopener noreferrer"');
+    expect(html).toContain("OG Regular<svg");
     expect(html).not.toContain("Start here next time");
     expect(html).not.toContain('type="radio"');
     expect(html).not.toContain(">Current<");

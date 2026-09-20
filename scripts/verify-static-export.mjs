@@ -36,7 +36,7 @@ const expectedPageContent = new Map([
     [
       "<title>Ivy Station Calendar | LAAW Life</title>",
       '<meta name="description" content="View the Ivy Station calendar for LAAW Life."',
-      '<section class="today-schedule" aria-label="Daily events"',
+      '<section class="day-carousel" aria-label="Seven-day schedule"',
     ],
   ],
   [
@@ -44,7 +44,7 @@ const expectedPageContent = new Map([
     [
       "<title>Hawthorne Calendar | LAAW Life</title>",
       '<meta name="description" content="View the Hawthorne calendar for LAAW Life."',
-      '<section class="today-schedule" aria-label="Daily events"',
+      '<section class="day-carousel" aria-label="Seven-day schedule"',
     ],
   ],
   [

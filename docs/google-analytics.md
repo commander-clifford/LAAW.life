@@ -57,8 +57,22 @@ This uses standard free GA4; no paid subscription is required.
   and Google signals are disabled in the tag configuration. No custom user IDs,
   event titles, calendar contents, or saved location preferences are sent.
 - Location navigation is measured through page views and the `location_switch`
-  event. Current calendar controls live in a Google
-  Calendar iframe: the parent site's tag cannot measure clicks inside it.
+  event.
+- Intentional Day Card navigation emits one `carousel_navigation` event for an
+  arrow, dot, keyboard action, touch swipe, mouse drag, pen drag, or the header
+  date control. Its non-sensitive parameters describe the interaction method and
+  source, direction, from/to index, date and relative label, location, and visible
+  day count. Event titles and calendar contents are never included.
+- An outward gesture that crosses the same navigation threshold at the first or
+  final card emits one `carousel_boundary_attempt` event; equivalent keyboard
+  attempts are also measured. Its non-sensitive parameters identify the boundary,
+  attempted direction, method, current index/date/relative label, location, and
+  visible day count. The carousel remains non-circular, and disabled arrows remain
+  disabled rather than becoming analytics-only controls.
+- Passive scrolling, scroll snapping, resizing, and current-date rollover emit no
+  custom analytics events.
+- Controls inside the full Google Calendar iframe remain opaque to the parent
+  site's analytics tag.
 - The home-page location redirect preserves campaign query parameters so links
   with UTM tags retain their source information.
 - The original `/og/` page stays byte-for-byte unchanged and is not instrumented.

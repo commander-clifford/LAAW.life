@@ -28,7 +28,8 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   const main = page.getByRole("main");
   const content = page.locator(".site-main-content");
   const calendar = page.locator("iframe.calendar-frame");
-  const card = page.locator(".daily-information-card");
+  const carousel = page.getByRole("region", { name: "Seven-day schedule" });
+  const card = carousel.locator("[data-day-card][data-active='true']");
 
   await expect(opener).toBeVisible();
   await expect(opener).toBeEnabled();
@@ -42,28 +43,34 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
     await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   }
   await expect(calendar).toBeVisible();
-  await expect(card.locator(".today-schedule-date time")).toBeVisible();
+  await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+  await expect(card.locator(".day-card-date time")).toBeVisible();
 
   const mainBox = (await main.boundingBox())!;
   const contentBox = (await content.boundingBox())!;
   const calendarBox = (await calendar.boundingBox())!;
+  const carouselBox = (await carousel.boundingBox())!;
   const cardBox = (await card.boundingBox())!;
-  const dateBox = (await card.locator(".today-schedule-date").boundingBox())!;
-  const eventsBox = (await card.getByRole("region", { name: "Daily events" }).boundingBox())!;
+  const dateBox = (await card.locator(".day-card-date").boundingBox())!;
+  const eventsBox = (await card.getByRole("region", { name: "Today events" }).boundingBox())!;
   const layoutWidth = await page.evaluate(() => document.documentElement.clientWidth);
 
   // A closed drawer must reserve no sidebar space, including above 1024px.
   expect(Math.abs(mainBox.x)).toBeLessThan(1);
   expect(Math.abs(mainBox.width - layoutWidth)).toBeLessThan(1);
   expect(Math.abs(contentBox.x + contentBox.width / 2 - layoutWidth / 2)).toBeLessThan(1);
+  expect(carouselBox.x + carouselBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
+  expect(carouselBox.width).toBeCloseTo(
+    layoutWidth < 704 ? layoutWidth : Math.min(656, contentBox.width),
+    0,
+  );
   expect(cardBox.x + cardBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
-  expect(cardBox.width).toBeCloseTo(Math.min(512, contentBox.width), 0);
   expect(calendarBox.x + calendarBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
   expect(calendarBox.width).toBeCloseTo(Math.min(800, contentBox.width), 0);
   expect(calendarBox.height).toBeLessThanOrEqual(448);
-  expect(cardBox.x).toBeGreaterThanOrEqual(0);
-  expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(viewportWidth);
-  expect(calendarBox.y).toBeGreaterThan(cardBox.y + cardBox.height);
+  expect(carouselBox.x).toBeGreaterThanOrEqual(0);
+  expect(carouselBox.x + carouselBox.width).toBeLessThanOrEqual(viewportWidth);
+  expect(calendarBox.y).toBeGreaterThan(carouselBox.y + carouselBox.height);
   const titleBox = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
   expect(dateBox.y).toBeGreaterThan(titleBox.y + titleBox.height);
   expect(eventsBox.y).toBeGreaterThan(dateBox.y + dateBox.height);
@@ -78,17 +85,24 @@ test("the home redirect preserves traffic-source parameters", async ({ page }) =
   await expect(page).toHaveURL(/\/ivy\/\?utm_source=newsletter&utm_medium=email&utm_campaign=calendar$/);
 });
 
-test("the drawer opens the unchanged original site", async ({ page }) => {
+test("the drawer opens the unchanged original site in a new tab", async ({ page, context }) => {
   await page.goto("ivy/");
   await expect(page.getByRole("contentinfo")).toBeVisible();
   await page.getByRole("button", { name: "Open location navigation" }).click();
   const originalLink = page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "OG Regular", exact: true });
+  await expect(originalLink).toHaveAttribute("target", "_blank");
+  await expect(originalLink).toHaveAttribute("rel", "noopener noreferrer");
+  const originalPagePromise = context.waitForEvent("page");
   await originalLink.click();
-  await expect(page).toHaveURL(/\/og\/$/);
-  await expect(page.locator("iframe")).toHaveCount(2);
-  await expect(page.locator(".site-header, .site-footer, script[src*='_next']")).toHaveCount(0);
-  const response = await page.request.get(page.url());
+  const originalPage = await originalPagePromise;
+  await originalPage.waitForLoadState();
+  await expect(page).toHaveURL(/\/ivy\/$/);
+  await expect(originalPage).toHaveURL(/\/og\/$/);
+  await expect(originalPage.locator("iframe")).toHaveCount(2);
+  await expect(originalPage.locator(".site-header, .site-footer, script[src*='_next']")).toHaveCount(0);
+  const response = await page.request.get(originalPage.url());
   expect(await response.text()).toBe(readFileSync(new URL("../public/og/index.html", import.meta.url), "utf8"));
+  await originalPage.close();
 });
 
 test("the location drawer uses grayscale state and destination icons", async ({ page }) => {
@@ -103,6 +117,17 @@ test("the location drawer uses grayscale state and destination icons", async ({ 
   await expect(locationLinks).toHaveCount(2);
   await expect(locationLinks.locator("svg")).toHaveCount(2);
   await expect(original.locator("svg")).toHaveCount(1);
+  await expect(original).toHaveAttribute("target", "_blank");
+  await expect(original).toHaveAttribute("rel", "noopener noreferrer");
+  expect(await locationLinks.evaluateAll((links) =>
+    links.map((link) => ({
+      rel: link.getAttribute("rel"),
+      target: link.getAttribute("target"),
+    }))
+  )).toEqual([
+    { rel: null, target: null },
+    { rel: null, target: null },
+  ]);
   await expect(current).toHaveCSS("text-decoration-line", "none");
   await expect(original).toHaveCSS("text-decoration-line", "none");
 
@@ -275,8 +300,13 @@ test("navigation automatically remembers the last destination after reopening, i
   await returning.goto("./");
   await expect(returning).toHaveURL(/\/hawthorne\/$/);
   await returning.getByRole("button", { name: "Open location navigation" }).click();
+  const originalPagePromise = context.waitForEvent("page");
   await returning.getByRole("link", { name: "OG Regular", exact: true }).click();
-  await expect(returning).toHaveURL(/\/og\/$/);
+  const originalPage = await originalPagePromise;
+  await originalPage.waitForLoadState();
+  await expect(returning).toHaveURL(/\/hawthorne\/$/);
+  await expect(originalPage).toHaveURL(/\/og\/$/);
+  await originalPage.close();
   await returning.goto("./?utm_source=remember-test#calendar");
   await expect(returning).toHaveURL(/\/og\/\?utm_source=remember-test#calendar$/);
   await expect(returning.locator("iframe")).toHaveCount(2);
@@ -412,7 +442,10 @@ for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 144
     await expectPageInteractionState(page, false);
     await expect(page.locator(".drawer-overlay")).toHaveCSS("pointer-events", "none");
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Daily events" })).toBeVisible();
+    const carousel = page.getByRole("region", { name: "Seven-day schedule" });
+    await expect(carousel).toBeVisible();
+    await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+    await expect(carousel.locator(".day-carousel-dot[aria-current='true']")).toHaveAccessibleName("Go to Today");
   });
 }
 
@@ -452,6 +485,144 @@ test("drawer state survives resizing and closed content uses the full width", as
     await expectClosedNavigationLayout(page, width);
   }
 });
+
+for (const width of [320, 1440]) {
+  test(`the menu toggle keeps three centered strokes without pointer decoration at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("ivy/");
+
+    const toggle = page.locator(".navigation-toggle");
+    const drawer = page.locator("#location-drawer");
+    const brand = page.getByRole("link", { name: "LAAW.life", exact: true });
+    const measureToggle = () => toggle.evaluate((button) => {
+      const icon = button.querySelector<SVGSVGElement>(
+        ".navigation-toggle-icon",
+      )!;
+      const rect = (element: Element) => {
+        const bounds = element.getBoundingClientRect();
+        return {
+          height: bounds.height,
+          width: bounds.width,
+          x: bounds.x,
+          y: bounds.y,
+        };
+      };
+      const buttonStyle = getComputedStyle(button);
+
+      return {
+        afterContent: getComputedStyle(button, "::after").content,
+        beforeContent: getComputedStyle(button, "::before").content,
+        borderBottomWidth: buttonStyle.borderBottomWidth,
+        boxShadow: buttonStyle.boxShadow,
+        button: rect(button),
+        focused: document.activeElement === button,
+        icon: rect(icon),
+        lines: [...icon.querySelectorAll<SVGLineElement>(
+          ".navigation-toggle-line",
+        )].map((line) => ({
+          opacity: getComputedStyle(line).opacity,
+          rect: rect(line),
+          scaleX: new DOMMatrix(getComputedStyle(line).transform).a,
+          stroke: getComputedStyle(line).stroke,
+          strokeWidth: Number.parseFloat(getComputedStyle(line).strokeWidth),
+          visibility: getComputedStyle(line).visibility,
+        })),
+        outlineStyle: buttonStyle.outlineStyle,
+        outlineWidth: buttonStyle.outlineWidth,
+        pointerFocus: (button as HTMLElement).dataset.pointerFocus,
+        textDecorationLine: buttonStyle.textDecorationLine,
+      };
+    });
+    const expectNoExtraDecoration = (state: Awaited<ReturnType<typeof measureToggle>>) => {
+      expect(state.beforeContent).toBe("none");
+      expect(state.afterContent).toBe("none");
+      expect(state.borderBottomWidth).toBe("0px");
+      expect(state.boxShadow).toBe("none");
+      expect(state.textDecorationLine).toBe("none");
+    };
+    const expectClosedStrokes = (state: Awaited<ReturnType<typeof measureToggle>>) => {
+      expect(state.lines).toHaveLength(3);
+      expect(state.button.width).toBeCloseTo(44, 0);
+      expect(state.button.height).toBeCloseTo(44, 0);
+      expect(state.icon.x + state.icon.width / 2).toBeCloseTo(
+        state.button.x + state.button.width / 2,
+        1,
+      );
+      expect(state.icon.y + state.icon.height / 2).toBeCloseTo(
+        state.button.y + state.button.height / 2,
+        1,
+      );
+      const centers = state.lines.map(({ rect: line }) =>
+        line.y + line.height / 2
+      );
+      expect(centers[1] - centers[0]).toBeCloseTo(8, 1);
+      expect(centers[2] - centers[1]).toBeCloseTo(8, 1);
+      expect(centers[1]).toBeCloseTo(
+        state.icon.y + state.icon.height / 2,
+        1,
+      );
+      for (const line of state.lines) {
+        expect(line.rect.width).toBeCloseTo(24, 1);
+        expect(line.opacity).toBe("1");
+        expect(line.stroke).not.toBe("none");
+        expect(line.strokeWidth).toBeCloseTo(2, 1);
+        expect(line.visibility).toBe("visible");
+      }
+    };
+
+    let state = await measureToggle();
+    expectNoExtraDecoration(state);
+    expectClosedStrokes(state);
+
+    await toggle.click();
+    await expect(drawer).toHaveAttribute("aria-hidden", "false");
+    state = await measureToggle();
+    expectNoExtraDecoration(state);
+    expect(state.focused).toBe(true);
+    expect(state.pointerFocus).toBe("true");
+    expect(state.outlineStyle).toBe("none");
+    expect(state.lines[1].scaleX).toBeCloseTo(0, 3);
+    for (const line of [state.lines[0], state.lines[2]]) {
+      expect(line.rect.x + line.rect.width / 2).toBeCloseTo(
+        state.icon.x + state.icon.width / 2,
+        1,
+      );
+      expect(line.rect.y + line.rect.height / 2).toBeCloseTo(
+        state.icon.y + state.icon.height / 2,
+        1,
+      );
+      expect(line.rect.width).toBeCloseTo(line.rect.height, 1);
+    }
+
+    await toggle.click();
+    await expect(drawer).toHaveAttribute("aria-hidden", "true");
+    expectClosedStrokes(await measureToggle());
+
+    await brand.focus();
+    await page.keyboard.press("Tab");
+    await expect(toggle).toBeFocused();
+    state = await measureToggle();
+    expectNoExtraDecoration(state);
+    expect(state.pointerFocus).toBeUndefined();
+    expect(state.outlineStyle).toBe("solid");
+    expect(state.outlineWidth).toBe("3px");
+
+    await page.keyboard.press("Enter");
+    await expect(drawer).toHaveAttribute("aria-hidden", "false");
+    state = await measureToggle();
+    expectNoExtraDecoration(state);
+    expect(state.outlineStyle).toBe("solid");
+    expect(state.lines[1].scaleX).toBeCloseTo(0, 3);
+    await page.keyboard.press("Escape");
+    await expect(drawer).toHaveAttribute("aria-hidden", "true");
+    await expect(toggle).toBeFocused();
+    state = await measureToggle();
+    expectNoExtraDecoration(state);
+    expect(state.outlineStyle).toBe("solid");
+    expectClosedStrokes(state);
+  });
+}
 
 for (const width of [320, 1440]) {
   test(`the header stays fixed and the same button closes the drawer after scrolling at ${width}px`, async ({ page }, testInfo) => {
@@ -526,9 +697,8 @@ test("menu strokes, drawer, page, and overlay stay synchronized through opening,
       const width = drawer.getBoundingClientRect().width;
       const topMatrix = matrix(top);
       const bottomMatrix = matrix(bottom);
-      const center = new DOMPoint(16, 12);
-      const topCenter = center.matrixTransform(topMatrix);
-      const bottomCenter = center.matrixTransform(bottomMatrix);
+      const topCenter = new DOMPoint(15, 4).matrixTransform(topMatrix);
+      const bottomCenter = new DOMPoint(15, 20).matrixTransform(bottomMatrix);
       // Compare visible progress, independent of the animation library or its clock.
       return [
         1 - matrix(drawer).e / width,

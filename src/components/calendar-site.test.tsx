@@ -8,7 +8,15 @@ import { LocationCalendar } from "@/src/components/location-calendar";
 import { googleCalendarEmbedProvider } from "@/src/infrastructure/google-calendar-embed-provider";
 
 const agenda: CalendarAgenda = {
-  availableDateKeys: ["2026-09-03"],
+  availableDateKeys: [
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-05",
+    "2026-09-06",
+    "2026-09-07",
+    "2026-09-08",
+    "2026-09-09",
+  ],
   events: [
     {
       allDay: false,
@@ -43,14 +51,14 @@ describe("LocationCalendar", () => {
       expect(html).not.toContain("data-calendar-placeholder");
       expect(html).toContain("Open calendar");
       expect(html).toContain('aria-expanded="false"');
-      expect(html).not.toContain("today-schedule-header");
+      expect(html).toContain('class="day-carousel"');
       expect(html).not.toContain("<h2");
-      expect(html).toContain('aria-label="Daily events"');
-      expect(html).not.toContain("aria-labelledby");
+      expect(html).toContain('aria-label="Seven-day schedule"');
       expect(html).toContain("Loading today&#x27;s schedule…");
       expect(html).toContain('aria-busy="true"');
       expect(html).toContain('role="status"');
-      expect(html).not.toContain("today-schedule-count");
+      expect(html).not.toContain("day-carousel-pagination");
+      expect(html).not.toContain("day-card-relative-label");
       expect(html).not.toContain("<time");
       expect(html).not.toContain("Thursday, September 3, 2026");
       expect(html).not.toContain("Coffee social");

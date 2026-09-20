@@ -21,13 +21,25 @@ not run the application or generate the calendar data.
   the same 320 ms duration and `power2.inOut` easing in both directions. Every
   moving part starts and finishes together, including when a click reverses
   an unfinished transition. Reduced motion switches all parts immediately.
-- Each location name sits above the current daily card. The published Option 4
-  layout has a prominent Pacific weekday, a quieter full date, and event names
-  beside their times. The card grows to the available width up to 512 px; long
-  names wrap. The centered **Open calendar** control loads the full Google
+- Each location name sits above a seven-card schedule covering Today through
+  the next six Pacific calendar days. Every Day Card keeps the published Option
+  4 hierarchy: a prominent weekday, quieter full date, and event names beside
+  their times. The live Pacific date beside the location name is hidden while
+  Today is centered, then the carousel position continuously scrubs it leftward
+  from beyond the right edge of that header row while fading it in toward
+  Tomorrow. On future cards it returns the carousel to Today, reversing
+  that motion as the cards glide back. Swipe between cards on touch devices,
+  drag the rail with a mouse or pen on wide layouts, or use the desktop arrows
+  and seven direct-access dots; navigation never wraps into past dates. Cards
+  share one capped height and grow to the available width up to 512 px. Busy
+  schedules scroll inside the fixed date header after roughly three and a half
+  event rows, with edge fades showing when more content remains; long names
+  still wrap. The
+  centered **Open calendar** control loads the full Google
   Calendar on first opening. It keeps that frame when closed and reopened, caps
   its height at 448 px, and leaves a right-side gutter for scrolling the page.
-- The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/).
+- The drawer's **OG Regular** link opens the [original single-file site](https://laaw.life/og/)
+  in a new tab.
   Its HTML is preserved byte-for-byte, with both original calendar embeds and
   its original styling.
 - The **Appearance** control at the bottom of the location drawer follows the
@@ -109,7 +121,7 @@ are verified. The schedule targets 30 minutes; GitHub may delay execution.
 | `src/config/laaw-life.ts` | Location names, default location, and public Google Calendar sources |
 | `src/domain/` and `src/application/` | Data types, routing rules, and calendar validation |
 | `src/infrastructure/` | Public-calendar adapters, recurrence expansion, generated-data reader, and saved browser preference |
-| `src/components/` | Header, location drawer, daily card, and full-calendar embed |
+| `src/components/` | Header, location drawer, Day Card carousel, and full-calendar embed |
 | `public/og/index.html` | Unaltered original website |
 | `public/.htaccess` | Apache routing and error-page configuration |
 | `scripts/` | Calendar generation, export checks, packaging, upload safeguards, and verification |
@@ -185,9 +197,9 @@ supplies the JavaScript API used by ESLint and Next.js. Before editing framework
 code, follow [AGENTS.md](AGENTS.md) and read the relevant installed Next.js guides
 under `node_modules/next/dist/docs/`.
 
-## How the daily card stays current
+## How the Day Cards stay current
 
-The full Google Calendar embed and the custom daily card are two views of the
+The full Google Calendar embed and the custom Day Card carousel are two views of the
 existing public calendars. Their refresh mechanisms are separate.
 
 1. Calendar owners keep managing events in their existing Google Calendars.
@@ -201,13 +213,13 @@ existing public calendars. Their refresh mechanisms are separate.
    JavaScript, styles, and OG page are untouched by this data-only operation.
 5. A visitor's browser reads the same-origin JSON on load, every five minutes,
    and when returning to the tab or regaining connectivity. It accepts valid,
-   newer data and updates the custom card.
+   newer data and updates all seven Day Cards.
 
 The enabled schedule targets **every 30 minutes**, at minutes 11 and 41 of each
 hour. GitHub can delay scheduled jobs; generation, transfer, and the browser's
 next check add time. This is a refresh target, not a guaranteed deadline after a
-calendar edit. A resumed or new page also checks for updates. The displayed day
-uses Pacific time, independently of the visitor's device timezone.
+calendar edit. A resumed or new page also checks for updates. The seven-day
+window uses Pacific civil dates independently of the visitor's device timezone.
 
 There is **no cron job, Node.js service, or background generator on HostGator**.
 GitHub does the scheduled work; HostGator serves static files. Reading the public
@@ -217,7 +229,7 @@ calendar JSON.
 
 If a fetch fails, the page keeps its bundled or last successful snapshot. After
 48 hours it shows a delayed-update notice; if its date coverage expires, it
-explains that the daily schedule is unavailable and keeps the full calendar
+explains that the affected Day Card schedule is unavailable and keeps the full calendar
 below. On first opening, the embed loads directly from Google.
 
 `NEXT_PUBLIC_CALENDAR_AGENDA_URL` is an optional **build-time** override for the
@@ -359,7 +371,7 @@ routing correction that followed the initial archive.
 - **Public verification fails:** the upload may have completed. Check the
   public URL, destination mapping, and caching before declaring the update
   successful. Keep the schedule paused until both locations verify.
-- **The daily card warns about delays:** inspect the latest successful Actions
+- **The Day Card carousel warns about delays:** inspect the latest successful Actions
   run and its `generatedAt` timestamps. The full Google Calendar remains
   available while the updater is repaired.
 - **The website release fails:** pause the updater, restore the saved live
