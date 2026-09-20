@@ -1,9 +1,11 @@
 # Google Analytics (GA4)
 
-Status (September 19, 2026): the tag is being restored to the latest site build.
-An earlier publish dropped it because the ID was only in an ignored local env
-file. The ID is now in tracked `.env.production` so production builds include it
-by default. See the [recovery record](release-2026-09-19-ga4-recovery.md).
+Status (September 19, 2026): the production site has been updated. The tag is
+present on the live home, Ivy Station, and Hawthorne pages. An earlier publish
+dropped it because the ID was only in an ignored local env file. The ID is now
+in tracked `.env.production` so production builds include it by default. The
+live HTML was verified after upload; GA4 Realtime ingestion was not separately
+rechecked. See the [recovery record](release-2026-09-19-ga4-recovery.md).
 
 - Analytics account: Clifford (`139887211`).
 - Property: LAAW.life (`554538162`), Pacific reporting time, US dollars.

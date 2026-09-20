@@ -15,5 +15,16 @@ with the source location. The OG page itself stays unchanged and untagged.
 
 The site code and design come from current `origin/main`. The latest-source
 production export built successfully and includes the measurement ID on the
-home, Ivy Station, and Hawthorne pages. HostGator upload and live Realtime
-confirmation are pending.
+home, Ivy Station, and Hawthorne pages. The export was uploaded to HostGator on
+September 19, 2026. After upload, the live Ivy and Hawthorne HTML both contained
+the Google tag script with the expected measurement ID, and the `/og/` page
+remained available. The root page and static assets were also deployed. A full
+pre-release backup of the document root was retained in HostGator's private
+temporary area for rollback.
+
+The release check passed: lint, type checks, 51 unit tests, production build
+and export, and 32 browser tests. The separate public-calendar browser check
+could not launch under the restricted local browser sandbox; that check is not
+part of the analytics release. GA4 Realtime ingestion was not separately
+rechecked after this upload, so the tag's live presence is confirmed while
+event arrival should be verified in the GA4 Realtime report.
