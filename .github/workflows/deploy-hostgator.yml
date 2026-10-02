@@ -1,0 +1,119 @@
+name: Reviewed HostGator site release
+
+# No push, PR, or schedule trigger. Setup must be approved before enabling.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Full release or reviewed focused hotfix
+        type: choice
+        options: [full, hotfix]
+        default: full
+        required: true
+      hotfix_manifest:
+        description: For hotfix only, committed docs/releases/*.json manifest
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+# Same group as the calendar updater: never overlap a full release and agenda write.
+concurrency:
+  group: ftp-calendar-refresh
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main' && vars.SITE_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: npm ci
+      - name: Transfer and rollback safeguards
+        run: python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
+      - name: Full application checks
+        if: inputs.mode == 'full'
+        run: npm run check
+      - name: Focused reviewed hotfix tests
+        if: inputs.mode == 'hotfix'
+        env:
+          HOTFIX_MANIFEST: ${{ inputs.hotfix_manifest }}
+        run: |
+          [[ "$HOTFIX_MANIFEST" =~ ^docs/releases/[A-Za-z0-9_-]+\.json$ ]] || exit 1
+          python3 -B scripts/hotfix-checks.py "$HOTFIX_MANIFEST"
+      - name: Build and verify domain-root export
+        run: npm run build
+        env:
+          PAGES_BASE_PATH: ''
+      - name: Full browser checks
+        if: inputs.mode == 'full'
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v6
+        with:
+          name: production-export-${{ github.sha }}
+          path: out/
+          include-hidden-files: true
+          retention-days: 14
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production-hostgator
+      url: https://laaw.life
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v6
+        with:
+          name: production-export-${{ github.sha }}
+          path: out/
+      - name: Back up, transfer assets first, verify changed live bytes
+        env:
+          RELEASE_MODE: ${{ inputs.mode }}
+          HOTFIX_MANIFEST: ${{ inputs.hotfix_manifest }}
+          SITE_RELEASE_ENABLED: ${{ vars.SITE_RELEASE_ENABLED }}
+          SITE_FTP_HOST: ${{ secrets.SITE_FTP_HOST }}
+          SITE_FTP_USERNAME: ${{ secrets.SITE_FTP_USERNAME }}
+          SITE_FTP_PASSWORD: ${{ secrets.SITE_FTP_PASSWORD }}
+          SITE_BACKUP_PASSPHRASE: ${{ secrets.SITE_BACKUP_PASSPHRASE }}
+          SITE_FTP_DIRECTORY: ${{ vars.SITE_FTP_DIRECTORY }}
+          SITE_FTP_PORT: ${{ vars.SITE_FTP_PORT }}
+        run: |
+          args=()
+          if [[ "$RELEASE_MODE" == hotfix ]]; then
+            [[ "$HOTFIX_MANIFEST" =~ ^docs/releases/[A-Za-z0-9_-]+\.json$ ]] || exit 1
+            args+=(--hotfix-manifest "$HOTFIX_MANIFEST")
+          fi
+          python3 -B scripts/deploy-hostgator.py --backup "$RUNNER_TEMP/production-backup" "${args[@]}"
+      - name: Preserve private pre-change backup even after failure
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: encrypted-production-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-backup.tar.gz.gpg
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Verify calendar compatibility through public HTTPS
+        run: python3 -B scripts/verify-hosted-calendar.py
+      - name: Failure and recovery
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'REPORT'
+          Release was not confirmed. The transfer tool attempts rollback on transfer or changed-byte verification failure; inspect its result and private backup before retrying. A subsequent calendar-verification failure needs maintainer assessment and rollback if incompatible. Do not resume incompatible calendar updates. Preserve the backup outside public hosting. See docs/hosting-automation.md.
+          REPORT
