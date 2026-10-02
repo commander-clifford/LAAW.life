@@ -1,0 +1,4 @@
+{
+  "files": ["ivy/index.html"],
+  "tests": ["src/components/day-card.test.tsx"]
+}
