@@ -1,0 +1,9 @@
+.event-row-prototype { display: contents; }
+.event-row-prototype-controls { margin: 0 auto 1rem; width: min(100%, 32rem); }
+.event-row-prototype-controls p { font-size: .8125rem; color: var(--text-subtle); }
+.event-row-prototype-controls div { display: flex; flex-wrap: wrap; gap: .5rem; }
+.event-row-prototype-controls button { padding: .5rem .75rem; border: 1px solid currentColor; border-radius: .5rem; background: var(--surface); color: inherit; font: inherit; }
+.event-row-prototype-controls button[aria-pressed="true"] { font-weight: 700; }
+.event-row-prototype[data-event-layout="title-first"] .day-card-event-list { grid-template-columns: minmax(0, 1fr) max-content; }
+.event-row-prototype[data-event-layout="title-first"] .day-card-event h3 { grid-column: 1; grid-row: 1; overflow-wrap: anywhere; }
+.event-row-prototype[data-event-layout="title-first"] .day-card-event-time { grid-column: 2; grid-row: 1; text-align: right; white-space: nowrap; max-inline-size: none; }
