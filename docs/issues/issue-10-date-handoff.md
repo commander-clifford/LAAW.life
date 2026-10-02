@@ -4,6 +4,8 @@ Preview `ivy/?dateHandoff=shared` or `hawthorne/?dateHandoff=shared`. Ordinary U
 
 An aria-hidden clone of the calendar date moves from the Today card to the existing header/container edge as physical carousel progress changes. The weekday remains separate; Today labeling and event content are unchanged. The in-card date is visible at the starting position, the clone during travel, and the header date at the endpoint. Reversing navigation reverses the handoff. Existing accessible dates and the carousel's single live announcement remain in place; the clone is excluded from accessibility.
 
+Touch in the opt-in prototype scrubs the same rail under horizontal axis locking, while vertical event/page scrolling and zoom stay native. This prevents native horizontal momentum from undoing Return to Today or responsive centering.
+
 Reduced motion switches between the original and destination at the midpoint without a moving clone. Reduced-motion touch uses immediate swipe-end navigation instead of a competing native horizontal fling; vertical page/event scrolling and zoom remain available. No temporary scrolling lock or delayed return is used.
 
 Validation: lint, type checks, 67 application tests, production static build (41 files), and the full Chromium suite. Dedicated 393/1280px normal/reduced scenarios cover midway clipping/visibility, forward/reverse keyboard navigation, dots, arrows, mouse and pen drag, touch swipe, responsive resize, and Return to Today.
