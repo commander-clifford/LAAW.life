@@ -2035,7 +2035,9 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
         const calendarControl = (await page.locator(".calendar-disclosure-toggle").boundingBox())!;
         const carousel = (await getCarousel(page).boundingBox())!;
         expect(calendarControl.x + calendarControl.width / 2).toBeCloseTo(carousel.x + carousel.width / 2, 0);
-        expect(calendarControl.y - carousel.y - carousel.height).toBeCloseTo(32, 0);
+        const search = (await page.locator("section").filter({ has: page.getByRole("searchbox") }).boundingBox())!;
+        expect(search.y).toBeGreaterThan(carousel.y + carousel.height);
+        expect(calendarControl.y - search.y - search.height).toBeCloseTo(56, 0);
         if (width < 704) {
           expect(carousel.width).toBeCloseTo(width, 0);
         }

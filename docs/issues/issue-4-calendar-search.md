@@ -6,6 +6,6 @@ The downloader now keeps historical explicit events and extends through the late
 
 The existing calendar-refresh JSON endpoint is reused, and the export verifier now checks a valid contiguous range that includes required coverage rather than assuming exactly 37 dates. The upload size limit remains 10 MB.
 
-Validation: lint/type checks, 70 application tests including historical/descriptive search and multi-day finite recurrence, verified static export (41 files), and seven Chromium tests covering phone/desktop description matches, result paging, escaped source text and keyboard clearing and shared page margins at 320/393/600/1440px.
+Validation: lint/type checks, 70 application tests including historical/descriptive search and multi-day finite recurrence, verified static export (41 files), and 55 Chromium tests covering the complete application, including description matches, paging, escaped text, keyboard clearing and shared page margins at 320/393/600/1440px.
 
 Preview: http://127.0.0.1:4184/ivy/ (local issue #4 branch). Human review and production release are separate.
