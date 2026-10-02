@@ -9,7 +9,7 @@ test("search finds current downloaded events and clears using the keyboard", asy
   await expect(page.getByText(/No events match/)).toBeVisible();
   await page.getByRole("button", { name: "Clear search" }).click();
   await expect(input).toHaveValue("");
-  await expect(page.getByText("Search titles, descriptions, locations, and calendar names.")).toBeVisible();
+  await expect(page.getByText("Results appear as you type.")).toBeVisible();
 });
 
 for (const width of [390, 1280]) {
@@ -41,5 +41,21 @@ for (const width of [390, 1280]) {
     await page.getByRole("button", { name: "Clear search" }).click();
     await expect(input).toBeFocused();
     await expect(input).toHaveValue("");
+  });
+}
+
+for (const width of [320, 393, 600, 1440]) {
+  test(`search shares the location and active-card side margins at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("ivy/");
+    await page.locator('.day-carousel[aria-busy="false"]').waitFor();
+    const heading = await page.locator('.location-heading-section').boundingBox();
+    const card = await page.locator('[data-day-card][data-active="true"]').boundingBox();
+    const search = await page.locator('section').filter({ has: page.getByRole('searchbox') }).boundingBox();
+    const disclosure = await page.locator('.calendar-disclosure').boundingBox();
+    for (const box of [search, disclosure, heading]) {
+      expect(Math.abs(box!.x - card!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(box!.width - card!.width)).toBeLessThanOrEqual(1);
+    }
   });
 }

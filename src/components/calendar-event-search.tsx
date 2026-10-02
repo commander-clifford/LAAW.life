@@ -26,10 +26,10 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
         {searching ? <button type="button" onClick={() => { setQuery(""); setVisibleCount(50); inputRef.current?.focus(); }}>Clear search</button> : null}
       </div>
       <p id={`${id}-range`} className={styles.note}>
-        {dates.length > 0 ? `Downloaded events: ${dateLabel(dates[0])}–${dateLabel(dates[dates.length - 1])}. Recurring events are expanded through this range.` : "Calendar events are unavailable."}
+        {dates.length > 0 ? `Past and upcoming events through ${dateLabel(dates[dates.length - 1])}.` : "Calendar events are unavailable."}
       </p>
       {agenda.failedSourceCount > 0 ? <p className={styles.note}>Some calendar sources are unavailable. Search results may be incomplete.</p> : null}
-      <p role="status" aria-live="polite">{searching ? `${results.length} matching ${results.length === 1 ? "event" : "events"}.` : "Search titles, descriptions, locations, and calendar names."}</p>
+      <p role="status" aria-live="polite">{searching ? `${results.length} matching ${results.length === 1 ? "event" : "events"}.` : "Results appear as you type."}</p>
       {searching && results.length === 0 ? <p>No events match “{query.trim()}” in the downloaded range.</p> : null}
       {searching && results.length > 0 ? <ol className={styles.results}>{results.slice(0, visibleCount).map((event) => (
         <li key={event.id}>
