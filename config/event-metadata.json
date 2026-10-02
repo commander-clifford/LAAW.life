@@ -2,5 +2,77 @@
   "version": 1,
   "tagAliases": {},
   "eventOverrides": {},
-  "titleRules": {}
+  "titleRules": {
+    "Lucky Guess Trivia": {
+      "tags": [
+        "trivia"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "trivia",
+        "priority": 100
+      }
+    },
+    "@Luckyguesstrivia": {
+      "tags": [
+        "trivia"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "trivia",
+        "priority": 100
+      },
+      "displayName": "Lucky Guess Trivia"
+    },
+    "Thrift Store Bingo": {
+      "tags": [
+        "bingo"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "bingo",
+        "priority": 80
+      }
+    },
+    "Thrift Store Bingo w/ @DJSundy1977": {
+      "tags": [
+        "bingo"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "bingo",
+        "priority": 80
+      }
+    },
+    "Thrift Store Bingo with @DJSundy1977": {
+      "tags": [
+        "bingo"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "bingo",
+        "priority": 80
+      }
+    },
+    "DRINKSGIVING SPECIAL Thrift Store Bingo w/ @DJSundy1977": {
+      "tags": [
+        "bingo"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "bingo",
+        "priority": 80
+      }
+    },
+    "Thanksgiving Special Thrift Store Bingo with @DJSundy1977": {
+      "tags": [
+        "bingo"
+      ],
+      "takeover": {
+        "enabled": true,
+        "theme": "bingo",
+        "priority": 80
+      }
+    }
+  }
 }

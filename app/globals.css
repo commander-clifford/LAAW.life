@@ -512,6 +512,19 @@ a {
   gap: 1rem;
 }
 
+.day-card[data-event-theme="trivia"] { --day-theme-accent: #3972c5; }
+.day-card[data-event-theme="bingo"] { --day-theme-accent: #187950; }
+.day-card[data-event-theme] {
+  border-color: color-mix(in srgb, var(--border) 70%, var(--day-theme-accent));
+}
+.day-card[data-event-theme] .day-card-heading {
+  background: color-mix(in srgb, var(--surface-muted) 85%, var(--day-theme-accent));
+}
+.day-card[data-event-theme] .day-card-calendar-date { color: var(--text-muted); }
+.day-card[data-event-theme] .day-card-event[data-featured="true"] h3 {
+  color: color-mix(in srgb, var(--text) 85%, var(--day-theme-accent));
+}
+
 .day-card-loading .day-card-heading {
   min-block-size: calc(1.6875rem * 1.15 + 0.3125rem + 0.78125rem * 1.45 + 2 * var(--day-card-heading-block-padding));
 }
