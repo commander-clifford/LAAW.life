@@ -370,6 +370,7 @@ a {
 }
 
 .location-page {
+  --location-content-inline-size: min(32rem, calc(100vw - 2 * clamp(1rem, 5vw, 1.25rem)));
   --day-card-block-padding: 1.25rem;
   --day-card-event-window-block-size: 9.125rem;
   --day-card-heading-block-padding: 1.375rem;
@@ -384,7 +385,7 @@ a {
 }
 
 .location-heading-section {
-  width: min(100%, 32rem);
+  width: var(--location-content-inline-size);
 }
 
 .day-card-section {
@@ -782,7 +783,7 @@ a {
 }
 
 .calendar-disclosure {
-  width: 100%;
+  width: var(--location-content-inline-size);
   margin-top: 1rem;
   margin-inline: auto;
   display: grid;

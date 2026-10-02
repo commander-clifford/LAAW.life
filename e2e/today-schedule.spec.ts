@@ -494,6 +494,26 @@ function snapshotDay(): Date {
   ));
 }
 
+// Busy-day interaction checks must not depend on this week's live feed.
+async function useBusyDayFixture(page: Page): Promise<void> {
+  const source = agendas["hawthorne"];
+  if (!source) throw new Error("Hawthorne calendar fixture missing");
+  const dateKeys = getDayCardDateKeys(getDateKey(snapshotDay(), source.timeZone));
+  const generatedAt = new Date(snapshotDay().getTime() + 1000).toISOString();
+  await page.clock.setFixedTime(new Date(snapshotDay().getTime() + 2000));
+  const fixture = {
+    ...source,
+    generatedAt,
+    events: [
+      fixtureEvent(dateKeys[5], "sparse", "Food truck"),
+      ...Array.from({ length: 8 }, (_, index) => fixtureEvent(
+        dateKeys[6], `busy-${index}`, index < 3 ? `Event ${index + 1}` : "Hawthorne community food truck and neighborhood event",
+      )),
+    ],
+  };
+  await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, hawthorne: fixture } }));
+}
+
 test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
@@ -1326,7 +1346,7 @@ test("the selected card stays aligned across responsive resizing", async ({ page
 for (const width of [320, 1440]) {
   test(`equal-height cards cap and scroll Hawthorne's busy day at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -1674,7 +1694,7 @@ test.describe("touch day-card carousel", () => {
 
   test("a busy event region separates vertical scrolling from horizontal day swipes", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -2015,7 +2035,9 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
         const calendarControl = (await page.locator(".calendar-disclosure-toggle").boundingBox())!;
         const carousel = (await getCarousel(page).boundingBox())!;
         expect(calendarControl.x + calendarControl.width / 2).toBeCloseTo(carousel.x + carousel.width / 2, 0);
-        expect(calendarControl.y - carousel.y - carousel.height).toBeCloseTo(32, 0);
+        const search = (await page.locator("section").filter({ has: page.getByRole("searchbox") }).boundingBox())!;
+        expect(search.y).toBeGreaterThan(carousel.y + carousel.height);
+        expect(calendarControl.y - search.y - search.height).toBeCloseTo(56, 0);
         if (width < 704) {
           expect(carousel.width).toBeCloseTo(width, 0);
         }

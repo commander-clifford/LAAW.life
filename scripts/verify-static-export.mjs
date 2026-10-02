@@ -196,12 +196,17 @@ for (const [locationId, sourceCount] of expectedSources) {
   if (
     agenda.initialDateKey !== initialDateKey ||
     !Array.isArray(agenda.availableDateKeys) ||
-    agenda.availableDateKeys.length !== expectedDateKeys.length ||
-    !expectedDateKeys.every((dateKey, index) => agenda.availableDateKeys[index] === dateKey) ||
+    agenda.availableDateKeys.length > 36_525 ||
+    !expectedDateKeys.every((dateKey) => agenda.availableDateKeys.includes(dateKey)) ||
+    !agenda.availableDateKeys.every((dateKey, index, dates) =>
+      typeof dateKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateKey) &&
+      Number.isFinite(Date.parse(`${dateKey}T00:00:00Z`)) &&
+      dateKeyAfter(dateKey, 0) === dateKey &&
+      (index === 0 || dateKey === dateKeyAfter(dates[index - 1], 1))) ||
     !agenda.availableDateKeys.includes(pacificDateKey(now)) ||
     !agenda.availableDateKeys.includes(dateKeyAfter(pacificDateKey(now), 1))
   ) {
-    throw new Error(`Calendar data for ${locationId} must cover yesterday through 35 days after generation`);
+    throw new Error(`Calendar data for ${locationId} must contain a contiguous searchable range including yesterday through 35 days after generation`);
   }
 
   if (!Array.isArray(agenda.events) || agenda.events.some((event) => (
@@ -209,6 +214,7 @@ for (const [locationId, sourceCount] of expectedSources) {
     typeof event.allDay !== "boolean" ||
     typeof event.id !== "string" || !event.id.trim() ||
     typeof event.title !== "string" || !event.title.trim() ||
+    (event.description !== undefined && typeof event.description !== "string") ||
     typeof event.sourceName !== "string" ||
     (event.location !== null && typeof event.location !== "string") ||
     typeof event.start !== "string" || !Number.isFinite(Date.parse(event.start)) ||

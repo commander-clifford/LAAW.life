@@ -8,9 +8,18 @@ export type CalendarEmbed = Readonly<{
   src: string;
 }>;
 
+export type EventMetadata = Readonly<{
+  displayName?: string;
+  url?: string;
+  tags: readonly string[];
+  takeover?: Readonly<{ enabled: boolean; theme: "trivia" | "bingo"; priority: number }>;
+}>;
+
 export type CalendarAgendaItem = Readonly<{
   allDay: boolean;
+  metadata?: EventMetadata;
   dateKeys: readonly string[];
+  description?: string;
   end: string;
   id: string;
   location: string | null;
