@@ -1,19 +1,9 @@
-const relativeDayLabels = [
-  "Today",
-  "Tomorrow",
-  "In 2 days",
-  "In 3 days",
-  "In 4 days",
-  "In 5 days",
-  "In 6 days",
-] as const;
-
-export const dayCardCount = relativeDayLabels.length;
+export const dayCardCount = 7;
 
 export type DayCardDate = Readonly<{
   dateKey: string;
   dayOffset: number;
-  relativeLabel: (typeof relativeDayLabels)[number];
+  relativeLabel: string;
 }>;
 
 export function getDateKey(date: Date, timeZone: string): string {
@@ -39,10 +29,13 @@ export function addDaysToDateKey(dateKey: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function getDayCardDates(todayDateKey: string): readonly DayCardDate[] {
-  return relativeDayLabels.map((relativeLabel, dayOffset) => ({
+export function getDayCardDates(
+  todayDateKey: string,
+  count = dayCardCount,
+): readonly DayCardDate[] {
+  return Array.from({ length: count }, (_, dayOffset) => ({
     dateKey: addDaysToDateKey(todayDateKey, dayOffset),
     dayOffset,
-    relativeLabel,
+    relativeLabel: dayOffset === 0 ? "Today" : dayOffset === 1 ? "Tomorrow" : `In ${dayOffset} days`,
   }));
 }

@@ -87,7 +87,7 @@ function getActiveCard(page: Page): Locator {
 }
 
 function getDots(page: Page): Locator {
-  return getCarousel(page).locator(".day-carousel-dot");
+  return getCarousel(page).locator(".day-carousel-dot[data-day-index]");
 }
 
 function getTodayControl(page: Page, dateKey: string): Locator {
@@ -494,6 +494,26 @@ function snapshotDay(): Date {
   ));
 }
 
+// Busy-day interaction checks must not depend on this week's live feed.
+async function useBusyDayFixture(page: Page): Promise<void> {
+  const source = agendas["hawthorne"];
+  if (!source) throw new Error("Hawthorne calendar fixture missing");
+  const dateKeys = getDayCardDateKeys(getDateKey(snapshotDay(), source.timeZone));
+  const generatedAt = new Date(snapshotDay().getTime() + 1000).toISOString();
+  await page.clock.setFixedTime(new Date(snapshotDay().getTime() + 2000));
+  const fixture = {
+    ...source,
+    generatedAt,
+    events: [
+      fixtureEvent(dateKeys[5], "sparse", "Food truck"),
+      ...Array.from({ length: 8 }, (_, index) => fixtureEvent(
+        dateKeys[6], `busy-${index}`, index < 3 ? `Event ${index + 1}` : "Hawthorne community food truck and neighborhood event",
+      )),
+    ],
+  };
+  await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, hawthorne: fixture } }));
+}
+
 test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
@@ -867,12 +887,24 @@ test(`the current date scrubs from offstage without shifting the heading at ${wi
 });
 }
 
+async function useOneWeekCoverage(page: Page): Promise<void> {
+  const today = getDateKey(snapshotDay(), agenda.timeZone);
+  const dates = getDayCardDateKeys(today);
+  const limited = { ...agendas, "ivy-station": { ...agenda,
+    generatedAt: new Date(Date.parse(agenda.generatedAt) + 1).toISOString(),
+    availableDateKeys: dates,
+    events: agenda.events.filter(event => event.dateKeys.every(date => dates.includes(date))),
+  } };
+  await page.route("**/calendar-data/agendas.json*", route => route.fulfill({ json: limited }));
+}
+
 test("desktop arrows and day dots navigate without wrapping", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const todayDateKey = getDateKey(snapshotDay(), agenda.timeZone);
   await page.clock.setFixedTime(snapshotDay());
-  await page.goto("ivy/");
+  await useOneWeekCoverage(page);
+    await page.goto("ivy/");
 
   const carousel = getCarousel(page);
   const viewport = carousel.locator(".day-carousel-viewport");
@@ -989,7 +1021,8 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
   await page.emulateMedia({ reducedMotion: "reduce" });
   await installAnalyticsRecorder(page);
   await page.clock.setFixedTime(snapshotDay());
-  await page.goto("ivy/");
+  await useOneWeekCoverage(page);
+    await page.goto("ivy/");
 
   const carousel = getCarousel(page);
   const viewport = carousel.locator(".day-carousel-viewport");
@@ -1326,7 +1359,7 @@ test("the selected card stays aligned across responsive resizing", async ({ page
 for (const width of [320, 1440]) {
   test(`equal-height cards cap and scroll Hawthorne's busy day at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -1568,8 +1601,8 @@ for (const width of [320, 1440]) {
     const ivyViewport = ivyCarousel.locator(".day-carousel-viewport");
     await ivyViewport.focus();
     await page.keyboard.press("ArrowRight");
-    await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expect(ivyCarousel).toHaveAttribute("data-active-index", String(dayCardCount));
+    await expect(ivyCarousel.locator(".day-card-more")).toBeVisible();
   });
 }
 
@@ -1583,6 +1616,7 @@ test.describe("touch day-card carousel", () => {
   test("swipes follow platform direction, stop at boundaries, and preserve a neighboring peek", async ({ page }) => {
     await installAnalyticsRecorder(page);
     await page.clock.setFixedTime(snapshotDay());
+    await useOneWeekCoverage(page);
     await page.goto("ivy/");
 
     const carousel = getCarousel(page);
@@ -1674,7 +1708,7 @@ test.describe("touch day-card carousel", () => {
 
   test("a busy event region separates vertical scrolling from horizontal day swipes", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -1727,8 +1761,8 @@ test.describe("touch day-card carousel", () => {
 
     busySchedule = getActiveCard(page).locator(".day-card-schedule");
     await dispatchTouchDrag(page, busySchedule, -200, 8);
-    await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expect(carousel).toHaveAttribute("data-active-index", String(dayCardCount));
+    await expect(carousel.locator(".day-card-more")).toBeVisible();
   });
 });
 
@@ -1823,7 +1857,7 @@ for (const width of [1440, 600, 393, 320]) {
         })
       );
       expect(paginationBox.x + paginationBox.width / 2).toBeCloseTo(width / 2, 0);
-      expect(paginationBox.width).toBeCloseTo(168, 0);
+      expect(paginationBox.width).toBeCloseTo((dayCardCount + 1) * 24, 0);
       expect(dotGeometry).toHaveLength(dayCardCount);
       for (const [index, box] of dotGeometry.entries()) {
         expect(box.width).toBeGreaterThanOrEqual(23.5);
