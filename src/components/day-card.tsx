@@ -276,6 +276,7 @@ export function DayCard({
       className="day-card"
       data-active={isActive}
       data-day-card=""
+      data-carousel-item=""
       data-day-index={index}
       data-event-theme={featuredEvent?.metadata?.takeover?.theme}
       aria-describedby={featuredEvent ? featuredDescriptionId : undefined}
