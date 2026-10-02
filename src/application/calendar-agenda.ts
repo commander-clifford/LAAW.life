@@ -28,6 +28,7 @@ function isAgendaItem(value: unknown, availableDates: Set<string>): value is Cal
     typeof value.allDay === "boolean" &&
     typeof value.id === "string" && value.id.length > 0 &&
     typeof value.title === "string" &&
+    (value.description === undefined || typeof value.description === "string") &&
     typeof value.sourceName === "string" &&
     (value.location === null || typeof value.location === "string") &&
     isTimestamp(value.start) && isTimestamp(value.end) &&
