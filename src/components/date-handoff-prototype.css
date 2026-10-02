@@ -3,9 +3,8 @@
 .date-handoff-clone { position: absolute; top: 0; left: 0; display: inline-block; transform-origin: top left; white-space: nowrap; color: var(--text-muted); will-change: transform; }
 .location-page[data-date-handoff="shared"] .location-today-control time { transform: none; }
 .date-handoff-prototype-note { width: min(100%, 32rem); margin: 0; color: var(--text-muted); font-size: .8125rem; }
+.location-page[data-date-handoff="shared"] .day-carousel-viewport { touch-action: pan-y pinch-zoom; }
+.location-page[data-date-handoff="shared"] .day-carousel-viewport[data-prototype-touch-dragging="true"] { scroll-snap-type: none; }
 @media (prefers-reduced-motion: reduce) {
   .date-handoff-clone { display: none; will-change: auto; }
-  /* Reduced motion uses the carousel's immediate swipe-end navigation.
-     Avoid a competing native horizontal fling after that jump. */
-  .location-page[data-date-handoff="shared"] .day-carousel-viewport { touch-action: pan-y pinch-zoom; }
 }

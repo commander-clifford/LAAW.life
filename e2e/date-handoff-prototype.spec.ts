@@ -76,6 +76,11 @@ for (const width of [393, 1280]) {
         await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + box.width * .8, y: box.y + 80 }] });
         for (let step = 1; step <= 4; step++) {
           await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: box.x + box.width * (.8 - .6 * step / 4), y: box.y + 80 }] });
+          if (!reduced && step === 2) {
+            await expect.poll(async () => Number(await layer.getAttribute('data-progress'))).toBeGreaterThan(.1);
+            await expect.poll(async () => Number(await layer.getAttribute('data-progress'))).toBeLessThan(.9);
+            await expect(clone).toHaveCSS('opacity', '1');
+          }
         }
         await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await session.detach();
         await page.waitForTimeout(150);
@@ -85,6 +90,8 @@ for (const width of [393, 1280]) {
       await expect(layer).toHaveAttribute('data-progress', '0');
       await page.setViewportSize({ width: width === 393 ? 1280 : 393, height: 900 });
       await expect(source).toHaveCSS('visibility', 'visible');
+      await expect(layer).toHaveAttribute('data-progress', '0');
+      await expect(carousel).toHaveAttribute('data-active-index', '0');
     });
   }
 }

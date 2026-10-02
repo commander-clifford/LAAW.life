@@ -51,6 +51,48 @@ export function DateHandoffPrototype({ children }: { children: ReactNode }) {
       layer.dataset.progress = String(p);
       layer.dataset.reducedMotion = String(reduced);
     };
+    let touchDrag: {
+      viewport: HTMLElement;
+      id: number;
+      x: number;
+      y: number;
+      left: number;
+      axis: "pending" | "horizontal" | "vertical";
+    } | null = null;
+    const finishTouch = () => {
+      if (touchDrag) delete touchDrag.viewport.dataset.prototypeTouchDragging;
+      touchDrag = null;
+    };
+    const startTouch = (event: TouchEvent) => {
+      finishTouch();
+      if (event.touches.length !== 1 || !(event.target instanceof Element)) return;
+      const viewport = event.target.closest<HTMLElement>(".day-carousel-viewport");
+      const touch = event.touches[0];
+      if (!viewport || !touch) return;
+      touchDrag = { viewport, id: touch.identifier, x: touch.clientX, y: touch.clientY, left: viewport.scrollLeft, axis: "pending" };
+    };
+    const moveTouch = (event: TouchEvent) => {
+      const drag = touchDrag;
+      if (!drag || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const touch = [...event.touches].find(item => item.identifier === drag.id);
+      if (!touch) return;
+      const dx = touch.clientX - drag.x;
+      const dy = touch.clientY - drag.y;
+      if (drag.axis === "pending") {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) <= 6) return;
+        drag.axis = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+      }
+      if (drag.axis !== "horizontal") return;
+      // Scrub the existing rail without a native horizontal fling competing
+      // with its navigation controls. Vertical event/page scrolling stays native.
+      drag.viewport.dataset.prototypeTouchDragging = "true";
+      drag.viewport.scrollLeft = drag.left - dx;
+      if (event.cancelable) event.preventDefault();
+    };
+    root.addEventListener("touchstart", startTouch, { passive: true });
+    root.addEventListener("touchmove", moveTouch, { passive: false });
+    root.addEventListener("touchend", finishTouch);
+    root.addEventListener("touchcancel", finishTouch);
     const observer = new MutationObserver(update);
     observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-scroll-progress"] });
     const resize = new ResizeObserver(update);
@@ -61,6 +103,11 @@ export function DateHandoffPrototype({ children }: { children: ReactNode }) {
     update();
     return () => {
       observer.disconnect(); resize.disconnect();
+      finishTouch();
+      root.removeEventListener("touchstart", startTouch);
+      root.removeEventListener("touchmove", moveTouch);
+      root.removeEventListener("touchend", finishTouch);
+      root.removeEventListener("touchcancel", finishTouch);
       window.removeEventListener("resize", update); preference.removeEventListener("change", update);
       delete root.dataset.dateHandoff;
       for (const element of root.querySelectorAll<HTMLElement>(".day-card-calendar-date, .location-today-calendar-date, .location-today-weekday, .location-today-control")) {
