@@ -270,6 +270,7 @@ export function DayCard({
       className="day-card"
       data-active={isActive}
       data-day-card=""
+      data-carousel-item=""
       data-day-index={index}
       id={`day-card-${dateKey}`}
       role="group"

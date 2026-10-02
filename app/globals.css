@@ -489,6 +489,31 @@ a {
   transition: opacity 160ms ease;
 }
 
+.card.card-borderless {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.day-card-more {
+  display: grid;
+  place-items: center;
+}
+
+.day-card-load-more {
+  min-height: 2.75rem;
+  padding: 0.75rem;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
 .day-card[data-active="false"] {
   opacity: 0.62;
 }
@@ -724,11 +749,11 @@ a {
 }
 
 .day-carousel-pagination {
-  width: 10.5rem;
-  max-width: 100%;
+  width: max-content;
+  max-width: min(100%, 32rem);
   margin: 0.375rem auto 0;
-  display: grid;
-  grid-template-columns: repeat(7, 1.5rem);
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
 }
 
