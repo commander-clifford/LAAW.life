@@ -1,5 +1,6 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 
+import { buildEventCatalog, enrichCalendarAgendas } from "@/src/application/event-catalog";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { laawLifeTenant } from "@/src/config/laaw-life";
 import { googleCalendarAgendaProvider } from "@/src/infrastructure/google-calendar-agenda-provider";
@@ -26,10 +27,14 @@ const agendaEntries = await Promise.all(
     return [location.id, agenda] as const;
   }),
 );
-const agendas = Object.fromEntries(agendaEntries) satisfies Record<
+const rawAgendas = Object.fromEntries(agendaEntries) satisfies Record<
   string,
   CalendarAgenda
 >;
+
+const metadata = JSON.parse(await readFile(new URL("../config/event-metadata.json", import.meta.url), "utf8"));
+const agendas = enrichCalendarAgendas(rawAgendas, metadata);
+const catalog = buildEventCatalog(rawAgendas, metadata);
 
 const serializedAgendas = `${JSON.stringify(agendas)}\n`;
 await mkdir(outputDirectory, { recursive: true });
@@ -38,5 +43,8 @@ await writeFile(temporaryOutputFile, serializedAgendas, "utf8");
 await writeFile(temporaryPublicOutputFile, serializedAgendas, "utf8");
 await rename(temporaryPublicOutputFile, publicOutputFile);
 await rename(temporaryOutputFile, outputFile);
+
+await writeFile(new URL("event-catalog.json.tmp", outputDirectory), `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
+await rename(new URL("event-catalog.json.tmp", outputDirectory), new URL("event-catalog.json", outputDirectory));
 
 console.log(`Generated calendar agendas for ${agendaEntries.length} locations.`);

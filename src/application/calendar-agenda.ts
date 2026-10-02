@@ -1,3 +1,4 @@
+import { validateEventMetadata } from "@/src/application/event-catalog";
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
 import {
   getDateKey,
@@ -23,9 +24,15 @@ function isTimestamp(value: unknown): value is string {
     Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
 }
 
+function isValidEventMetadata(value: unknown): boolean {
+  if (!isRecord(value) || !Array.isArray(value.tags)) return false;
+  try { validateEventMetadata(value); return true; } catch { return false; }
+}
+
 function isAgendaItem(value: unknown, availableDates: Set<string>): value is CalendarAgendaItem {
   return isRecord(value) &&
     typeof value.allDay === "boolean" &&
+    (value.metadata === undefined || isValidEventMetadata(value.metadata)) &&
     typeof value.id === "string" && value.id.length > 0 &&
     typeof value.title === "string" &&
     (value.description === undefined || typeof value.description === "string") &&
