@@ -2,6 +2,7 @@ import type {
   CalendarAgenda,
   CalendarEmbedProvider,
 } from "@/src/application/ports";
+import { EventRowPrototype } from "@/src/components/event-row-prototype";
 import { CalendarDisclosure } from "@/src/components/calendar-disclosure";
 import { LiveCalendarSchedule } from "@/src/components/live-calendar-schedule";
 import type { Location } from "@/src/domain/site";
@@ -21,12 +22,14 @@ export function LocationCalendar({
 
   return (
     <div className="location-page">
-      <LiveCalendarSchedule
+      <EventRowPrototype>
+        <LiveCalendarSchedule
         agenda={agenda}
         key={location.id}
         locationId={location.id}
         locationName={location.displayName}
       />
+      </EventRowPrototype>
       <CalendarDisclosure
         key={location.id}
         src={embed.src}
