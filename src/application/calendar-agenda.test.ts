@@ -58,6 +58,9 @@ describe("remote calendar agenda validation", () => {
     { ...updated, events: [{ ...updated.events[0], end: "2026-09-15T00:00:00.000Z" }] },
     { ...updated, events: [{ ...updated.events[0], dateKeys: ["2026-09-22"] }] },
     { ...updated, events: [updated.events[0], updated.events[0]] },
+    { ...updated, events: [{ ...updated.events[0], metadata: {} }] },
+    { ...updated, events: [{ ...updated.events[0], metadata: { tags: [], takeover: { enabled: true, theme: "trivia", priority: -1 } } }] },
+    { ...updated, events: [{ ...updated.events[0], metadata: { tags: [], url: "javascript:alert(1)" } }] },
   ])("preserves the bundled fallback for malformed or incomplete data: %j", (candidate) => {
     expect(select(candidate)).toBe(bundled);
   });

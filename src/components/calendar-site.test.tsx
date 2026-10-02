@@ -52,7 +52,8 @@ describe("LocationCalendar", () => {
       expect(html).toContain("Open calendar");
       expect(html).toContain('aria-expanded="false"');
       expect(html).toContain('class="day-carousel"');
-      expect(html).not.toContain("<h2");
+      expect(html).toContain("Search calendar events");
+      expect(html).not.toContain('class="day-card-date"');
       expect(html).toContain('aria-label="Seven-day schedule"');
       expect(html).toContain("Loading today&#x27;s schedule…");
       expect(html).toContain('aria-busy="true"');

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { getFeaturedDayEvent } from "@/src/application/featured-day-event";
 import { getDateKey } from "@/src/application/calendar-dates";
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
 import { Card } from "@/src/components/card";
@@ -227,6 +228,11 @@ export function DayCard({
     event.dateKeys.includes(dateKey),
   );
 
+  const featuredEvent = index === 0 && isDateAvailable && !hasNoAvailableSources
+    ? getFeaturedDayEvent(events, dateKey)
+    : null;
+  const featuredDescriptionId = `${eventsId}-featured`;
+
   const measureSchedule = useCallback(() => {
     const schedule = scheduleRef.current;
     if (!schedule) return;
@@ -271,11 +277,18 @@ export function DayCard({
       data-active={isActive}
       data-day-card=""
       data-day-index={index}
+      data-event-theme={featuredEvent?.metadata?.takeover?.theme}
+      aria-describedby={featuredEvent ? featuredDescriptionId : undefined}
       id={`day-card-${dateKey}`}
       role="group"
       aria-labelledby={headingId}
       aria-roledescription="slide"
     >
+      {featuredEvent ? (
+        <p className="visually-hidden" id={featuredDescriptionId}>
+          Today&apos;s featured event: {featuredEvent.title}.
+        </p>
+      ) : null}
       <header className="day-card-heading">
         <h2 className="day-card-date" id={headingId}>
           <time
@@ -324,7 +337,8 @@ export function DayCard({
                 );
 
                 return (
-                  <li className="day-card-event" key={event.id}>
+                  <li className="day-card-event"
+                    data-featured={event.id === featuredEvent?.id ? true : undefined} key={event.id}>
                     <time
                       className="day-card-event-time"
                       dateTime={event.allDay ? dateKey : event.start}
