@@ -1,0 +1,20 @@
+.calendar-loading-notice {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+  background: var(--surface-muted);
+}
+.calendar-loading-notice[hidden] { display: none; }
+.calendar-loading-notice strong { color: var(--text); }
+.calendar-loading-notice span { max-width: 32rem; }
+.calendar-embed-help { width: 100%; margin: 0; }
+.calendar-recovery-stable { min-height: 6rem; }
+.calendar-recovery-stable a:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }

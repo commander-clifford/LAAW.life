@@ -1,5 +1,7 @@
 "use client";
 
+import "./calendar-embed.css";
+
 import {
   useEffect,
   useRef,
@@ -44,7 +46,6 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
   );
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<CalendarStatus>("loading");
-  const canRetry = status === "error" || status === "slow";
   const isLoading = status === "loading";
 
   useEffect(() => {
@@ -80,15 +81,21 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
   };
 
   return (
-    <div className="calendar-shell" aria-busy={isLoading}>
-      <p
-        className="calendar-status"
+    <div className="calendar-shell" aria-busy={isLoading} data-calendar-status={status}>
+      <div className="calendar-frame-stage">
+        <p
+          className="calendar-status calendar-loading-notice"
+        hidden={status === "ready"}
         role={status === "ready" ? undefined : "status"}
         aria-live={status === "ready" ? undefined : "polite"}
       >
-        {statusMessages[status]}
-      </p>
-      <div className="calendar-frame-stage">
+        <strong>{statusMessages[status]}</strong>
+        <span>
+          {status === "loading" ? "Connecting to Google Calendar. Your calendar will appear here." :
+            status === "slow" ? "You can keep waiting, reload, or open the calendar in a new tab." :
+            "Try reloading, or open Google Calendar directly."}
+        </span>
+        </p>
         {isClientReady ? (
           <iframe
             key={attempt}
@@ -107,8 +114,8 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
           />
         )}
       </div>
-      {canRetry ? (
-        <div className="calendar-recovery">
+        <div className="calendar-recovery calendar-recovery-stable">
+          <p className="calendar-embed-help">If events are missing or the calendar stays blank, open Google Calendar directly.</p>
           <button
             className="calendar-retry"
             type="button"
@@ -120,7 +127,6 @@ export function CalendarEmbed({ src, title }: CalendarEmbedProps) {
             Open in Google Calendar
           </a>
         </div>
-      ) : null}
     </div>
   );
 }
