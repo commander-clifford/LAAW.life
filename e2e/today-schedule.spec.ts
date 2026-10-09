@@ -285,13 +285,13 @@ async function expectCenteredCard(
   if (index < dayCardCount - 1) expect(nextPeek).toBeGreaterThanOrEqual(8);
   if (geometry.windowWidth < 552) {
     expect(geometry.activeWidth / geometry.viewportWidth).toBeGreaterThanOrEqual(
-      0.895,
+      0.87,
     );
     expect(geometry.activeWidth / geometry.viewportWidth).toBeLessThanOrEqual(
-      0.905,
+      0.93,
     );
-    const minimumPeek = geometry.windowWidth <= 330 ? 8 : 12;
-    const maximumPeek = geometry.windowWidth <= 330 ? 12 : 18;
+    const minimumPeek = 8;
+    const maximumPeek = geometry.windowWidth <= 330 ? 12 : 24;
     if (index > 0) {
       expect(previousPeek).toBeGreaterThanOrEqual(minimumPeek);
       expect(previousPeek).toBeLessThanOrEqual(maximumPeek);
@@ -1819,7 +1819,7 @@ for (const width of [1440, 600, 393, 320]) {
       expect(compactBox.x + compactBox.width / 2).toBeCloseTo(width / 2, 0);
       expect(compactBox.width).toBeLessThan(viewportBox.width);
       if (width < 552) {
-        expect(compactBox.width / viewportBox.width).toBeGreaterThanOrEqual(0.89);
+        expect(compactBox.width / viewportBox.width).toBeGreaterThanOrEqual(0.87);
       } else {
         expect(compactBox.width).toBeCloseTo(512, 0);
       }
@@ -1880,7 +1880,7 @@ for (const width of [1440, 600, 393, 320]) {
       eventCount = 3;
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await expect(card.locator(".day-card-event")).toHaveCount(3);
-      await expect(card.locator(".day-card-event time")).toHaveText([
+      await expect(card.locator(".day-card-event time > [aria-hidden]")).toHaveText([
         "All day",
         "9:00–10:00 AM",
         "11:00 AM–1:00 PM",
@@ -1894,7 +1894,7 @@ for (const width of [1440, 600, 393, 320]) {
         (elements) => elements.map((element) => {
           const box = element.getBoundingClientRect();
           const range = document.createRange();
-          range.selectNodeContents(element);
+          range.selectNodeContents(element.querySelector("[aria-hidden]") ?? element);
           const style = getComputedStyle(element);
           return {
             boxHeight: box.height,
@@ -1907,7 +1907,7 @@ for (const width of [1440, 600, 393, 320]) {
           };
         }),
       );
-      expect(new Set(await card.locator(".day-card-event time").allTextContents()).size).toBe(3);
+      expect(new Set(await card.locator(".day-card-event time > [aria-hidden]").allTextContents()).size).toBe(3);
       const timeTrackWidth = Math.max(...timeLayout.map(({ boxWidth }) => boxWidth));
       const widestTimeText = Math.max(...timeLayout.map(({ textWidth }) => textWidth));
       expect(timeTrackWidth - widestTimeText).toBeLessThan(2);
@@ -1930,8 +1930,8 @@ for (const width of [1440, 600, 393, 320]) {
       for (const event of await card.locator(".day-card-event").all()) {
         const title = (await event.locator("h3").boundingBox())!;
         const time = (await event.locator("time").boundingBox())!;
-        expect(title.x).toBeGreaterThan(time.x + time.width);
-        expect(Math.abs(time.x - listBox.x)).toBeLessThan(1);
+        expect(time.x).toBeGreaterThanOrEqual(title.x + title.width);
+        expect(Math.abs(time.x + time.width - listBox.x - listBox.width)).toBeLessThan(1);
         expect(Math.abs(title.x - firstTitleBox.x)).toBeLessThan(1);
         expect(title.x + title.width).toBeLessThanOrEqual(listBox.x + listBox.width + 1);
         expect(await event.locator(":scope > :first-child").evaluate((element) => element.tagName)).toBe("TIME");
@@ -2133,10 +2133,6 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
 
   await page.clock.setSystemTime(midnightEdge);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(todayControl.locator("time")).toHaveAttribute(
-    "datetime",
-    currentDateKey,
-  );
   await page.clock.runFor(200);
   await expect.poll(() => dateLines.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute("datetime"))

@@ -50,10 +50,10 @@ describe("DayCard event times", () => {
       />,
     );
 
-    expect(html).toContain(">1:00–9:00 PM</time>");
-    expect(html).toContain(">11:00 AM–1:00 PM</time>");
-    expect(html).toContain(">5:00 PM–12:00 AM</time>");
-    expect(html).toContain('aria-label="1:00 PM to 9:00 PM"');
+    expect(html).toContain(">1:00–9:00 PM</span>");
+    expect(html).toContain(">11:00 AM–1:00 PM</span>");
+    expect(html).toContain(">5:00 PM–12:00 AM</span>");
+    expect(html).toContain('class="visually-hidden">1:00 PM to 9:00 PM</span>');
     expect(html).toContain('data-overflow="false"');
     expect(html).toContain('data-at-start="true"');
     expect(html).toContain('data-at-end="true"');
@@ -96,9 +96,9 @@ describe("DayCard event times", () => {
       />,
     );
 
-    expect(html).toContain(">1:30 AM PDT–1:30 AM PST</time>");
+    expect(html).toContain(">1:30 AM PDT–1:30 AM PST</span>");
     expect(html).toContain(
-      'aria-label="1:30 AM PDT to 1:30 AM PST"',
+      'class="visually-hidden">1:30 AM PDT to 1:30 AM PST</span>',
     );
     expect(html).toContain('data-compact="false"');
   });

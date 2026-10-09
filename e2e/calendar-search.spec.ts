@@ -2,14 +2,14 @@ import { expect, test } from "@playwright/test";
 
 test("search finds current downloaded events and clears using the keyboard", async ({ page }) => {
   await page.goto("/ivy/");
-  const input = page.getByRole("searchbox", { name: "Event title or details" });
+  const input = page.getByRole("searchbox", { name: "Search events" });
   await expect(input).toBeVisible();
   await input.fill("not-an-event-6cc782");
   await expect(page.getByText("0 matching events.")).toBeVisible();
   await expect(page.getByText(/No events match/)).toBeVisible();
   await page.getByRole("button", { name: "Clear search" }).click();
   await expect(input).toHaveValue("");
-  await expect(page.getByText("Results appear as you type.")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /matching events/ })).toHaveCount(0);
 });
 
 for (const width of [390, 1280]) {
@@ -28,7 +28,7 @@ for (const width of [390, 1280]) {
     }));
     await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, "ivy-station": { ...source, generatedAt, events } } }));
     await page.goto("ivy/");
-    const input = page.getByRole("searchbox", { name: "Event title or details" });
+    const input = page.getByRole("searchbox", { name: "Search events" });
     await input.fill("SEAHAWKS football");
     await expect(page.getByText("70 matching events.")).toBeVisible();
     const results = page.locator("section[aria-labelledby]").filter({ has: input }).locator("ol > li");

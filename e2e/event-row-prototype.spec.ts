@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
+const reviewComparison = process.env.PLAYWRIGHT_REVIEW_PREVIEW === "true";
+
 const agendas = JSON.parse(readFileSync(new URL("../.calendar-data/agendas.json", import.meta.url), "utf8"));
 
 for (const width of [320, 1440]) {
@@ -20,7 +22,8 @@ for (const width of [320, 1440]) {
     }));
     await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, hawthorne: { ...source, generatedAt: new Date(clock.getTime() - 1000).toISOString(), events } } }));
     await page.goto("hawthorne/?eventLayout=title-first");
-    await expect(page.getByRole("button", { name: "Proposed: title first" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".event-row-prototype-controls")).toHaveCount(reviewComparison ? 1 : 0);
+    await expect(page.locator(".event-row-prototype")).toHaveAttribute("data-event-layout", "title-first");
     await page.locator(".day-carousel-dot").nth(1).click();
     const card = page.locator('[data-day-card][data-active="true"]');
     const schedule = card.locator(".day-card-schedule");
@@ -43,10 +46,13 @@ for (const width of [320, 1440]) {
     await expect(frame.locator(".day-card-schedule-fade-top")).toHaveCSS("opacity", "1");
     await schedule.evaluate(element => { element.scrollTop = element.scrollHeight; });
     await expect(frame.locator(".day-card-schedule-fade-bottom")).toHaveCSS("opacity", "0");
+    if (reviewComparison) {
+    await page.getByRole("button", { name: "Preview controls", exact: true }).click();
     await page.getByRole("button", { name: "Current: time first" }).click();
     await expect(page.getByRole("button", { name: "Current: time first" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "1");
     await page.getByRole("button", { name: "Proposed: title first" }).click();
+    } else await expect(page.locator(".event-row-prototype-controls")).toHaveCount(0);
     const viewport = page.locator('.day-carousel-viewport');
     await viewport.focus();
     await page.keyboard.press('ArrowRight');

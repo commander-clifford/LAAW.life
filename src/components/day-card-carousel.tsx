@@ -1,9 +1,11 @@
 "use client";
 
+import { shouldReduceMotion } from "@/src/application/motion-preference";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -186,9 +188,7 @@ export function DayCardCarousel({
       window.clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = null;
     }
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduceMotion = shouldReduceMotion();
     activeIndexRef.current = nextIndex;
     programmaticTargetIndexRef.current = nextIndex;
     setSelectedDateKey(nextDate?.dateKey ?? "load-more");
@@ -281,7 +281,34 @@ export function DayCardCarousel({
     scrollToCard(requestedIndex);
   }, [itemCount, scrollToCard, trackBoundaryAttempt, trackNavigation]);
 
+  const handleArrowKey = useCallback((event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+    event.preventDefault();
+    viewportRef.current?.focus({ preventScroll: true });
+    const fromIndex = activeIndexRef.current;
+    const targetIndex = fromIndex + (event.key === "ArrowRight" ? 1 : -1);
+    navigateFromInteraction(fromIndex, targetIndex, "keyboard", "carousel_viewport");
+    if (hasMoreDays && targetIndex === dayCardDates.length) {
+      viewportRef.current?.querySelector<HTMLButtonElement>(".day-card-load-more")?.focus({ preventScroll: true });
+    }
+  }, [dayCardDates.length, hasMoreDays, navigateFromInteraction]);
+
+  useEffect(() => {
+    const fromIdlePage = (event: KeyboardEvent) => {
+      const viewport = viewportRef.current;
+      const focused = document.activeElement;
+      if (!viewport || viewport.closest("[inert]") || document.querySelector("dialog[open]")) return;
+      if (focused !== document.body && focused !== document.documentElement && focused?.id !== "main-content") return;
+      handleArrowKey(event);
+    };
+    document.addEventListener("keydown", fromIdlePage);
+    return () => document.removeEventListener("keydown", fromIdlePage);
+  }, [handleArrowKey]);
+
   const updateActiveCard = useCallback((viewport: HTMLDivElement) => {
+    if (pendingLoadedIndexRef.current !== null) return;
     const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
     const viewportRect = viewport.getBoundingClientRect();
     const viewportCenter = viewportRect.left + viewportRect.width / 2;
@@ -602,6 +629,7 @@ export function DayCardCarousel({
       "return_to_today",
     );
     scrollToCard(0);
+    viewportRef.current?.focus({ preventScroll: true });
   }, [
     currentDateKey,
     itemCount,
@@ -645,6 +673,10 @@ export function DayCardCarousel({
 
   const loadMoreDays = () => {
     if (!hasMoreDays || currentDateKey === null) return;
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
     const nextCount = visibleDayCount + dayCardCount;
     const firstNewDay = getDayCardDates(currentDateKey, nextCount)[visibleDayCount];
     pendingLoadedIndexRef.current = visibleDayCount;
@@ -659,7 +691,7 @@ export function DayCardCarousel({
     });
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nextIndex = pendingLoadedIndexRef.current;
     if (nextIndex === null) return;
     pendingLoadedIndexRef.current = null;
@@ -697,6 +729,7 @@ export function DayCardCarousel({
       aria-busy="false"
       aria-roledescription="carousel"
       data-active-index={activeIndex}
+      onKeyDown={(event) => handleArrowKey(event.nativeEvent)}
     >
       <div className="day-carousel-shell">
         <button
@@ -705,7 +738,7 @@ export function DayCardCarousel({
           aria-controls="day-card-carousel-viewport"
           aria-label="Previous day"
           disabled={activeIndex === 0}
-          onClick={() => {
+          onClick={(event) => {
             const fromIndex = activeIndexRef.current;
             navigateFromInteraction(
               fromIndex,
@@ -713,6 +746,9 @@ export function DayCardCarousel({
               "arrow",
               "previous_arrow",
             );
+            if (fromIndex === 1 && event.detail === 0) {
+              viewportRef.current?.focus({ preventScroll: true });
+            }
           }}
         >
           <ChevronLeft aria-hidden="true" />
@@ -724,27 +760,6 @@ export function DayCardCarousel({
           role="group"
           aria-label="Day cards"
           tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              const fromIndex = activeIndexRef.current;
-              navigateFromInteraction(
-                fromIndex,
-                fromIndex - 1,
-                "keyboard",
-                "carousel_viewport",
-              );
-            } else if (event.key === "ArrowRight") {
-              event.preventDefault();
-              const fromIndex = activeIndexRef.current;
-              navigateFromInteraction(
-                fromIndex,
-                fromIndex + 1,
-                "keyboard",
-                "carousel_viewport",
-              );
-            }
-          }}
           onClickCapture={(event) => {
             if (!suppressClickRef.current) return;
             suppressClickRef.current = false;
@@ -780,15 +795,16 @@ export function DayCardCarousel({
             ))}
             {hasMoreDays ? (
               <Card
+                as="button"
+                type="button"
                 borderless
-                className="day-card day-card-more"
+                className="day-card day-card-more day-card-load-more"
                 data-active={activeIndex === dayCardDates.length}
                 data-carousel-item=""
                 id="day-card-load-more"
+                onClick={loadMoreDays}
               >
-                <button className="day-card-load-more" type="button" onClick={loadMoreDays}>
-                  Load seven more days
-                </button>
+                <span className="day-card-load-more-label">Load seven more days</span>
               </Card>
             ) : null}
           </div>
@@ -799,7 +815,7 @@ export function DayCardCarousel({
           aria-controls="day-card-carousel-viewport"
           aria-label="Next day"
           disabled={activeIndex === itemCount - 1}
-          onClick={() => {
+          onClick={(event) => {
             const fromIndex = activeIndexRef.current;
             navigateFromInteraction(
               fromIndex,
@@ -807,13 +823,19 @@ export function DayCardCarousel({
               "arrow",
               "next_arrow",
             );
+            if (fromIndex === itemCount - 2 && event.detail === 0) {
+              const target = hasMoreDays
+                ? viewportRef.current?.querySelector<HTMLButtonElement>(".day-card-load-more")
+                : viewportRef.current;
+              target?.focus({ preventScroll: true });
+            }
           }}
         >
           <ChevronRight aria-hidden="true" />
         </button>
       </div>
 
-      <div className="day-carousel-pagination" aria-label="Choose a day">
+      <div className="day-carousel-pagination" role="group" aria-label="Choose a day">
         {dayCardDates.map(({ dateKey, relativeLabel }, index) => (
           <button
             className="day-carousel-dot"

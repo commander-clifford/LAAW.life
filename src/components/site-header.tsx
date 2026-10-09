@@ -1,5 +1,7 @@
 "use client";
 
+import { shouldReduceMotion, subscribeToMotionPreference } from "@/src/application/motion-preference";
+import { MotionControl } from "@/src/components/motion-control";
 import gsap from "gsap";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +22,7 @@ import {
 import { SiteFooter } from "@/src/components/site-footer";
 import { ThemeControl } from "@/src/components/theme-control";
 
-const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+
 const pageCanvasSelector = "[data-page-canvas]";
 const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
 const navigationMotion = { duration: 0.32, ease: "power2.inOut" } as const;
@@ -342,7 +344,6 @@ export function SiteHeader({
       return;
     }
 
-    const reducedMotion = window.matchMedia(reducedMotionQuery);
 
     const syncDrawerGeometry = () => {
       const drawerWidth = drawer.getBoundingClientRect().width;
@@ -389,9 +390,9 @@ export function SiteHeader({
     };
 
     const syncReducedMotion = () => {
-      reducedMotionRef.current = reducedMotion.matches;
+      reducedMotionRef.current = shouldReduceMotion();
 
-      if (reducedMotion.matches && animationRef.current) {
+      if (reducedMotionRef.current && animationRef.current) {
         syncDrawerGeometry();
       }
     };
@@ -399,11 +400,11 @@ export function SiteHeader({
     syncReducedMotion();
     syncDrawerGeometry();
     setIsNavigationReady(true);
-    reducedMotion.addEventListener("change", syncReducedMotion);
+    const unsubscribeMotion = subscribeToMotionPreference(syncReducedMotion);
     window.addEventListener("resize", syncDrawerGeometry);
 
     return () => {
-      reducedMotion.removeEventListener("change", syncReducedMotion);
+      unsubscribeMotion();
       window.removeEventListener("resize", syncDrawerGeometry);
       stopAnimation();
       drawerOpenRef.current = false;
@@ -625,6 +626,7 @@ export function SiteHeader({
           </nav>
           <div className="location-drawer-settings">
             <ThemeControl />
+            <MotionControl />
           </div>
         </div>
       </div>

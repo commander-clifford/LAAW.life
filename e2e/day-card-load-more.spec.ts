@@ -29,10 +29,13 @@ for (const width of [320, 393, 1440]) {
     const button = carousel.getByRole("button", { name: "Load seven more days", exact: true });
     await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
     await expect(carousel).toHaveAttribute("data-active-index", "7");
-    const centered = (await button.boundingBox())!;
-    const slot = (await moreCard.boundingBox())!;
-    expect(centered.x + centered.width / 2).toBeCloseTo(slot.x + slot.width / 2, 0);
-    expect(centered.y + centered.height / 2).toBeCloseTo(slot.y + slot.height / 2, 0);
+    await expect(button).toHaveClass(/day-card-more/);
+    await expect(button.locator("button, a, input, select")).toHaveCount(0);
+    await expect.poll(async () => moreCard.evaluate(element => {
+      const card = element.getBoundingClientRect();
+      const label = element.querySelector(".day-card-load-more-label")!.getBoundingClientRect();
+      return Math.max(Math.abs(card.x + card.width / 2 - label.x - label.width / 2), Math.abs(card.y + card.height / 2 - label.y - label.height / 2));
+    })).toBeLessThanOrEqual(1);
     await button.focus();
     await page.keyboard.press("Enter");
     await expect(cards).toHaveCount(14);
@@ -52,7 +55,17 @@ for (const width of [320, 393, 1440]) {
     await expect(cards).toHaveCount(14);
     for (const total of [21, 28, 35]) {
       await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
-      await button.click();
+      if (total === 21) {
+        await button.click({ position: { x: 4, y: 4 } });
+      } else if (total === 28) {
+        const bounds = (await button.boundingBox())!;
+        await button.click({ position: { x: bounds.width - 4, y: bounds.height - 4 } });
+      } else {
+        await page.keyboard.press("ArrowLeft");
+        await page.keyboard.press("ArrowRight");
+        await expect(button).toBeFocused();
+        await page.keyboard.press("Space");
+      }
       await expect(cards).toHaveCount(total);
       await expect(carousel).toHaveAttribute("data-active-index", String(total - 7));
     }

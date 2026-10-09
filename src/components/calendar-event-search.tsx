@@ -19,19 +19,19 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
   const searching = query.trim().length > 0;
   return (
     <section className={styles.search} aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`}>Search calendar events</h2>
-      <label htmlFor={id}>Event title or details</label>
+      <h2 id={`${id}-heading`}><label htmlFor={id}>Search events</label></h2>
       <div className={styles.controls}>
-        <input id={id} ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Try tacos, football club, or a team name" aria-describedby={`${id}-range`} />
+        <input id={id} ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Search titles or details" aria-describedby={`${id}-range`} />
         {searching ? <button type="button" onClick={() => { setQuery(""); setVisibleCount(50); inputRef.current?.focus(); }}>Clear search</button> : null}
       </div>
       <p id={`${id}-range`} className={styles.note}>
-        {dates.length > 0 ? `Past and upcoming events through ${dateLabel(dates[dates.length - 1])}.` : "Calendar events are unavailable."}
+        {dates.length > 0 ? `Past and upcoming · through ${dateLabel(dates[dates.length - 1])}.` : "Calendar events are unavailable."}
       </p>
       {agenda.failedSourceCount > 0 ? <p className={styles.note}>Some calendar sources are unavailable. Search results may be incomplete.</p> : null}
-      <p role="status" aria-live="polite">{searching ? `${results.length} matching ${results.length === 1 ? "event" : "events"}.` : "Results appear as you type."}</p>
-      {searching && results.length === 0 ? <p>No events match “{query.trim()}” in the downloaded range.</p> : null}
-      {searching && results.length > 0 ? <ol className={styles.results}>{results.slice(0, visibleCount).map((event) => (
+      <p role="status" aria-live="polite" className={searching ? undefined : "visually-hidden"}>{searching ? `${results.length} matching ${results.length === 1 ? "event" : "events"}.` : ""}</p>
+      {searching && results.length === 0 ? <p>No events match “{query.trim()}”.</p> : null}
+      {searching && results.length > 0 ? <p className="visually-hidden" id={`${id}-results-help`}>Scroll or use the arrow keys to view more matching events.</p> : null}
+      {searching && results.length > 0 ? <ol className={styles.results} tabIndex={0} aria-label="Matching calendar events" aria-describedby={`${id}-results-help`}>{results.slice(0, visibleCount).map((event) => (
         <li key={event.id}>
           <h3>{event.title}</h3>
           <p><time dateTime={event.allDay ? event.dateKeys[0] : event.start}>{dateLabel(event.dateKeys[0])}{event.dateKeys.length > 1 ? `–${dateLabel(event.dateKeys[event.dateKeys.length - 1])}` : ""}{event.allDay ? " · All day" : ` · ${new Intl.DateTimeFormat("en-US", { timeStyle: "short", timeZone: agenda.timeZone }).format(new Date(event.start))}`}</time></p>
