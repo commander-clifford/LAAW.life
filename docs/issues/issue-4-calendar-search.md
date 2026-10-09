@@ -9,3 +9,5 @@ The existing calendar-refresh JSON endpoint is reused, and the export verifier n
 Validation: lint/type checks, 70 application tests including historical/descriptive search and multi-day finite recurrence, verified static export (41 files), and 55 Chromium tests covering the complete application, including description matches, paging, escaped text, keyboard clearing and shared page margins at 320/393/600/1440px.
 
 Preview: http://127.0.0.1:4184/ivy/ (local issue #4 branch). Human review and production release are separate.
+
+October 9 review: search is now a standalone field with a decorative magnifier and hidden accessible label. A small coverage trigger exposes the actual past/upcoming range on hover, keyboard focus/activation, or touch; Escape and outside activation dismiss it. The visible heading, outer card and always-visible range explanation were removed. Result scope and order are unchanged. See `docs/release-review.md` for the bounded verification.

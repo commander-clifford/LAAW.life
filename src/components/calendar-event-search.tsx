@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Info, Search, X } from "lucide-react";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { searchCalendarEvents } from "@/src/application/calendar-search";
 import styles from "./calendar-event-search.module.css";
@@ -15,18 +16,46 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
   const [visibleCount, setVisibleCount] = useState(50);
   const id = useId();
   const results = searchCalendarEvents(agenda.events, query);
-  const dates = [...agenda.availableDateKeys].sort();
+  const dates = useMemo(() => [...new Set([
+    ...agenda.availableDateKeys,
+    ...agenda.events.flatMap(event => event.dateKeys),
+  ])].sort(), [agenda.availableDateKeys, agenda.events]);
+  const [coverageOpen, setCoverageOpen] = useState(false);
+  const [coveragePinned, setCoveragePinned] = useState(false);
+  const coverageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!coverageOpen) return;
+    const dismissOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !coverageRef.current?.contains(event.target)) {
+        setCoverageOpen(false); setCoveragePinned(false);
+      }
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    return () => document.removeEventListener("pointerdown", dismissOutside);
+  }, [coverageOpen]);
   const searching = query.trim().length > 0;
   return (
-    <section className={styles.search} aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`}><label htmlFor={id}>Search events</label></h2>
+    <section className={styles.search} aria-labelledby={`${id}-label`}>
+      <label className="visually-hidden" id={`${id}-label`} htmlFor={id}>Search events</label>
       <div className={styles.controls}>
-        <input id={id} ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Search titles or details" aria-describedby={`${id}-range`} />
-        {searching ? <button type="button" onClick={() => { setQuery(""); setVisibleCount(50); inputRef.current?.focus(); }}>Clear search</button> : null}
+        <div className={styles.field}>
+          <Search className={styles.magnifier} aria-hidden="true" />
+          <input id={id} ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Search events" aria-describedby={`${id}-range`} />
+          {searching ? <button className={styles.clear} type="button" aria-label="Clear search" onClick={() => { setQuery(""); setVisibleCount(50); inputRef.current?.focus(); }}><X aria-hidden="true" /></button> : null}
+        </div>
+        <div ref={coverageRef} className={styles.coverage}
+          onPointerEnter={() => setCoverageOpen(true)}
+          onPointerLeave={() => { if (!coveragePinned && !coverageRef.current?.contains(document.activeElement)) setCoverageOpen(false); }}
+          onFocusCapture={() => setCoverageOpen(true)}
+          onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { setCoverageOpen(false); setCoveragePinned(false); } }}
+          onKeyDown={event => { if (event.key === "Escape" && coverageOpen) { event.preventDefault(); event.stopPropagation(); setCoverageOpen(false); setCoveragePinned(false); } }}>
+          <button className={styles.info} type="button" aria-label="About search coverage" aria-controls={`${id}-range`} aria-describedby={`${id}-range`} aria-expanded={coverageOpen}
+            onClick={() => { setCoveragePinned(!coveragePinned); setCoverageOpen(!coveragePinned); }}><Info aria-hidden="true" /></button>
+          <div className={styles.coverageBubble} id={`${id}-range`} role="tooltip" hidden={!coverageOpen}>
+            {dates.length > 0 ? `Search past and upcoming events from ${dateLabel(dates[0])} through ${dateLabel(dates[dates.length - 1])}.` : "Calendar events are unavailable."}
+          </div>
+        </div>
       </div>
-      <p id={`${id}-range`} className={styles.note}>
-        {dates.length > 0 ? `Past and upcoming · through ${dateLabel(dates[dates.length - 1])}.` : "Calendar events are unavailable."}
-      </p>
       {agenda.failedSourceCount > 0 ? <p className={styles.note}>Some calendar sources are unavailable. Search results may be incomplete.</p> : null}
       <p role="status" aria-live="polite" className={searching ? undefined : "visually-hidden"}>{searching ? `${results.length} matching ${results.length === 1 ? "event" : "events"}.` : ""}</p>
       {searching && results.length === 0 ? <p>No events match “{query.trim()}”.</p> : null}

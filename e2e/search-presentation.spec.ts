@@ -1,0 +1,93 @@
+import { readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test } from "@playwright/test";
+
+const directory = process.env.REVIEW_SCREENSHOT_DIR;
+const source = JSON.parse(readFileSync(new URL("../.calendar-data/agendas.json", import.meta.url), "utf8"))["ivy-station"];
+const dates = [...new Set<string>([...source.availableDateKeys, ...source.events.flatMap((event: { dateKeys: string[] }) => event.dateKeys)])].sort();
+const format = (date: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as const) {
+  test(`standalone search and optional scope bubble work at ${width}px ${appearance}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ colorScheme: appearance, reducedMotion: "reduce" });
+    await page.goto("ivy/?eventLayout=title-first");
+    const input = page.getByRole("searchbox", { name: "Search events", exact: true });
+    const section = page.getByRole("region", { name: "Search events", exact: true });
+    const info = page.getByRole("button", { name: "About search coverage", exact: true });
+    const bubble = page.getByRole("tooltip");
+    await expect(input).toBeVisible();
+    await expect(section.getByRole("heading")).toHaveCount(0);
+    await expect(section).toHaveCSS("border-top-width", "0px");
+    await expect(section).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(bubble).not.toBeVisible();
+    await expect(page.getByText("Results appear as you type.")).toHaveCount(0);
+    const card = (await page.locator("[data-day-card]").first().boundingBox())!;
+    const group = (await section.boundingBox())!;
+    expect(Math.abs(card.x - group.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(card.width - group.width)).toBeLessThanOrEqual(1);
+    const reports = [];
+    const scan = async (state: string) => {
+      const report = await new AxeBuilder({ page }).include("section:has(input[type=search])").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+      reports.push({ state, violations: report.violations, incomplete: report.incomplete });
+      expect(report.violations.map(item => item.id)).toEqual([]);
+    };
+    await scan("closed");
+    await info.hover();
+    await expect(bubble).toBeVisible();
+    await expect(bubble).toContainText(format(dates[0]));
+    await expect(bubble).toContainText(format(dates.at(-1)!));
+    await bubble.hover();
+    await expect(bubble).toBeVisible();
+    await page.getByRole("heading", { name: "Ivy Station", exact: true }).hover();
+    await expect(bubble).not.toBeVisible();
+    await input.focus();
+    await page.keyboard.press("Tab");
+    await expect(info).toBeFocused();
+    await expect(bubble).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(bubble).not.toBeVisible();
+    await expect(info).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(bubble).toBeVisible();
+    await scan("open-keyboard");
+    if (directory) await page.screenshot({ path: join(directory, `search-scope-${appearance}-${width}.png`) });
+    await page.keyboard.press("Escape");
+    await input.fill("trivia");
+    await expect(page.getByText(/\d+ matching events\./)).toBeVisible();
+    const index = await page.locator(".day-carousel").getAttribute("data-active-index");
+    await input.press("ArrowLeft"); await input.press("ArrowRight");
+    await expect(input).toBeFocused();
+    await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", index!);
+    await scan("results");
+    if (directory) await page.screenshot({ path: join(directory, `standalone-search-${appearance}-${width}.png`) });
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(input).toHaveValue("");
+    await expect(input).toBeFocused();
+    const box = (await info.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(24); expect(box.height).toBeGreaterThanOrEqual(24);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (directory) await writeFile(join(directory, `search-checks-${appearance}-${width}.json`), JSON.stringify(reports, null, 2));
+  });
+}
+
+test.describe("touch scope bubble", () => {
+  test.use({ hasTouch: true });
+  test("a phone tap opens and dismisses scope while typing still produces results", async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto("ivy/");
+    const info = page.getByRole("button", { name: "About search coverage", exact: true });
+    const bubble = page.getByRole("tooltip");
+    await info.tap(); await expect(bubble).toBeVisible();
+    await info.tap(); await expect(bubble).not.toBeVisible();
+    await info.tap(); await expect(bubble).toBeVisible();
+    await page.getByRole("heading", { name: "Ivy Station", exact: true }).tap();
+    await expect(bubble).not.toBeVisible();
+    const input = page.getByRole("searchbox", { name: "Search events" });
+    await input.tap(); await input.fill("trivia");
+    await expect(page.getByText(/\d+ matching events\./)).toBeVisible();
+    await page.getByRole("button", { name: "Clear search", exact: true }).tap();
+    await expect(input).toHaveValue("");
+  });
+});

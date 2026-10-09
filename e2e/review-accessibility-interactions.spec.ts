@@ -74,7 +74,7 @@ for (const width of [320, 393, 1280]) {
     await expect(page.locator(".day-carousel")).toHaveAttribute("aria-busy", "false");
     expect(await boxes()).toEqual(ordinary);
     const radius = await page.locator("[data-day-card]").first().evaluate(element => getComputedStyle(element).borderTopLeftRadius);
-    await expect(page.locator("section").filter({ has: page.getByRole("searchbox") })).toHaveCSS("border-top-left-radius", radius);
+    await expect(page.getByRole("searchbox", { name: "Search events" })).toHaveCSS("border-top-left-radius", radius);
     await page.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
     const metrics = await page.locator(".day-carousel-viewport").evaluate(element => {
       const view = element.getBoundingClientRect();
