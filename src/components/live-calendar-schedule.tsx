@@ -8,6 +8,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { CalendarEventSearch } from "@/src/components/calendar-event-search";
+
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
 import { getDateKey } from "@/src/application/calendar-dates";
 import type { CalendarAgenda } from "@/src/application/ports";
@@ -271,6 +273,7 @@ export function LiveCalendarSchedule({
           ) : null}
         </DayCardCarousel>
       </div>
+      <CalendarEventSearch agenda={currentAgenda} />
     </>
   );
 }

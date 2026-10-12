@@ -270,6 +270,7 @@ export function DayCard({
       className="day-card"
       data-active={isActive}
       data-day-card=""
+      data-carousel-item=""
       data-day-index={index}
       id={`day-card-${dateKey}`}
       role="group"
@@ -277,10 +278,9 @@ export function DayCard({
       aria-roledescription="slide"
     >
       <header className="day-card-heading">
-        <h2 className="day-card-date" id={headingId}>
+        <h2 className="day-card-date" id={headingId} aria-label={`${relativeLabel}, ${formattedDate.weekday}, ${formattedDate.calendarDate}`}>
           <time
             dateTime={dateKey}
-            aria-label={`${relativeLabel}, ${formattedDate.weekday}, ${formattedDate.calendarDate}`}
           >
             <span className="day-card-weekday">{formattedDate.weekday}</span>{" "}
             <span className="day-card-calendar-date">
@@ -328,10 +328,10 @@ export function DayCard({
                     <time
                       className="day-card-event-time"
                       dateTime={event.allDay ? dateKey : event.start}
-                      aria-label={eventTime.accessibleText}
                       data-compact={eventTime.compact}
                     >
-                      {eventTime.text}
+                      <span aria-hidden="true">{eventTime.text}</span>
+                      <span className="visually-hidden">{eventTime.accessibleText}</span>
                     </time>
                     <h3>{event.title}</h3>
                   </li>

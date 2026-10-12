@@ -39,8 +39,8 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   await expect(drawer).not.toBeInViewport();
   await expect(page.locator(".site-navigation")).not.toHaveAttribute("aria-modal", "true");
   await expectPageInteractionState(page, false);
-  if (await page.getByRole("button", { name: "Open calendar", exact: true }).isVisible()) {
-    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  if (await page.getByRole("button", { name: "Open full calendar", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   }
   await expect(calendar).toBeVisible();
   await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
@@ -66,7 +66,7 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   );
   expect(cardBox.x + cardBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
   expect(calendarBox.x + calendarBox.width / 2).toBeCloseTo(layoutWidth / 2, 0);
-  expect(calendarBox.width).toBeCloseTo(Math.min(800, contentBox.width), 0);
+  expect(calendarBox.width).toBeCloseTo(cardBox.width, 0);
   expect(calendarBox.height).toBeLessThanOrEqual(448);
   expect(carouselBox.x).toBeGreaterThanOrEqual(0);
   expect(carouselBox.x + carouselBox.width).toBeLessThanOrEqual(viewportWidth);
@@ -166,7 +166,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(
     page.getByRole("heading", { level: 2, name: "Full calendar" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   const calendarFrame = page.locator("iframe.calendar-frame");
   await expect(calendarFrame).toHaveCount(1);
   await expect(calendarFrame).toHaveAttribute("title", "Ivy Station Calendar");
@@ -232,7 +232,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
   await expect(page.getByRole("main")).toBeFocused();
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   await expect(page.getByText("Loading calendar…")).toBeVisible();
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => hawthorneCalendarRoutes.length).toBe(1);
@@ -474,7 +474,7 @@ test("drawer state survives resizing and closed content uses the full width", as
 
   const opener = page.getByRole("button", { name: "Open location navigation" });
   const drawer = page.locator("#location-drawer");
-  const appearance = drawer.getByLabel("Appearance");
+  const lastSetting = drawer.getByRole("combobox", { name: "Motion", exact: true });
   await expectClosedNavigationLayout(page, 1023);
   await opener.click();
   await expect(page.getByRole("button", { name: "Close location navigation" })).toBeFocused();
@@ -490,7 +490,7 @@ test("drawer state survives resizing and closed content uses the full width", as
     await expect(drawer).toBeInViewport();
     const header = (await page.locator(".site-header").boundingBox())!;
     expect((await drawer.boundingBox())!.y).toBeCloseTo(header.y + header.height, 0);
-    await expect(appearance).toBeFocused();
+    await expect(lastSetting).toBeFocused();
     await expect(page.getByRole("button", { name: "Close location navigation" })).toBeEnabled();
     await expectPageInteractionState(page, true);
   }
@@ -536,6 +536,7 @@ for (const width of [320, 1440]) {
         boxShadow: buttonStyle.boxShadow,
         button: rect(button),
         focused: document.activeElement === button,
+        keyboardFocus: button.matches(":focus-visible") && !(button as HTMLElement).dataset.pointerFocus,
         icon: rect(icon),
         lines: [...icon.querySelectorAll<SVGLineElement>(
           ".navigation-toggle-line",
@@ -557,7 +558,8 @@ for (const width of [320, 1440]) {
       expect(state.beforeContent).toBe("none");
       expect(state.afterContent).toBe("none");
       expect(state.borderBottomWidth).toBe("0px");
-      expect(state.boxShadow).toBe("none");
+      if (state.keyboardFocus) expect(state.boxShadow).not.toBe("none");
+      else expect(state.boxShadow).toBe("none");
       expect(state.textDecorationLine).toBe("none");
     };
     const expectClosedStrokes = (state: Awaited<ReturnType<typeof measureToggle>>) => {
@@ -624,21 +626,23 @@ for (const width of [320, 1440]) {
     state = await measureToggle();
     expectNoExtraDecoration(state);
     expect(state.pointerFocus).toBeUndefined();
-    expect(state.outlineStyle).toBe("solid");
-    expect(state.outlineWidth).toBe("3px");
+    expect(state.outlineStyle).toBe("none");
+    expect(state.boxShadow).not.toBe("none");
 
     await page.keyboard.press("Enter");
     await expect(drawer).toHaveAttribute("aria-hidden", "false");
     state = await measureToggle();
     expectNoExtraDecoration(state);
-    expect(state.outlineStyle).toBe("solid");
+    expect(state.outlineStyle).toBe("none");
+    expect(state.boxShadow).not.toBe("none");
     expect(state.lines[1].scaleX).toBeCloseTo(0, 3);
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveAttribute("aria-hidden", "true");
     await expect(toggle).toBeFocused();
     state = await measureToggle();
     expectNoExtraDecoration(state);
-    expect(state.outlineStyle).toBe("solid");
+    expect(state.outlineStyle).toBe("none");
+    expect(state.boxShadow).not.toBe("none");
     expectClosedStrokes(state);
   });
 }
@@ -648,7 +652,7 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 667 });
     await page.emulateMedia({ reducedMotion: width === 320 ? "reduce" : "no-preference" });
     await page.goto("hawthorne/");
-    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
     await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
     await page.evaluate(() => window.scrollTo(0, 300));
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);

@@ -11,6 +11,7 @@ export type CalendarEmbed = Readonly<{
 export type CalendarAgendaItem = Readonly<{
   allDay: boolean;
   dateKeys: readonly string[];
+  description?: string;
   end: string;
   id: string;
   location: string | null;

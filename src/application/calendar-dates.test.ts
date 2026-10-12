@@ -20,6 +20,14 @@ describe("calendar civil dates", () => {
     ]);
   });
 
+  it("adds a full second week across a year boundary", () => {
+    const dates = getDayCardDates("2026-12-25", 14);
+    expect(dates).toHaveLength(14);
+    expect(dates[7]).toEqual({ dateKey: "2027-01-01", dayOffset: 7, relativeLabel: "In 7 days" });
+    expect(dates[13]).toEqual({ dateKey: "2027-01-07", dayOffset: 13, relativeLabel: "In 13 days" });
+    expect(new Set(dates.map(({ dateKey }) => dateKey)).size).toBe(14);
+  });
+
   it.each([
     ["2026-03-07", [
       "2026-03-07", "2026-03-08", "2026-03-09", "2026-03-10",

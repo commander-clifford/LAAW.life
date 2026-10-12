@@ -1,9 +1,11 @@
 "use client";
 
+import { shouldReduceMotion } from "@/src/application/motion-preference";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -66,12 +68,12 @@ type CarouselInteractionMethod =
   | "pen_drag"
   | "touch_swipe";
 
-function clampDayIndex(index: number): number {
-  return Math.min(Math.max(index, 0), dayCardCount - 1);
+function clampDayIndex(index: number, itemCount: number): number {
+  return Math.min(Math.max(index, 0), itemCount - 1);
 }
 
 function getClosestCardIndex(viewport: HTMLDivElement): number {
-  const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
+  const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
   const viewportRect = viewport.getBoundingClientRect();
   const viewportCenter = viewportRect.left + viewportRect.width / 2;
   let closestIndex = 0;
@@ -94,7 +96,7 @@ function getPointerNavigationThreshold(
   viewport: HTMLDivElement,
   activeIndex: number,
 ): number {
-  const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
+  const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
   const activeCard = cards.item(activeIndex);
   const adjacentCard = cards.item(activeIndex === 0 ? 1 : activeIndex - 1);
   if (!activeCard || !adjacentCard) return Number.POSITIVE_INFINITY;
@@ -128,18 +130,25 @@ export function DayCardCarousel({
   const todayControlDirectionRef = useRef<TodayControlMotion["direction"]>(
     "forward",
   );
+  const pendingLoadedIndexRef = useRef<number | null>(null);
+  const [visibleDayCount, setVisibleDayCount] = useState(dayCardCount);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const dayCardDates = useMemo(
-    () => currentDateKey === null ? [] : getDayCardDates(currentDateKey),
-    [currentDateKey],
+    () => currentDateKey === null ? [] : getDayCardDates(currentDateKey, visibleDayCount),
+    [currentDateKey, visibleDayCount],
   );
-  const selectedIndex = dayCardDates.findIndex(
-    ({ dateKey }) => dateKey === selectedDateKey,
-  );
-  const activeIndex = Math.max(selectedIndex, 0);
   const hasNoAvailableSources =
     agenda.sourceCount > 0 &&
     agenda.failedSourceCount === agenda.sourceCount;
+  const hasMoreDays = currentDateKey !== null && !hasNoAvailableSources &&
+    getDayCardDates(currentDateKey, visibleDayCount + dayCardCount)
+      .slice(visibleDayCount)
+      .every(({ dateKey }) => agenda.availableDateKeys.includes(dateKey));
+  const itemCount = dayCardDates.length + (hasMoreDays ? 1 : 0);
+  const selectedIndex = selectedDateKey === "load-more" && hasMoreDays
+    ? dayCardDates.length
+    : dayCardDates.findIndex(({ dateKey }) => dateKey === selectedDateKey);
+  const activeIndex = Math.max(selectedIndex, 0);
   const hasNoAvailableDates =
     dayCardDates.length > 0 &&
     dayCardDates.every(({ dateKey }) =>
@@ -153,8 +162,8 @@ export function DayCardCarousel({
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    const nextIndex = clampDayIndex(requestedIndex);
-    const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
+    const nextIndex = clampDayIndex(requestedIndex, itemCount);
+    const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
     const nextCard = cards.item(nextIndex);
     if (!nextCard) return;
 
@@ -168,25 +177,23 @@ export function DayCardCarousel({
       behavior,
       left: viewport.scrollLeft + centerDelta,
     });
-  }, []);
+  }, [itemCount]);
 
   const scrollToCard = useCallback((requestedIndex: number) => {
-    const nextIndex = clampDayIndex(requestedIndex);
+    const nextIndex = clampDayIndex(requestedIndex, itemCount);
     const nextDate = dayCardDates[nextIndex];
-    if (!nextDate) return;
+    if (!nextDate && (!hasMoreDays || nextIndex !== dayCardDates.length)) return;
 
     if (resizeTimerRef.current !== null) {
       window.clearTimeout(resizeTimerRef.current);
       resizeTimerRef.current = null;
     }
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const reduceMotion = shouldReduceMotion();
     activeIndexRef.current = nextIndex;
     programmaticTargetIndexRef.current = nextIndex;
-    setSelectedDateKey(nextDate.dateKey);
+    setSelectedDateKey(nextDate?.dateKey ?? "load-more");
     positionViewport(nextIndex, reduceMotion ? "auto" : "smooth");
-  }, [dayCardDates, positionViewport]);
+  }, [dayCardDates, hasMoreDays, itemCount, positionViewport]);
 
   const trackNavigation = useCallback((
     fromIndex: number,
@@ -195,9 +202,9 @@ export function DayCardCarousel({
     interactionSource: string,
     resultingAction?: "return_to_today",
   ) => {
-    const fromDay = dayCardDates[clampDayIndex(fromIndex)];
-    const toDay = dayCardDates[clampDayIndex(toIndex)];
-    if (!fromDay || !toDay) return;
+    const fromDay = dayCardDates[clampDayIndex(fromIndex, itemCount)];
+    const toDay = dayCardDates[clampDayIndex(toIndex, itemCount)];
+    if (itemCount === 0) return;
 
     trackGoogleAnalyticsEvent("carousel_navigation", {
       direction: toIndex === fromIndex
@@ -205,25 +212,25 @@ export function DayCardCarousel({
         : toIndex > fromIndex
           ? "forward"
           : "backward",
-      from_date: fromDay.dateKey,
+      ...(fromDay ? { from_date: fromDay.dateKey } : {}),
       from_index: fromIndex,
-      from_relative_label: fromDay.relativeLabel,
+      from_relative_label: fromDay?.relativeLabel ?? "Load seven more days",
       interaction_method: interactionMethod,
       interaction_source: interactionSource,
       location_id: locationId,
       ...(resultingAction === undefined
         ? {}
         : {
-            displayed_date: fromDay.dateKey,
-            displayed_day: fromDay.relativeLabel,
+            ...(fromDay ? { displayed_date: fromDay.dateKey } : {}),
+            displayed_day: fromDay?.relativeLabel ?? "Load seven more days",
             resulting_action: resultingAction,
           }),
-      to_date: toDay.dateKey,
+      ...(toDay ? { to_date: toDay.dateKey } : {}),
       to_index: toIndex,
-      to_relative_label: toDay.relativeLabel,
-      visible_day_count: dayCardCount,
+      to_relative_label: toDay?.relativeLabel ?? "Load seven more days",
+      visible_day_count: visibleDayCount,
     });
-  }, [dayCardDates, locationId]);
+  }, [dayCardDates, itemCount, locationId, visibleDayCount]);
 
   const trackBoundaryAttempt = useCallback((
     currentIndex: number,
@@ -231,21 +238,21 @@ export function DayCardCarousel({
     interactionMethod: CarouselInteractionMethod,
     interactionSource: string,
   ) => {
-    const currentDay = dayCardDates[clampDayIndex(currentIndex)];
-    if (!currentDay) return;
+    const currentDay = dayCardDates[clampDayIndex(currentIndex, itemCount)];
+    if (itemCount === 0) return;
 
     trackGoogleAnalyticsEvent("carousel_boundary_attempt", {
       attempted_direction: attemptedDirection,
       boundary: attemptedDirection === "backward" ? "start" : "end",
-      current_date: currentDay.dateKey,
+      ...(currentDay ? { current_date: currentDay.dateKey } : {}),
       current_index: currentIndex,
-      current_relative_label: currentDay.relativeLabel,
+      current_relative_label: currentDay?.relativeLabel ?? "Load seven more days",
       interaction_method: interactionMethod,
       interaction_source: interactionSource,
       location_id: locationId,
-      visible_day_count: dayCardCount,
+      visible_day_count: visibleDayCount,
     });
-  }, [dayCardDates, locationId]);
+  }, [dayCardDates, itemCount, locationId, visibleDayCount]);
 
   const navigateFromInteraction = useCallback((
     fromIndex: number,
@@ -253,8 +260,8 @@ export function DayCardCarousel({
     interactionMethod: CarouselInteractionMethod,
     interactionSource: string,
   ) => {
-    const normalizedFromIndex = clampDayIndex(fromIndex);
-    if (requestedIndex < 0 || requestedIndex >= dayCardCount) {
+    const normalizedFromIndex = clampDayIndex(fromIndex, itemCount);
+    if (requestedIndex < 0 || requestedIndex >= itemCount) {
       trackBoundaryAttempt(
         normalizedFromIndex,
         requestedIndex < normalizedFromIndex ? "backward" : "forward",
@@ -272,16 +279,44 @@ export function DayCardCarousel({
       interactionSource,
     );
     scrollToCard(requestedIndex);
-  }, [scrollToCard, trackBoundaryAttempt, trackNavigation]);
+  }, [itemCount, scrollToCard, trackBoundaryAttempt, trackNavigation]);
+
+  const handleArrowKey = useCallback((event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+      (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+    event.preventDefault();
+    viewportRef.current?.focus({ preventScroll: true });
+    const fromIndex = activeIndexRef.current;
+    const targetIndex = fromIndex + (event.key === "ArrowRight" ? 1 : -1);
+    navigateFromInteraction(fromIndex, targetIndex, "keyboard", "carousel_viewport");
+    if (hasMoreDays && targetIndex === dayCardDates.length) {
+      viewportRef.current?.querySelector<HTMLButtonElement>(".day-card-load-more")?.focus({ preventScroll: true });
+    }
+  }, [dayCardDates.length, hasMoreDays, navigateFromInteraction]);
+
+  useEffect(() => {
+    const fromIdlePage = (event: KeyboardEvent) => {
+      const viewport = viewportRef.current;
+      const focused = document.activeElement;
+      if (!viewport || viewport.closest("[inert]") || document.querySelector("dialog[open]")) return;
+      if (focused !== document.body && focused !== document.documentElement && focused?.id !== "main-content") return;
+      handleArrowKey(event);
+    };
+    document.addEventListener("keydown", fromIdlePage);
+    return () => document.removeEventListener("keydown", fromIdlePage);
+  }, [handleArrowKey]);
 
   const updateActiveCard = useCallback((viewport: HTMLDivElement) => {
-    const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
+    if (pendingLoadedIndexRef.current !== null) return;
+    const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
     const viewportRect = viewport.getBoundingClientRect();
     const viewportCenter = viewportRect.left + viewportRect.width / 2;
     const closestIndex = getClosestCardIndex(viewport);
     const programmaticTargetIndex = programmaticTargetIndexRef.current;
     if (programmaticTargetIndex !== null) {
       const targetCard = cards.item(programmaticTargetIndex);
+      if (!targetCard) return;
       const targetRect = targetCard.getBoundingClientRect();
       const targetCenter = targetRect.left + targetRect.width / 2;
       if (Math.abs(viewportCenter - targetCenter) > 2) return;
@@ -290,8 +325,10 @@ export function DayCardCarousel({
     const closestDate = dayCardDates[closestIndex];
     if (closestDate) {
       setSelectedDateKey(closestDate.dateKey);
+    } else if (hasMoreDays && closestIndex === dayCardDates.length) {
+      setSelectedDateKey("load-more");
     }
-  }, [dayCardDates]);
+  }, [dayCardDates, hasMoreDays]);
 
   const updateTodayControlMotion = useCallback((viewport: HTMLDivElement) => {
     const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
@@ -348,6 +385,7 @@ export function DayCardCarousel({
     if (!event.isPrimary || pointerDragRef.current !== null) return;
     suppressClickRef.current = false;
     if (event.pointerType === "touch") return;
+    if (event.target instanceof Element && event.target.closest("button, a")) return;
     if (
       event.button !== 0 ||
       (event.pointerType !== "mouse" && event.pointerType !== "pen")
@@ -451,7 +489,7 @@ export function DayCardCarousel({
       } else if (
         Math.abs(deltaX) >= navigationThreshold &&
         ((drag.activeIndex === 0 && deltaX > 0) ||
-          (drag.activeIndex === dayCardCount - 1 && deltaX < 0))
+          (drag.activeIndex === itemCount - 1 && deltaX < 0))
       ) {
         trackBoundaryAttempt(
           drag.activeIndex,
@@ -462,7 +500,7 @@ export function DayCardCarousel({
       }
     }
     scrollToCard(destinationIndex);
-  }, [scrollToCard, trackBoundaryAttempt, trackNavigation]);
+  }, [itemCount, scrollToCard, trackBoundaryAttempt, trackNavigation]);
 
   const handlePointerUp = useCallback((
     event: ReactPointerEvent<HTMLDivElement>,
@@ -582,7 +620,7 @@ export function DayCardCarousel({
     }
 
     handledReturnToTodayRequestRef.current = returnToTodayRequest;
-    const fromIndex = clampDayIndex(activeIndexRef.current);
+    const fromIndex = clampDayIndex(activeIndexRef.current, itemCount);
     trackNavigation(
       fromIndex,
       0,
@@ -591,8 +629,10 @@ export function DayCardCarousel({
       "return_to_today",
     );
     scrollToCard(0);
+    viewportRef.current?.focus({ preventScroll: true });
   }, [
     currentDateKey,
+    itemCount,
     returnToTodayRequest,
     scrollToCard,
     trackNavigation,
@@ -631,6 +671,35 @@ export function DayCardCarousel({
     positionViewport(activeIndex, "auto");
   }, [activeIndex, currentDateKey, positionViewport]);
 
+  const loadMoreDays = () => {
+    if (!hasMoreDays || currentDateKey === null) return;
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
+    const nextCount = visibleDayCount + dayCardCount;
+    const firstNewDay = getDayCardDates(currentDateKey, nextCount)[visibleDayCount];
+    pendingLoadedIndexRef.current = visibleDayCount;
+    activeIndexRef.current = visibleDayCount;
+    programmaticTargetIndexRef.current = visibleDayCount;
+    setSelectedDateKey(firstNewDay.dateKey);
+    setVisibleDayCount(nextCount);
+    trackGoogleAnalyticsEvent("carousel_load_more", {
+      added_day_count: dayCardCount,
+      location_id: locationId,
+      visible_day_count: nextCount,
+    });
+  };
+
+  useLayoutEffect(() => {
+    const nextIndex = pendingLoadedIndexRef.current;
+    if (nextIndex === null) return;
+    pendingLoadedIndexRef.current = null;
+    positionViewport(nextIndex, "instant");
+    viewportRef.current?.focus({ preventScroll: true });
+    if (viewportRef.current) updateTodayControlMotion(viewportRef.current);
+  }, [positionViewport, updateTodayControlMotion, visibleDayCount]);
+
   if (currentDateKey === null) {
     return (
       <section
@@ -656,10 +725,11 @@ export function DayCardCarousel({
   return (
     <section
       className="day-carousel"
-      aria-label="Seven-day schedule"
+      aria-label={visibleDayCount === dayCardCount ? "Seven-day schedule" : `${visibleDayCount}-day schedule`}
       aria-busy="false"
       aria-roledescription="carousel"
       data-active-index={activeIndex}
+      onKeyDown={(event) => handleArrowKey(event.nativeEvent)}
     >
       <div className="day-carousel-shell">
         <button
@@ -668,7 +738,7 @@ export function DayCardCarousel({
           aria-controls="day-card-carousel-viewport"
           aria-label="Previous day"
           disabled={activeIndex === 0}
-          onClick={() => {
+          onClick={(event) => {
             const fromIndex = activeIndexRef.current;
             navigateFromInteraction(
               fromIndex,
@@ -676,6 +746,9 @@ export function DayCardCarousel({
               "arrow",
               "previous_arrow",
             );
+            if (fromIndex === 1 && event.detail === 0) {
+              viewportRef.current?.focus({ preventScroll: true });
+            }
           }}
         >
           <ChevronLeft aria-hidden="true" />
@@ -687,27 +760,6 @@ export function DayCardCarousel({
           role="group"
           aria-label="Day cards"
           tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              const fromIndex = activeIndexRef.current;
-              navigateFromInteraction(
-                fromIndex,
-                fromIndex - 1,
-                "keyboard",
-                "carousel_viewport",
-              );
-            } else if (event.key === "ArrowRight") {
-              event.preventDefault();
-              const fromIndex = activeIndexRef.current;
-              navigateFromInteraction(
-                fromIndex,
-                fromIndex + 1,
-                "keyboard",
-                "carousel_viewport",
-              );
-            }
-          }}
           onClickCapture={(event) => {
             if (!suppressClickRef.current) return;
             suppressClickRef.current = false;
@@ -741,6 +793,20 @@ export function DayCardCarousel({
                 relativeLabel={relativeLabel}
               />
             ))}
+            {hasMoreDays ? (
+              <Card
+                as="button"
+                type="button"
+                borderless
+                className="day-card day-card-more day-card-load-more"
+                data-active={activeIndex === dayCardDates.length}
+                data-carousel-item=""
+                id="day-card-load-more"
+                onClick={loadMoreDays}
+              >
+                <span className="day-card-load-more-label">Load seven more days</span>
+              </Card>
+            ) : null}
           </div>
         </div>
         <button
@@ -748,8 +814,8 @@ export function DayCardCarousel({
           type="button"
           aria-controls="day-card-carousel-viewport"
           aria-label="Next day"
-          disabled={activeIndex === dayCardCount - 1}
-          onClick={() => {
+          disabled={activeIndex === itemCount - 1}
+          onClick={(event) => {
             const fromIndex = activeIndexRef.current;
             navigateFromInteraction(
               fromIndex,
@@ -757,13 +823,19 @@ export function DayCardCarousel({
               "arrow",
               "next_arrow",
             );
+            if (fromIndex === itemCount - 2 && event.detail === 0) {
+              const target = hasMoreDays
+                ? viewportRef.current?.querySelector<HTMLButtonElement>(".day-card-load-more")
+                : viewportRef.current;
+              target?.focus({ preventScroll: true });
+            }
           }}
         >
           <ChevronRight aria-hidden="true" />
         </button>
       </div>
 
-      <div className="day-carousel-pagination" aria-label="Choose a day">
+      <div className="day-carousel-pagination" role="group" aria-label="Choose a day">
         {dayCardDates.map(({ dateKey, relativeLabel }, index) => (
           <button
             className="day-carousel-dot"
@@ -783,10 +855,22 @@ export function DayCardCarousel({
             <span aria-hidden="true" />
           </button>
         ))}
+        {hasMoreDays ? (
+          <button
+            className="day-carousel-dot day-carousel-more-dot"
+            type="button"
+            aria-controls="day-card-load-more"
+            aria-current={activeIndex === dayCardDates.length ? true : undefined}
+            aria-label="Go to load more days"
+            onClick={() => navigateFromInteraction(activeIndexRef.current, dayCardDates.length, "dot", "pagination_dot")}
+          ><span aria-hidden="true" /></button>
+        ) : null}
       </div>
 
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
-        Showing {activeDay.relativeLabel}, day {activeIndex + 1} of {dayCardCount}.
+        {activeDay
+          ? `Showing ${activeDay.relativeLabel}, day ${activeIndex + 1} of ${visibleDayCount}.`
+          : `Load seven more days. ${visibleDayCount} days currently loaded.`}
       </p>
 
       {agenda.failedSourceCount > 0 && !hasNoAvailableSources ? (

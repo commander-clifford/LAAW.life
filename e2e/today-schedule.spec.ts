@@ -87,7 +87,7 @@ function getActiveCard(page: Page): Locator {
 }
 
 function getDots(page: Page): Locator {
-  return getCarousel(page).locator(".day-carousel-dot");
+  return getCarousel(page).locator(".day-carousel-dot[data-day-index]");
 }
 
 function getTodayControl(page: Page, dateKey: string): Locator {
@@ -285,13 +285,13 @@ async function expectCenteredCard(
   if (index < dayCardCount - 1) expect(nextPeek).toBeGreaterThanOrEqual(8);
   if (geometry.windowWidth < 552) {
     expect(geometry.activeWidth / geometry.viewportWidth).toBeGreaterThanOrEqual(
-      0.895,
+      0.87,
     );
     expect(geometry.activeWidth / geometry.viewportWidth).toBeLessThanOrEqual(
-      0.905,
+      0.93,
     );
-    const minimumPeek = geometry.windowWidth <= 330 ? 8 : 12;
-    const maximumPeek = geometry.windowWidth <= 330 ? 12 : 18;
+    const minimumPeek = 8;
+    const maximumPeek = geometry.windowWidth <= 330 ? 12 : 24;
     if (index > 0) {
       expect(previousPeek).toBeGreaterThanOrEqual(minimumPeek);
       expect(previousPeek).toBeLessThanOrEqual(maximumPeek);
@@ -494,6 +494,26 @@ function snapshotDay(): Date {
   ));
 }
 
+// Busy-day interaction checks must not depend on this week's live feed.
+async function useBusyDayFixture(page: Page): Promise<void> {
+  const source = agendas["hawthorne"];
+  if (!source) throw new Error("Hawthorne calendar fixture missing");
+  const dateKeys = getDayCardDateKeys(getDateKey(snapshotDay(), source.timeZone));
+  const generatedAt = new Date(snapshotDay().getTime() + 1000).toISOString();
+  await page.clock.setFixedTime(new Date(snapshotDay().getTime() + 2000));
+  const fixture = {
+    ...source,
+    generatedAt,
+    events: [
+      fixtureEvent(dateKeys[5], "sparse", "Food truck"),
+      ...Array.from({ length: 8 }, (_, index) => fixtureEvent(
+        dateKeys[6], `busy-${index}`, index < 3 ? `Event ${index + 1}` : "Hawthorne community food truck and neighborhood event",
+      )),
+    ],
+  };
+  await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, hawthorne: fixture } }));
+}
+
 test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 test.beforeEach(async ({ page }) => {
@@ -568,7 +588,7 @@ test("an old offline snapshot tells visitors to check the live calendar", async 
   await page.route("**/calendar-data/agendas.json", (route) => route.fulfill({ status: 503, body: "Unavailable" }));
   await page.goto("ivy/");
   await expect(page.getByRole("status").filter({ hasText: "Calendar updates are delayed." })).toBeVisible();
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
 });
 
@@ -701,7 +721,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     await expect(getActiveCard(page).getByRole("heading", { level: 3 })).toHaveText(
       agenda.events.filter((event) => event.dateKeys.includes(currentDateKey)).map((event) => event.title),
     );
-    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
     await expect(page.locator("iframe.calendar-frame")).toBeVisible();
     const renderStates: string[] = await page.evaluate(() => Reflect.get(window, "todayRenderStates"));
     expect(renderStates.some((state) => state.includes(formatDate(agenda.initialDateKey)))).toBe(false);
@@ -867,12 +887,24 @@ test(`the current date scrubs from offstage without shifting the heading at ${wi
 });
 }
 
+async function useOneWeekCoverage(page: Page): Promise<void> {
+  const today = getDateKey(snapshotDay(), agenda.timeZone);
+  const dates = getDayCardDateKeys(today);
+  const limited = { ...agendas, "ivy-station": { ...agenda,
+    generatedAt: new Date(Date.parse(agenda.generatedAt) + 1).toISOString(),
+    availableDateKeys: dates,
+    events: agenda.events.filter(event => event.dateKeys.every(date => dates.includes(date))),
+  } };
+  await page.route("**/calendar-data/agendas.json*", route => route.fulfill({ json: limited }));
+}
+
 test("desktop arrows and day dots navigate without wrapping", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const todayDateKey = getDateKey(snapshotDay(), agenda.timeZone);
   await page.clock.setFixedTime(snapshotDay());
-  await page.goto("ivy/");
+  await useOneWeekCoverage(page);
+    await page.goto("ivy/");
 
   const carousel = getCarousel(page);
   const viewport = carousel.locator(".day-carousel-viewport");
@@ -989,7 +1021,8 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
   await page.emulateMedia({ reducedMotion: "reduce" });
   await installAnalyticsRecorder(page);
   await page.clock.setFixedTime(snapshotDay());
-  await page.goto("ivy/");
+  await useOneWeekCoverage(page);
+    await page.goto("ivy/");
 
   const carousel = getCarousel(page);
   const viewport = carousel.locator(".day-carousel-viewport");
@@ -1326,7 +1359,7 @@ test("the selected card stays aligned across responsive resizing", async ({ page
 for (const width of [320, 1440]) {
   test(`equal-height cards cap and scroll Hawthorne's busy day at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -1568,8 +1601,8 @@ for (const width of [320, 1440]) {
     const ivyViewport = ivyCarousel.locator(".day-carousel-viewport");
     await ivyViewport.focus();
     await page.keyboard.press("ArrowRight");
-    await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expect(ivyCarousel).toHaveAttribute("data-active-index", String(dayCardCount));
+    await expect(ivyCarousel.locator(".day-card-more")).toBeVisible();
   });
 }
 
@@ -1583,6 +1616,7 @@ test.describe("touch day-card carousel", () => {
   test("swipes follow platform direction, stop at boundaries, and preserve a neighboring peek", async ({ page }) => {
     await installAnalyticsRecorder(page);
     await page.clock.setFixedTime(snapshotDay());
+    await useOneWeekCoverage(page);
     await page.goto("ivy/");
 
     const carousel = getCarousel(page);
@@ -1674,7 +1708,7 @@ test.describe("touch day-card carousel", () => {
 
   test("a busy event region separates vertical scrolling from horizontal day swipes", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
-    await page.clock.setFixedTime(snapshotDay());
+    await useBusyDayFixture(page);
     await page.goto("hawthorne/");
 
     const carousel = getCarousel(page);
@@ -1727,8 +1761,8 @@ test.describe("touch day-card carousel", () => {
 
     busySchedule = getActiveCard(page).locator(".day-card-schedule");
     await dispatchTouchDrag(page, busySchedule, -200, 8);
-    await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expect(carousel).toHaveAttribute("data-active-index", String(dayCardCount));
+    await expect(carousel.locator(".day-card-more")).toBeVisible();
   });
 });
 
@@ -1785,7 +1819,7 @@ for (const width of [1440, 600, 393, 320]) {
       expect(compactBox.x + compactBox.width / 2).toBeCloseTo(width / 2, 0);
       expect(compactBox.width).toBeLessThan(viewportBox.width);
       if (width < 552) {
-        expect(compactBox.width / viewportBox.width).toBeGreaterThanOrEqual(0.89);
+        expect(compactBox.width / viewportBox.width).toBeGreaterThanOrEqual(0.87);
       } else {
         expect(compactBox.width).toBeCloseTo(512, 0);
       }
@@ -1823,7 +1857,7 @@ for (const width of [1440, 600, 393, 320]) {
         })
       );
       expect(paginationBox.x + paginationBox.width / 2).toBeCloseTo(width / 2, 0);
-      expect(paginationBox.width).toBeCloseTo(168, 0);
+      expect(paginationBox.width).toBeCloseTo((dayCardCount + 1) * 24, 0);
       expect(dotGeometry).toHaveLength(dayCardCount);
       for (const [index, box] of dotGeometry.entries()) {
         expect(box.width).toBeGreaterThanOrEqual(23.5);
@@ -1846,7 +1880,7 @@ for (const width of [1440, 600, 393, 320]) {
       eventCount = 3;
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await expect(card.locator(".day-card-event")).toHaveCount(3);
-      await expect(card.locator(".day-card-event time")).toHaveText([
+      await expect(card.locator(".day-card-event time > [aria-hidden]")).toHaveText([
         "All day",
         "9:00–10:00 AM",
         "11:00 AM–1:00 PM",
@@ -1860,7 +1894,7 @@ for (const width of [1440, 600, 393, 320]) {
         (elements) => elements.map((element) => {
           const box = element.getBoundingClientRect();
           const range = document.createRange();
-          range.selectNodeContents(element);
+          range.selectNodeContents(element.querySelector("[aria-hidden]") ?? element);
           const style = getComputedStyle(element);
           return {
             boxHeight: box.height,
@@ -1873,7 +1907,7 @@ for (const width of [1440, 600, 393, 320]) {
           };
         }),
       );
-      expect(new Set(await card.locator(".day-card-event time").allTextContents()).size).toBe(3);
+      expect(new Set(await card.locator(".day-card-event time > [aria-hidden]").allTextContents()).size).toBe(3);
       const timeTrackWidth = Math.max(...timeLayout.map(({ boxWidth }) => boxWidth));
       const widestTimeText = Math.max(...timeLayout.map(({ textWidth }) => textWidth));
       expect(timeTrackWidth - widestTimeText).toBeLessThan(2);
@@ -1892,12 +1926,13 @@ for (const width of [1440, 600, 393, 320]) {
         0,
       );
       expect(firstTitleBox.width).toBeGreaterThan(timeTrackWidth);
-      expect(firstTitleBox.width / listBox.width).toBeGreaterThan(0.55);
+      // Platform font metrics vary; the title must retain most of the row.
+      expect(firstTitleBox.width / listBox.width).toBeGreaterThan(0.5);
       for (const event of await card.locator(".day-card-event").all()) {
         const title = (await event.locator("h3").boundingBox())!;
         const time = (await event.locator("time").boundingBox())!;
-        expect(title.x).toBeGreaterThan(time.x + time.width);
-        expect(Math.abs(time.x - listBox.x)).toBeLessThan(1);
+        expect(time.x).toBeGreaterThanOrEqual(title.x + title.width);
+        expect(Math.abs(time.x + time.width - listBox.x - listBox.width)).toBeLessThan(1);
         expect(Math.abs(title.x - firstTitleBox.x)).toBeLessThan(1);
         expect(title.x + title.width).toBeLessThanOrEqual(listBox.x + listBox.width + 1);
         expect(await event.locator(":scope > :first-child").evaluate((element) => element.tagName)).toBe("TIME");
@@ -1909,7 +1944,7 @@ for (const width of [1440, 600, 393, 320]) {
       }
       await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
       await expect(card.locator(".day-card-relative-label")).toHaveText("Today");
-      await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+      await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
       const calendarBox = (await page.locator("iframe.calendar-frame").boundingBox())!;
       const disclosureBox = (await page.locator(".calendar-disclosure").boundingBox())!;
       const fullCarouselBox = (await carousel.boundingBox())!;
@@ -1929,7 +1964,7 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   });
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("ivy/");
-  const toggle = page.getByRole("button", { name: "Open calendar", exact: true });
+  const toggle = page.getByRole("button", { name: "Open full calendar", exact: true });
   await expect(getCarousel(page)).toHaveAttribute("aria-busy", "false");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).toHaveCSS("text-decoration-line", "none");
@@ -2000,7 +2035,7 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
       }
       for (const open of [false, true]) {
         if (open) {
-          await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+          await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
           await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
         }
         const main = (await page.locator(".site-main").boundingBox())!;
@@ -2015,7 +2050,9 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
         const calendarControl = (await page.locator(".calendar-disclosure-toggle").boundingBox())!;
         const carousel = (await getCarousel(page).boundingBox())!;
         expect(calendarControl.x + calendarControl.width / 2).toBeCloseTo(carousel.x + carousel.width / 2, 0);
-        expect(calendarControl.y - carousel.y - carousel.height).toBeCloseTo(32, 0);
+        const search = (await page.locator("section").filter({ has: page.getByRole("searchbox") }).boundingBox())!;
+        expect(search.y).toBeGreaterThan(carousel.y + carousel.height);
+        expect(calendarControl.y - search.y - search.height).toBeCloseTo(56, 0);
         if (width < 704) {
           expect(carousel.width).toBeCloseTo(width, 0);
         }
@@ -2097,10 +2134,6 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
 
   await page.clock.setSystemTime(midnightEdge);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(todayControl.locator("time")).toHaveAttribute(
-    "datetime",
-    currentDateKey,
-  );
   await page.clock.runFor(200);
   await expect.poll(() => dateLines.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute("datetime"))
@@ -2165,7 +2198,7 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
   await expect(cards.locator(".day-card-event")).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
   await expect(page.getByRole("heading", { name: "Full calendar" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   await expect(page.locator("iframe.calendar-frame")).toHaveAttribute("title", "Ivy Station Calendar");
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
 });

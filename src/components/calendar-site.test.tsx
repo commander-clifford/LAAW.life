@@ -49,10 +49,11 @@ describe("LocationCalendar", () => {
 
       expect(html).not.toContain("<iframe");
       expect(html).not.toContain("data-calendar-placeholder");
-      expect(html).toContain("Open calendar");
+      expect(html).toContain("Open full calendar");
       expect(html).toContain('aria-expanded="false"');
       expect(html).toContain('class="day-carousel"');
-      expect(html).not.toContain("<h2");
+      expect(html).toContain("Search events");
+      expect(html).not.toContain('class="day-card-date"');
       expect(html).toContain('aria-label="Seven-day schedule"');
       expect(html).toContain("Loading today&#x27;s schedule…");
       expect(html).toContain('aria-busy="true"');

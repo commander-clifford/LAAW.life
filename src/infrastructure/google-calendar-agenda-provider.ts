@@ -163,10 +163,35 @@ function buildCalendarAgenda(
   const today = Temporal.Instant.fromEpochMilliseconds(now.getTime())
     .toZonedDateTimeISO(timeZone)
     .toPlainDate();
-  const coverageStart = today.subtract({ days: coverageDaysBeforeToday });
-  const coverageEndExclusive = today.add({
+  let coverageStart = today.subtract({ days: coverageDaysBeforeToday });
+  let coverageEndExclusive = today.add({
     days: coverageDaysAfterToday + 1,
   });
+  // Explicit feed dates establish the finite searchable horizon. Unbounded
+  // recurrence rules are expanded only through that horizon.
+  for (const feed of feeds) {
+    for (const event of Object.values(feed.data)) {
+      if (!event || event.type !== "VEVENT" || event.status === "CANCELLED") continue;
+      const until = event.rrule?.options.until;
+      const finiteOccurrences = event.rrule?.options.count
+        ? event.rrule.all((_date, index) => index < 20_000)
+        : [];
+      if (finiteOccurrences.length >= 20_000) throw new Error("Calendar recurrence exceeds the searchable safety limit");
+      const lastOccurrence = finiteOccurrences.at(-1);
+      const duration = event.end instanceof Date ? Math.max(0, event.end.getTime() - event.start.getTime()) : 0;
+      const lastEnd = lastOccurrence ? new Date(lastOccurrence.getTime() + duration) : undefined;
+      for (const date of [event.start, event.end, until, lastOccurrence, lastEnd]) {
+        if (!(date instanceof Date) || !Number.isFinite(date.getTime())) continue;
+        const start = getZonedDate(date, timeZone);
+        if (Temporal.PlainDate.compare(start, coverageStart) < 0) coverageStart = start;
+        const end = start.add({ days: 1 });
+        if (Temporal.PlainDate.compare(end, coverageEndExclusive) > 0) coverageEndExclusive = end;
+      }
+    }
+  }
+  if (coverageStart.until(coverageEndExclusive).days > 36_525) {
+    throw new Error("Calendar date range exceeds the searchable safety limit");
+  }
   const rangeStart = new Date(
     coverageStart.toZonedDateTime(timeZone).epochMilliseconds,
   );
@@ -221,9 +246,11 @@ function buildCalendarAgenda(
           continue;
         }
 
+        if (agendaItems.length >= 50_000) throw new Error("Calendar event count exceeds the searchable safety limit");
         agendaItems.push({
           allDay: instance.isFullDay,
           dateKeys,
+          description: getParameterText(instance.event.description, ""),
           end: instance.end.toISOString(),
           id: `${feed.calendarKey}:${instance.event.uid}:${instance.start.toISOString()}`,
           location: instance.event.location
