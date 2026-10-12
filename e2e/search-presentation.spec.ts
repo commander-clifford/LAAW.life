@@ -8,52 +8,58 @@ const directory = process.env.REVIEW_SCREENSHOT_DIR;
 const source = JSON.parse(readFileSync(new URL("../.calendar-data/agendas.json", import.meta.url), "utf8"))["ivy-station"];
 const dates = [...new Set<string>([...source.availableDateKeys, ...source.events.flatMap((event: { dateKeys: string[] }) => event.dateKeys)])].sort();
 const format = (date: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+const coverage = `Search past and upcoming events from ${format(dates[0])} through ${format(dates.at(-1)!)}.`;
+
 for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as const) {
-  test(`standalone search and optional scope bubble work at ${width}px ${appearance}`, async ({ page }) => {
+  test(`full-width search and centered coverage stay readable at ${width}px ${appearance}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: appearance, reducedMotion: "reduce" });
     await page.goto("ivy/?eventLayout=title-first");
+    await expect(page.locator(".day-carousel")).toHaveAttribute("aria-busy", "false");
     const input = page.getByRole("searchbox", { name: "Search events", exact: true });
     const section = page.getByRole("region", { name: "Search events", exact: true });
-    const info = page.getByRole("button", { name: "About search coverage", exact: true });
-    const bubble = page.getByRole("tooltip");
+    const note = section.getByText(coverage, { exact: true });
     await expect(input).toBeVisible();
+    await expect(input).toHaveAccessibleDescription(coverage);
+    await expect(note).toBeVisible();
+    await expect(note).toHaveCSS("text-align", "center");
+    await expect(note).toHaveCSS("font-size", "12px");
+    await expect(note).toHaveCSS("opacity", "1");
     await expect(section.getByRole("heading")).toHaveCount(0);
     await expect(section).toHaveCSS("border-top-width", "0px");
     await expect(section).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await expect(bubble).not.toBeVisible();
-    await expect(page.getByText("Results appear as you type.")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "About search coverage", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
     const card = (await page.locator("[data-day-card]").first().boundingBox())!;
-    const group = (await section.boundingBox())!;
-    expect(Math.abs(card.x - group.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(card.width - group.width)).toBeLessThanOrEqual(1);
+    const field = (await input.boundingBox())!;
+    const support = (await note.boundingBox())!;
+    for (const box of [field, support, (await section.boundingBox())!]) {
+      expect(Math.abs(card.x - box.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(card.width - box.width)).toBeLessThanOrEqual(1);
+    }
+    expect(support.y).toBeGreaterThan(field.y + field.height);
+    const contrast = await note.evaluate(element => {
+      const channels = (color: string) => {
+        const values = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        return color.startsWith("color(srgb") ? values : values.map(value => value / 255);
+      };
+      const luminance = (rgb: number[]) => rgb.map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+      const foreground = luminance(channels(getComputedStyle(element).color));
+      const background = luminance(channels(getComputedStyle(document.body).backgroundColor));
+      return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
+    });
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
     const reports = [];
     const scan = async (state: string) => {
       const report = await new AxeBuilder({ page }).include("section:has(input[type=search])").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
-      reports.push({ state, violations: report.violations, incomplete: report.incomplete });
+      reports.push({ state, contrast, violations: report.violations, incomplete: report.incomplete });
       expect(report.violations.map(item => item.id)).toEqual([]);
     };
-    await scan("closed");
-    await info.hover();
-    await expect(bubble).toBeVisible();
-    await expect(bubble).toContainText(format(dates[0]));
-    await expect(bubble).toContainText(format(dates.at(-1)!));
-    await bubble.hover();
-    await expect(bubble).toBeVisible();
-    await page.getByRole("heading", { name: "Ivy Station", exact: true }).hover();
-    await expect(bubble).not.toBeVisible();
+    await scan("supporting-text");
+    if (directory) await page.screenshot({ path: join(directory, `search-supporting-${appearance}-${width}.png`) });
     await input.focus();
     await page.keyboard.press("Tab");
-    await expect(info).toBeFocused();
-    await expect(bubble).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(bubble).not.toBeVisible();
-    await expect(info).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(bubble).toBeVisible();
-    await scan("open-keyboard");
-    if (directory) await page.screenshot({ path: join(directory, `search-scope-${appearance}-${width}.png`) });
-    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Open calendar", exact: true })).toBeFocused();
     await input.fill("trivia");
     await expect(page.getByText(/\d+ matching events\./)).toBeVisible();
     const index = await page.locator(".day-carousel").getAttribute("data-active-index");
@@ -61,33 +67,28 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     await expect(input).toBeFocused();
     await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", index!);
     await scan("results");
-    if (directory) await page.screenshot({ path: join(directory, `standalone-search-${appearance}-${width}.png`) });
     await page.getByRole("button", { name: "Clear search", exact: true }).click();
     await expect(input).toHaveValue("");
     await expect(input).toBeFocused();
-    const box = (await info.boundingBox())!;
-    expect(box.width).toBeGreaterThanOrEqual(24); expect(box.height).toBeGreaterThanOrEqual(24);
+    await expect(note).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (directory) await writeFile(join(directory, `search-checks-${appearance}-${width}.json`), JSON.stringify(reports, null, 2));
+    if (directory) await writeFile(join(directory, `search-supporting-checks-${appearance}-${width}.json`), JSON.stringify(reports, null, 2));
   });
 }
 
-test.describe("touch scope bubble", () => {
+test.describe("touch search", () => {
   test.use({ hasTouch: true });
-  test("a phone tap opens and dismisses scope while typing still produces results", async ({ page }) => {
+  test("a phone search keeps coverage visible when results are cleared", async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 852 });
     await page.goto("ivy/");
-    const info = page.getByRole("button", { name: "About search coverage", exact: true });
-    const bubble = page.getByRole("tooltip");
-    await info.tap(); await expect(bubble).toBeVisible();
-    await info.tap(); await expect(bubble).not.toBeVisible();
-    await info.tap(); await expect(bubble).toBeVisible();
-    await page.getByRole("heading", { name: "Ivy Station", exact: true }).tap();
-    await expect(bubble).not.toBeVisible();
     const input = page.getByRole("searchbox", { name: "Search events" });
+    const note = page.getByText(coverage, { exact: true });
     await input.tap(); await input.fill("trivia");
     await expect(page.getByText(/\d+ matching events\./)).toBeVisible();
+    await expect(note).toBeVisible();
     await page.getByRole("button", { name: "Clear search", exact: true }).tap();
     await expect(input).toHaveValue("");
+    await expect(input).toBeFocused();
+    await expect(note).toBeVisible();
   });
 });

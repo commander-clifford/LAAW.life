@@ -11,3 +11,5 @@ Validation: lint/type checks, 70 application tests including historical/descript
 Preview: http://127.0.0.1:4184/ivy/ (local issue #4 branch). Human review and production release are separate.
 
 October 9 review: search is now a standalone field with a decorative magnifier and hidden accessible label. A small coverage trigger exposes the actual past/upcoming range on hover, keyboard focus/activation, or touch; Escape and outside activation dismiss it. The visible heading, outer card and always-visible range explanation were removed. Result scope and order are unchanged. See `docs/release-review.md` for the bounded verification.
+
+October 12 review: the information icon and popover are removed. The input fills its containing block. The same coverage text is always visible below it, centered in 12px supporting type with automatic inline margins, a 122ch maximum measure and responsive wrapping. It remains the input's accessible description. Light/dark contrast and the updated browser checks are recorded in `docs/release-review.md`.

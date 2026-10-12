@@ -11,7 +11,7 @@ Hawthorne preview: http://127.0.0.1:4194/hawthorne/?eventLayout=title-first
 ## Current scope
 
 - #3: configured trivia/bingo Today themes; deterministic screenshots are test examples, not invented production events.
-- #4: title/detail search across imported past and upcoming events; a standalone magnifier field and optional scope bubble for hover, keyboard and touch. The outer card, visible heading and always-visible range line are removed. Existing chronological order remains, including historical results.
+- #4: title/detail search across imported past and upcoming events. The standalone magnifier input fills its containing block. The information icon and popover are removed; their unchanged range text is centered below the field in small supporting type, with a 122ch maximum measure and responsive wrapping. Colors derive from the existing design tokens and meet small-text contrast. Existing chronological order remains, including historical results.
 - #5: seven initial dated cards and a same-size transparent Card rendered as one native button. Its entire surface loads seven more dates. Full-week coverage, final-week selection, gestures and keyboard focus are checked.
 - #6: food menu system deferred behind its traffic gate.
 - #7: catalog and reviewed metadata foundation. Full admin editing remains unimplemented.
@@ -22,11 +22,11 @@ Hawthorne preview: http://127.0.0.1:4194/hawthorne/?eventLayout=title-first
 
 ## Verification
 
-Lint and type checks pass. All 82 unit tests pass. Static export verifies 41 files. The carousel/layout candidate passed 92 distinct browser checks before the final search presentation update: 32 passed in the full run and the remaining 60 passed on recheck after aligning test expectations with the approved design. The application source was unchanged between those checks. The standalone search update then passed 17 bounded browser checks, including integration with loading weeks, live search, responsive alignment, clearing and keyboard/touch scope disclosure. Twelve scoped axe scans also reported zero violations. Other settled application features were preserved.
+October 12 search presentation update: lint and type checks pass, all 82 unit tests pass, and static export verifies 41 files. All 17 focused Chromium checks pass across the existing search, combined-preview and presentation suites. They cover full-width input alignment, persistent accessible range descriptions, responsive wrapping, input/clear interactions, keyboard and touch, loading weeks, event themes and calendar recovery. Eight scoped axe scans report zero violations. Measured supporting-text contrast is 4.61:1 in light and 4.80:1 in dark at both tested widths, exceeding 4.5:1 for small text.
 
-The 64 axe scans report no violations across phone/desktop, light/dark, Ivy/Hawthorne, default/comparison URLs, loaded weeks, search and controlled calendar states. Direct keyboard, mouse, touch, surface and focus checks supplement the scans. Measured normal date/title/time contrast is at least 6.24:1 in light and 5.36:1 in dark; placeholder contrast in that pre-search-update check was 7.69:1 and 8.59:1. The latest standalone field uses the existing muted text color against the card surface and passed its scoped contrast scans. These measurements exclude partially clipped/faded text at scroll edges.
+The October 9 core review covered 92 distinct browser checks and 64 clean axe scans for carousel, dates, focus, gestures, layout and controlled calendar states. Those earlier results are historical; the latest change is confined to search presentation.
 
-Manual review still includes actual screen-reader listening, spoken time descriptions and the cross-origin Google Calendar content. This is validation toward WCAG 2.2 AA, not certification. No additional investigation or changes to the time-label detail are planned before human review.
+Human review still includes actual screen-reader listening, spoken time descriptions and the cross-origin Google Calendar content. No new investigation or changes to time-label details are planned before human review. No production deployment, merge, push, issue closure or hosting activation was performed.
 
 Build comparison preview: `NEXT_PUBLIC_REVIEW_PREVIEW=true npm run build`.
 
