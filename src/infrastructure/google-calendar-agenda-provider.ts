@@ -261,6 +261,7 @@ function buildCalendarAgenda(
           location: instance.event.location
             ? getParameterText(instance.event.location, "") || null
             : null,
+          sourceCalendarId: feed.calendarKey,
           sourceName,
           ...(feed.sourceColor ? { sourceColor: feed.sourceColor } : {}),
           start: instance.start.toISOString(),

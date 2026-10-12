@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,7 +14,8 @@ import { CalendarSourceLegend } from "@/src/components/calendar-source-legend";
 
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
 import { getDateKey } from "@/src/application/calendar-dates";
-import type { CalendarAgenda } from "@/src/application/ports";
+import { withCalendarSourceColors } from "@/src/application/calendar-source-colors";
+import type { CalendarAgenda, CalendarSourceColor } from "@/src/application/ports";
 import {
   DayCardCarousel,
   type TodayControlMotion,
@@ -66,6 +68,7 @@ type LiveCalendarScheduleProps = Readonly<{
   agenda: CalendarAgenda;
   locationId: string;
   locationName: string;
+  sourceColors: readonly CalendarSourceColor[];
 }>;
 
 function formatTodayDate(dateKey: string): Readonly<{
@@ -96,6 +99,7 @@ export function LiveCalendarSchedule({
   agenda,
   locationId,
   locationName,
+  sourceColors,
 }: LiveCalendarScheduleProps) {
   const [refreshed, setRefreshed] = useState<{
     agenda: CalendarAgenda;
@@ -107,10 +111,14 @@ export function LiveCalendarSchedule({
   );
   const todayControlIsInteractiveRef = useRef(false);
   const todayControlRef = useRef<HTMLButtonElement>(null);
-  const currentAgenda = refreshed?.locationId === locationId &&
+  const rawCurrentAgenda = refreshed?.locationId === locationId &&
     Date.parse(refreshed.agenda.generatedAt) > Date.parse(agenda.generatedAt)
     ? refreshed.agenda
     : agenda;
+  const currentAgenda = useMemo(
+    () => withCalendarSourceColors(rawCurrentAgenda, sourceColors),
+    [rawCurrentAgenda, sourceColors],
+  );
   const currentMinute = useSyncExternalStore(subscribeToClock, getCurrentMinute, getServerMinute);
   const currentDateKey = currentMinute === null
     ? null

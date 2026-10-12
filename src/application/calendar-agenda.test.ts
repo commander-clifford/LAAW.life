@@ -39,6 +39,23 @@ describe("remote calendar agenda validation", () => {
     expect(select(updated)).toBe(updated);
   });
 
+  it("accepts optional source calendar identity while retaining old snapshots", () => {
+    const identified = {
+      ...updated,
+      events: [{ ...updated.events[0], sourceCalendarId: "venue@example.com" }],
+    };
+
+    expect(select(identified)).toBe(identified);
+    expect(select(updated)).toBe(updated);
+  });
+
+  it.each([null, 123, ""])("rejects invalid optional source identity: %j", (sourceCalendarId) => {
+    expect(select({
+      ...updated,
+      events: [{ ...updated.events[0], sourceCalendarId }],
+    })).toBe(bundled);
+  });
+
   it.each(["#AABBCC", "#aabbcc"])(
     "accepts an explicit six-digit source color: %s",
     (sourceColor) => {

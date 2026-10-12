@@ -30,6 +30,8 @@ function isAgendaItem(value: unknown, availableDates: Set<string>): value is Cal
     typeof value.title === "string" &&
     (value.description === undefined || typeof value.description === "string") &&
     typeof value.sourceName === "string" &&
+    (value.sourceCalendarId === undefined ||
+      (typeof value.sourceCalendarId === "string" && value.sourceCalendarId.length > 0)) &&
     (value.sourceColor === undefined ||
       (typeof value.sourceColor === "string" && /^#[0-9a-f]{6}$/i.test(value.sourceColor))) &&
     (value.location === null || typeof value.location === "string") &&

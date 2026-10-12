@@ -9,8 +9,8 @@
   --gray-700: #4d4d4d;
   --gray-900: #191919;
 
-  --page: var(--gray-100);
-  --site-chrome: var(--gray-100);
+  --page: var(--gray-0);
+  --site-chrome: var(--gray-0);
   --surface: var(--gray-0);
   --surface-muted: var(--gray-100);
   --surface-hover: var(--gray-200);
@@ -80,6 +80,7 @@
 html {
   overflow-x: clip;
   scroll-padding-top: var(--site-header-height);
+  background: var(--page);
 }
 
 body {
@@ -144,6 +145,7 @@ a {
   display: flex;
   flex: 1;
   flex-direction: column;
+  background: var(--page);
 }
 
 .site-header-inner {

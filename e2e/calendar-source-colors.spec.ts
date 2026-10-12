@@ -93,9 +93,9 @@ for (const width of [320, 1280]) {
   }
 }
 
-test("unconfigured source colors leave Ivy rows without invented dots", async ({ page }) => {
+test("unknown fixture sources stay uncolored even when Ivy has verified colors", async ({ page }) => {
   const ivy = agendas["ivy-station"];
-  expect(parseGoogleCalendarEmbed(laawLifeTenant.locations[0].calendar.src).calendarSources.every(source => source.color === undefined)).toBe(true);
+  expect(parseGoogleCalendarEmbed(laawLifeTenant.locations[0].calendar.src).calendarSources.every(source => source.color === "#7986CB")).toBe(true);
   await page.clock.setFixedTime(new Date(Date.parse(ivy.generatedAt) + 2000));
   await page.route("**/calendar-data/agendas.json", route => route.fulfill({
     json: { ...agendas, "ivy-station": {
@@ -112,3 +112,68 @@ test("unconfigured source colors leave Ivy rows without invented dots", async ({
   await page.getByRole("searchbox", { name: "Search events" }).fill("Community event");
   await expect(page.getByRole("list", { name: "Matching calendar events" }).locator("h3 > span[aria-hidden='true']")).toHaveCount(0);
 });
+
+for (const [route, locationId, name] of [
+  ["ivy", "ivy-station", "LA Ale Works - Culver City"],
+  ["hawthorne", "hawthorne", "LA Ale Works - Hawthorne"],
+] as const) {
+  for (const width of [448, 1280]) {
+    for (const appearance of ["system", "light"] as const) {
+      test(`${route} preserves source colors on a white page at ${width}px with ${appearance} light`, async ({ page }) => {
+        const bundled = agendas[locationId];
+        const location = laawLifeTenant.locations.find(location => location.id === locationId)!;
+        const venue = parseGoogleCalendarEmbed(location.calendar.src).calendarSources[0];
+        await page.setViewportSize({ width, height: 874 });
+        await page.emulateMedia({ colorScheme: appearance === "light" ? "dark" : "light" });
+        if (appearance === "light") {
+          await page.addInitScript(() => window.localStorage.setItem("laaw-life:theme:v1", "light"));
+        }
+        await page.clock.setFixedTime(new Date(Date.parse(bundled.generatedAt) + 2000));
+        // A newer snapshot from an older generator lacks both color and source
+        // metadata. The configured calendar ID still identifies its venue.
+        const legacyEvents = ["Vivace", "@Luckyguesstrivia"].map((title, index) => ({
+          allDay: true, dateKeys: [bundled.initialDateKey],
+          end: `${bundled.initialDateKey}T20:00:00.000Z`,
+          id: `${venue.calendarId}:legacy-color-fixture-${index}`,
+          location: null, sourceName: name,
+          start: `${bundled.initialDateKey}T19:00:00.000Z`, title,
+        }));
+        await page.route("**/calendar-data/agendas.json", route => route.fulfill({
+          json: { ...agendas, [locationId]: {
+            ...bundled, generatedAt: new Date(Date.parse(bundled.generatedAt) + 1000).toISOString(),
+            events: legacyEvents,
+          } },
+        }));
+        await page.goto(`${route}/`);
+        await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        await expect(page.locator(".site-canvas")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        const card = page.locator("[data-day-card][data-active='true']");
+        await expect(card.locator("h3")).toHaveText(["Vivace", "@Luckyguesstrivia"]);
+        await expect(card.locator(".day-card-event-source-dot")).toHaveCount(2);
+        for (const dot of await card.locator(".day-card-event-source-dot").all()) {
+          await expect(dot).toHaveCSS("background-color", rgb(venue.color));
+        }
+        const legend = page.locator("[data-calendar-source-legend]");
+        await legend.locator("summary").focus();
+        await legend.locator("summary").press("Enter");
+        await expect(legend.getByText(name, { exact: true })).toBeVisible();
+        const input = page.getByRole("searchbox", { name: "Search events" });
+        await input.fill("Vivace");
+        const resultDot = page.getByRole("list", { name: "Matching calendar events" }).locator("h3 > span[aria-hidden='true']");
+        await expect(resultDot).toHaveCount(1);
+        await expect(resultDot).toHaveCSS("background-color", rgb(venue.color));
+        await input.focus();
+        expect(await input.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe("none");
+        const audit = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+        expect(audit.violations).toEqual([]);
+        await page.getByRole("button", { name: "Open location navigation", exact: true }).click();
+        await expect(page.getByLabel("Appearance")).toHaveValue(appearance);
+        await page.getByLabel("Appearance").focus();
+        expect(await page.getByLabel("Appearance").evaluate(element => getComputedStyle(element).boxShadow)).not.toBe("none");
+        const drawerAudit = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+        expect(drawerAudit.violations).toEqual([]);
+      });
+    }
+  }
+}

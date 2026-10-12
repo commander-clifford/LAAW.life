@@ -64,6 +64,7 @@ describe("Google Calendar agenda provider", () => {
     expect(agenda.events.some((event) => event.allDay)).toBe(true);
     expect(agenda.events.some((event) => !event.allDay)).toBe(true);
     expect(agenda.events.every((event) => event.sourceColor === "#AABBCC")).toBe(true);
+    expect(agenda.events.every((event) => event.sourceCalendarId === "community")).toBe(true);
   });
 
   it.each([undefined, "lavender", "#abc", "#AABBCCDD", " #AABBCC"])(
@@ -95,6 +96,8 @@ describe("Google Calendar agenda provider", () => {
     expect(holidayEvents.length).toBeGreaterThan(0);
     expect(communityEvents.every((event) => event.sourceColor === "#AABBCC")).toBe(true);
     expect(holidayEvents.every((event) => event.sourceColor === "#8E24AA")).toBe(true);
+    expect(communityEvents.every((event) => event.sourceCalendarId === "color-community@example.com")).toBe(true);
+    expect(holidayEvents.every((event) => event.sourceCalendarId === "color-holidays@example.com")).toBe(true);
   });
 
   it("collects timed, all-day, overnight, and recurring events for today", () => {

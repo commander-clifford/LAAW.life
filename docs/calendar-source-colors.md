@@ -21,16 +21,24 @@ Its rendered dots confirmed these mappings:
 The remaining configured source colors are Chargers `#F4511E`, Rams `#B39DDB`,
 UCLA `#B39DDB` and USC `#B39DDB`. Their public feeds had no events in this audit,
 so there were no rendered events from those sources to compare. No color is inferred
-from event titles, categories or descriptions. Ivy has no explicit embed colors,
-so Ivy events receive no dot.
+from event titles, categories or descriptions.
+
+Ivy's original embed relied on Google's display defaults instead of explicit
+`color` parameters. Reading its visible calendar picker on October 12, 2026
+confirmed `#7986CB` for all eight exact configured calendar IDs: Culver City venue,
+Chargers, LAFC, Galaxy, Kings, Rams, UCLA and USC. The current and legacy Ivy event
+dots independently confirmed that blue for the venue, LAFC and Galaxy. The config
+now records those existing colors explicitly. Venue, food and trivia entries from
+the same Ivy source share the same blue; the source membership remains unchanged.
 
 The legacy `/og/` Hawthorne embed includes a retired source and a different color
 mapping. Its lavender holiday dot is not the color of the current modern embed.
 This change preserves the current configuration rather than copying that legacy
 palette.
 
-The fill retains the exact source color. A thin neutral outline keeps dark source
-colors visible against the site's dark surfaces.
+The fill retains the exact source color. A thin neutral border keeps dark source
+colors visible against the site's dark surfaces. The border sits inside a 10px
+marker box, preserving the 8px color fill and avoiding clipping by event windows.
 
 ## Import and accessibility
 
@@ -39,7 +47,12 @@ color parameters provide a complete positional mapping. Invalid colors and
 conflicting duplicate-source colors are omitted. Each normalized event receives
 an optional `sourceColor` from its configured calendar, including recurring and
 all-day events. Remote snapshots validate the optional color and remain compatible
-with older snapshots without it.
+with older snapshots without it. New events preserve `sourceCalendarId` from the
+configured feed identity. At the common display boundary, absent colors are filled
+from the trusted location registry using that exact ID; older snapshots use a
+unique `calendarId:` prefix in their existing event IDs. This keeps colors on cards,
+search and the key even when a newer snapshot from an older generator lacks color
+metadata. Source names and event categories never determine the color.
 
 The inspected public Google ICS feeds contained no calendar or event color
 properties. ICS can carry optional color metadata under
@@ -60,6 +73,11 @@ not encode an event category or replace text.
 
 ## Verification
 
+Light mode now paints the page, body, canvas and header pure white. Muted heading
+and selected-control surfaces remain neutral; the explicit and system dark-theme
+token values are preserved. Both location routes are checked in explicit and system
+light mode at mobile and desktop sizes, including navigation, focus and source colors.
+
 Focused unit checks cover source/color pairing, invalid and incomplete mappings,
 duplicate-source conflicts, optional snapshot validation, and colored/uncolored
 rendering. Browser checks use deterministic events with the real configured source
@@ -73,3 +91,4 @@ Prepared code and preview require review before merge or production publication.
 The requested local `dev` branch starts at verified GitHub `main` commit
 `e9fa63148fe61ee08b3ac092ffc60ffcca233cb4`. The development preview runs at
 `http://127.0.0.1:4205/hawthorne/`.
+Ivy runs at `http://127.0.0.1:4205/ivy/` on the same local development server.

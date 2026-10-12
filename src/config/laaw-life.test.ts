@@ -2,8 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { laawLifeTenant } from "@/src/config/laaw-life";
 import { googleCalendarEmbedProvider } from "@/src/infrastructure/google-calendar-embed-provider";
+import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
 describe("LAAW Life configuration", () => {
+  it("preserves Google's verified source-color coverage for both locations", () => {
+    const sources = laawLifeTenant.locations.map(location =>
+      parseGoogleCalendarEmbed(location.calendar.src).calendarSources,
+    );
+    expect(sources.map(location => location.length)).toEqual([8, 8]);
+    expect(sources[0].map(source => source.color)).toEqual(Array(8).fill("#7986CB"));
+    expect(sources[1].map(source => source.color)).toEqual([
+      "#D81B60", "#F4511E", "#616161", "#E67C73", "#B39DDB", "#B39DDB", "#B39DDB", "#0B8043",
+    ]);
+  });
+
   it("keeps locations data-driven and preserves the existing calendars", () => {
     expect(laawLifeTenant.locations.map(({ slug }) => slug)).toEqual([
       "ivy",
