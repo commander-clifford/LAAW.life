@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { CalendarEventSearch } from "@/src/components/calendar-event-search";
+import { CalendarSourceLegend } from "@/src/components/calendar-source-legend";
 
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
 import { getDateKey } from "@/src/application/calendar-dates";
@@ -273,6 +274,7 @@ export function LiveCalendarSchedule({
           ) : null}
         </DayCardCarousel>
       </div>
+      <CalendarSourceLegend events={currentAgenda.events} />
       <CalendarEventSearch agenda={currentAgenda} />
     </>
   );

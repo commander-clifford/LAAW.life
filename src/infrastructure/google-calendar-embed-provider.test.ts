@@ -24,7 +24,79 @@ describe("Google Calendar embed provider", () => {
     );
 
     expect(parsed.calendarIds).toEqual(["calendar@example.com"]);
+    expect(parsed.calendarSources).toEqual([{ calendarId: "calendar@example.com" }]);
   });
+
+  it("pairs explicit colors with source positions and normalizes six-digit hex", () => {
+    const parsed = parseGoogleCalendarEmbed(
+      `${validSource}&src=aG9saWRheXNAZXhhbXBsZS5jb20=&color=%23aabbcc&color=%238e24aa`,
+    );
+
+    expect(parsed.calendarSources).toEqual([
+      { calendarId: "calendar@example.com", color: "#AABBCC" },
+      { calendarId: "holidays@example.com", color: "#8E24AA" },
+    ]);
+  });
+
+  it("does not shift colors when an empty raw source is skipped", () => {
+    const parsed = parseGoogleCalendarEmbed(
+      "https://calendar.google.com/calendar/embed?src=&src=calendar%40example.com&color=%23FF0000&color=%2300FF00",
+    );
+
+    expect(parsed.calendarSources).toEqual([
+      { calendarId: "calendar@example.com", color: "#00FF00" },
+    ]);
+  });
+
+  it("keeps one color when duplicate plain and encoded IDs agree", () => {
+    const parsed = parseGoogleCalendarEmbed(
+      `${validSource}&src=Y2FsZW5kYXJAZXhhbXBsZS5jb20=&color=%23aabbcc&color=%23AABBCC`,
+    );
+
+    expect(parsed.calendarSources).toEqual([
+      { calendarId: "calendar@example.com", color: "#AABBCC" },
+    ]);
+  });
+
+  it.each(["%2300FF00", "invalid"])(
+    "omits a conflicting duplicate calendar color: %s",
+    (secondColor) => {
+      const parsed = parseGoogleCalendarEmbed(
+        `${validSource}&src=calendar%40example.com&color=%23FF0000&color=${secondColor}&src=calendar%40example.com&color=%23FF0000`,
+      );
+
+      expect(parsed.calendarSources).toEqual([{ calendarId: "calendar@example.com" }]);
+    },
+  );
+
+  it.each([
+    "",
+    "&color=%23AABBCC",
+    "&color=%23AABBCC&color=%238E24AA&color=%23000000",
+  ])("omits absent or incomplete positional colors: %s", (colors) => {
+    const parsed = parseGoogleCalendarEmbed(
+      `${validSource}&src=holidays%40example.com${colors}`,
+    );
+
+    expect(parsed.calendarSources).toEqual([
+      { calendarId: "calendar@example.com" },
+      { calendarId: "holidays@example.com" },
+    ]);
+  });
+
+  it.each(["red", "%23fff", "%23AABBCCDD", "rgb(1,2,3)", "%20%23AABBCC", "", "%23123456%3Bbackground%3Ared"])(
+    "omits invalid color values without losing valid source mappings: %s",
+    (color) => {
+      const parsed = parseGoogleCalendarEmbed(
+        `${validSource}&src=holidays%40example.com&color=${color}&color=%238E24AA`,
+      );
+
+      expect(parsed.calendarSources).toEqual([
+        { calendarId: "calendar@example.com" },
+        { calendarId: "holidays@example.com", color: "#8E24AA" },
+      ]);
+    },
+  );
 
   it("rejects whitespace or control characters in plain calendar IDs", () => {
     expect(() =>

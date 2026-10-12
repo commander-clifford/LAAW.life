@@ -333,7 +333,27 @@ export function DayCard({
                       <span aria-hidden="true">{eventTime.text}</span>
                       <span className="visually-hidden">{eventTime.accessibleText}</span>
                     </time>
-                    <h3>{event.title}</h3>
+                    <h3
+                      className={
+                        event.sourceColor ? "day-card-event-title-with-color" : undefined
+                      }
+                    >
+                      {event.sourceColor ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="day-card-event-source-dot"
+                            style={{ backgroundColor: event.sourceColor }}
+                          />
+                          <span>{event.title}</span>
+                        </>
+                      ) : event.title}
+                    </h3>
+                    {event.sourceColor ? (
+                      <span className="visually-hidden">
+                        Calendar: {event.sourceName}.
+                      </span>
+                    ) : null}
                   </li>
                 );
               })}

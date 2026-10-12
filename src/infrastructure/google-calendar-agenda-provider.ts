@@ -13,7 +13,10 @@ import type {
   CalendarAgendaProvider,
 } from "@/src/application/ports";
 import type { CalendarSource } from "@/src/domain/site";
-import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
+import {
+  normalizeGoogleCalendarColor,
+  parseGoogleCalendarEmbed,
+} from "@/src/infrastructure/google-calendar-source";
 
 const feedRequestTimeoutMilliseconds = 10_000;
 const maximumFeedBytes = 10_000_000;
@@ -23,11 +26,13 @@ const coverageDaysAfterToday = 35;
 type ParsedCalendarFeed = Readonly<{
   calendarKey: string;
   data: CalendarResponse;
+  sourceColor?: string;
 }>;
 
 type CalendarAgendaFixture = Readonly<{
   body: string;
   calendarKey: string;
+  sourceColor?: string;
 }>;
 
 type BuildCalendarAgendaOptions = Readonly<{
@@ -257,6 +262,7 @@ function buildCalendarAgenda(
             ? getParameterText(instance.event.location, "") || null
             : null,
           sourceName,
+          ...(feed.sourceColor ? { sourceColor: feed.sourceColor } : {}),
           start: instance.start.toISOString(),
           title: getParameterText(instance.summary, "Untitled event"),
         });
@@ -293,9 +299,10 @@ export function buildCalendarAgendaFromIcs({
   sourceCount = feeds.length + failedSourceCount,
   timeZone,
 }: BuildCalendarAgendaOptions): CalendarAgenda {
-  const parsedFeeds = feeds.map(({ body, calendarKey }) => ({
+  const parsedFeeds = feeds.map(({ body, calendarKey, sourceColor }) => ({
     calendarKey,
     data: ical.sync.parseICS(body),
+    sourceColor: normalizeGoogleCalendarColor(sourceColor),
   }));
 
   return buildCalendarAgenda(parsedFeeds, {
@@ -312,11 +319,12 @@ export const googleCalendarAgendaProvider: CalendarAgendaProvider = {
       throw new Error(`Unsupported calendar provider: ${source.provider}`);
     }
 
-    const { calendarIds, timeZone } = parseGoogleCalendarEmbed(source.src);
+    const { calendarSources, timeZone } = parseGoogleCalendarEmbed(source.src);
     const results = await Promise.allSettled(
-      calendarIds.map(async (calendarId) => ({
+      calendarSources.map(async ({ calendarId, color }) => ({
         calendarKey: calendarId,
         data: await fetchPublicCalendarFeed(calendarId),
+        sourceColor: color,
       })),
     );
     const parsedFeeds = results.flatMap((result) =>

@@ -15,6 +15,7 @@ export type CalendarAgendaItem = Readonly<{
   end: string;
   id: string;
   location: string | null;
+  sourceColor?: string;
   sourceName: string;
   start: string;
   title: string;
