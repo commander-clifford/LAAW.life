@@ -35,11 +35,11 @@
 }
 
 .sourceDot {
-  flex: 0 0 0.5rem;
-  inline-size: 0.5rem;
-  block-size: 0.5rem;
+  flex: 0 0 calc(0.5rem + 2px);
+  inline-size: calc(0.5rem + 2px);
+  block-size: calc(0.5rem + 2px);
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--border-strong);
 }
 
 @media (forced-colors: active) {
