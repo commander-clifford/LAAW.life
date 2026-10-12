@@ -92,32 +92,12 @@ for (const width of [393, 1280]) {
   });
 }
 
-for (const theme of ["trivia", "bingo"] as const) {
-  test(`combined preview renders the ${theme} review example with approved rows and current motion`, async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 900 });
-    await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
-    await page.clock.setFixedTime(new Date(now));
-    const example = {
-      id: `review-example-${theme}`, title: theme === "trivia" ? "Lucky Guess Trivia" : "Thrift Store Bingo",
-      allDay: false, start: `${source.initialDateKey}T19:00:00.000Z`, end: `${source.initialDateKey}T20:00:00.000Z`,
-      dateKeys: [source.initialDateKey], location: null, sourceName: "Deterministic review example",
-      metadata: { tags: [theme], takeover: { enabled: true, theme, priority: 1000 } },
-    };
-    await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, "ivy-station": {
-      ...source, generatedAt: new Date(now - 1000).toISOString(), events: [...source.events, example],
-    } } }));
-    await page.goto("ivy/?eventLayout=title-first");
-    await expect(page.locator("[data-day-card]").first()).toHaveAttribute("data-event-theme", theme);
-    await capture(page, `candidate-theme-${theme}.png`);
-  });
-}
-
 test("combined preview keeps calendar recovery available alongside the carousel and search", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 900 });
   await page.clock.setFixedTime(new Date(now));
   await page.route("https://calendar.google.com/**", () => new Promise(() => undefined));
   await page.goto("ivy/?eventLayout=title-first");
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   const shell = page.locator(".calendar-shell");
   await expect(shell).toHaveAttribute("data-calendar-status", "loading");
   await expect(page.getByRole("button", { name: "Reload calendar", exact: true })).toBeVisible();

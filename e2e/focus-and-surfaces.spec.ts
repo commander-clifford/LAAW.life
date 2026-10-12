@@ -1,14 +1,26 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 
 const reviewComparison = process.env.PLAYWRIGHT_REVIEW_PREVIEW === "true";
 
 const artifactDirectory = process.env.REVIEW_SCREENSHOT_DIR;
+const agendas = JSON.parse(readFileSync(new URL("../.calendar-data/agendas.json", import.meta.url), "utf8"));
 for (const width of [393, 1280]) for (const appearance of ["light", "dark"] as const) {
   test(`hover, focus and color placement remain readable at ${width}px ${appearance}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: appearance, reducedMotion: "reduce" });
+    const source = agendas["ivy-station"];
+    const now = Math.max(Date.parse(`${source.initialDateKey}T19:00:00Z`), Date.parse(source.generatedAt) + 2000);
+    await page.clock.setFixedTime(new Date(now));
+    await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, "ivy-station": {
+      ...source, generatedAt: new Date(now - 1000).toISOString(), events: [{
+        id: "focus-review-fixture", title: "Community meetup", allDay: false,
+        start: `${source.initialDateKey}T19:00:00.000Z`, end: `${source.initialDateKey}T20:00:00.000Z`,
+        dateKeys: [source.initialDateKey], location: null, sourceName: "Test fixture",
+      }, ...source.events],
+    } } }));
     await page.goto("ivy/?eventLayout=title-first");
     await expect(page.locator(".event-row-prototype-controls")).toHaveCount(reviewComparison ? 1 : 0);
     const carousel = page.locator(".day-carousel");

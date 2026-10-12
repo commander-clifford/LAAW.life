@@ -1,5 +1,7 @@
 # Issue #7: event catalog and repository-managed metadata
 
+**Current release decision, October 12, 2026:** catalog work is excluded and reserved for a fast follow. The implementation and instructions below apply to `codex/issue-7-event-catalog` and [draft PR #21](https://github.com/commander-clifford/LAAW.life/pull/21), which are preserved. The current release candidate does not generate or publish a catalog; the catalog and event-theme metadata layer are both deferred, and search uses regular calendar events.
+
 This branch adds a JSON catalog that refreshes with the calendar import, plus reviewed metadata rules in `config/event-metadata.json`. It depends on issue #4's complete imported range. The original issue deferred a full admin system; this implements the reusable data foundation and local inspection path without adding accounts or a database. A browser admin editor remains a separate product decision.
 
 Run `npm run calendar:generate` or a normal build. Inspect `.calendar-data/event-catalog.json`. The catalog is outside `public/` and `out/`, so site visitors are not given an admin surface. A failed feed import prevents generation from completing. The same generation script runs during scheduled calendar refreshes, but this branch adds no new upload or archive destination. Scheduled run files are ephemeral. A persistent hosted catalog or Actions artifact needs an approved destination; local generation is the durable inspection path in this draft.

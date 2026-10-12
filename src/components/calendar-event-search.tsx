@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { searchCalendarEvents } from "@/src/application/calendar-search";
+import { Card } from "./card";
 import styles from "./calendar-event-search.module.css";
 
 function dateLabel(dateKey: string): string {
@@ -23,6 +24,7 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
   const searching = query.trim().length > 0;
   return (
     <section className={styles.search} aria-labelledby={`${id}-label`}>
+      <Card borderless className={styles.searchCard}>
       <label className="visually-hidden" id={`${id}-label`} htmlFor={id}>Search events</label>
       <div className={styles.field}>
         <Search className={styles.magnifier} aria-hidden="true" />
@@ -46,6 +48,7 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
         </li>
       ))}</ol> : null}
       {searching && results.length > visibleCount ? <button type="button" onClick={() => setVisibleCount(count => count + 50)}>Show more events ({results.length - visibleCount} remaining)</button> : null}
+      </Card>
     </section>
   );
 }

@@ -55,7 +55,7 @@ for (const width of [320, 1280]) {
         await audit(page, info, "empty-search");
         await page.getByRole("button", { name: "Clear search" }).click();
         await page.route("https://calendar.google.com/**", () => new Promise(() => undefined));
-        await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+        await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
         await audit(page, info, "calendar-loading");
         await page.locator(".calendar-shell iframe").evaluate(element => element.dispatchEvent(new Event("error")));
         await audit(page, info, "calendar-recovery");

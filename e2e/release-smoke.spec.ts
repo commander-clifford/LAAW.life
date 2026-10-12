@@ -39,8 +39,8 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   await expect(drawer).not.toBeInViewport();
   await expect(page.locator(".site-navigation")).not.toHaveAttribute("aria-modal", "true");
   await expectPageInteractionState(page, false);
-  if (await page.getByRole("button", { name: "Open calendar", exact: true }).isVisible()) {
-    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  if (await page.getByRole("button", { name: "Open full calendar", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   }
   await expect(calendar).toBeVisible();
   await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
@@ -166,7 +166,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(
     page.getByRole("heading", { level: 2, name: "Full calendar" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   const calendarFrame = page.locator("iframe.calendar-frame");
   await expect(calendarFrame).toHaveCount(1);
   await expect(calendarFrame).toHaveAttribute("title", "Ivy Station Calendar");
@@ -232,7 +232,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
   await expect(page.getByRole("main")).toBeFocused();
-  await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   await expect(page.getByText("Loading calendar…")).toBeVisible();
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => hawthorneCalendarRoutes.length).toBe(1);
@@ -652,7 +652,7 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 667 });
     await page.emulateMedia({ reducedMotion: width === 320 ? "reduce" : "no-preference" });
     await page.goto("hawthorne/");
-    await page.getByRole("button", { name: "Open calendar", exact: true }).click();
+    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
     await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
     await page.evaluate(() => window.scrollTo(0, 300));
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);

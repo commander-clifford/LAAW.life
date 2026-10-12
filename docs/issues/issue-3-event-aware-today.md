@@ -1,5 +1,7 @@
 # Issue #3: event-aware Today themes
 
+**October 12 release decision:** event themes are grouped with the catalog as a fast follow and excluded from this release. The implementation described below remains preserved in `codex/issue-3-event-aware-today` and draft PR #23.
+
 Today can use a trivia or bingo style when an explicitly configured event occurs on its Pacific civil date. Future cards remain neutral. Metadata rules from issue #7 define eligibility, theme and priority; event-name guessing is not performed in the browser.
 
 The initial reviewed candidates recognize Lucky Guess Trivia, the current calendar title `@Luckyguesstrivia`, and the known Thrift Store Bingo host/title variants. The machine handle displays as “Lucky Guess Trivia.” Candidate priorities are trivia 100 and bingo 80; these are editable engineering defaults for review, not a claim about venue policy. A stable UID override can disable or change one event without editing a general title rule.
