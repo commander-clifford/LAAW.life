@@ -40,7 +40,12 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
       {searching && results.length > 0 ? <p className="visually-hidden" id={`${id}-results-help`}>Scroll or use the arrow keys to view more matching events.</p> : null}
       {searching && results.length > 0 ? <ol className={styles.results} tabIndex={0} aria-label="Matching calendar events" aria-describedby={`${id}-results-help`}>{results.slice(0, visibleCount).map((event) => (
         <li key={event.id}>
-          <h3>{event.title}</h3>
+          <h3 className={event.sourceColor ? styles.titleWithColor : undefined}>
+            {event.sourceColor ? <>
+              <span className={styles.sourceDot} aria-hidden="true" style={{ backgroundColor: event.sourceColor }} />
+              <span>{event.title}</span>
+            </> : event.title}
+          </h3>
           <p><time dateTime={event.allDay ? event.dateKeys[0] : event.start}>{dateLabel(event.dateKeys[0])}{event.dateKeys.length > 1 ? `–${dateLabel(event.dateKeys[event.dateKeys.length - 1])}` : ""}{event.allDay ? " · All day" : ` · ${new Intl.DateTimeFormat("en-US", { timeStyle: "short", timeZone: agenda.timeZone }).format(new Date(event.start))}`}</time></p>
           {event.location ? <p>{event.location}</p> : null}
           {event.description ? <details><summary>Event details</summary><p className={styles.details}>{event.description}</p></details> : null}

@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildCalendarAgendaFromIcs } from "@/src/infrastructure/google-calendar-agenda-provider";
+import {
+  buildCalendarAgendaFromIcs,
+  googleCalendarAgendaProvider,
+} from "@/src/infrastructure/google-calendar-agenda-provider";
 
 const calendarFeed = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -47,6 +50,56 @@ END:VEVENT
 END:VCALENDAR`;
 
 describe("Google Calendar agenda provider", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("carries an explicit source color to timed and all-day fixture events", () => {
+    const agenda = buildCalendarAgendaFromIcs({
+      feeds: [{ body: calendarFeed, calendarKey: "community", sourceColor: "#aabbcc" }],
+      now: new Date("2026-09-03T19:00:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+
+    expect(agenda.events.some((event) => event.allDay)).toBe(true);
+    expect(agenda.events.some((event) => !event.allDay)).toBe(true);
+    expect(agenda.events.every((event) => event.sourceColor === "#AABBCC")).toBe(true);
+    expect(agenda.events.every((event) => event.sourceCalendarId === "community")).toBe(true);
+  });
+
+  it.each([undefined, "lavender", "#abc", "#AABBCCDD", " #AABBCC"])(
+    "does not invent source colors for absent or invalid fixture colors: %s",
+    (sourceColor) => {
+      const agenda = buildCalendarAgendaFromIcs({
+        feeds: [{ body: calendarFeed.replace("SUMMARY:Coffee social", "SUMMARY:Coffee social\nCOLOR:#123456"), calendarKey: "community", sourceColor }],
+        now: new Date("2026-09-03T19:00:00.000Z"),
+        timeZone: "America/Los_Angeles",
+      });
+
+      expect(agenda.events.every((event) => !("sourceColor" in event))).toBe(true);
+    },
+  );
+
+  it("carries each fetched calendar's mapped color independently", async () => {
+    const fetchFeed = vi.fn().mockImplementation(async () => new Response(calendarFeed));
+    vi.stubGlobal("fetch", fetchFeed);
+    const agenda = await googleCalendarAgendaProvider.getAgenda({
+      provider: "google-calendar-embed",
+      src: "https://calendar.google.com/calendar/embed?ctz=America%2FLos_Angeles&src=color-community%40example.com&src=color-holidays%40example.com&color=%23aaBBcc&color=%238E24AA",
+    });
+
+    expect(fetchFeed).toHaveBeenCalledTimes(2);
+    expect(agenda.sourceCount).toBe(2);
+    const communityEvents = agenda.events.filter((event) => event.id.startsWith("color-community@example.com:"));
+    const holidayEvents = agenda.events.filter((event) => event.id.startsWith("color-holidays@example.com:"));
+    expect(communityEvents.length).toBeGreaterThan(0);
+    expect(holidayEvents.length).toBeGreaterThan(0);
+    expect(communityEvents.every((event) => event.sourceColor === "#AABBCC")).toBe(true);
+    expect(holidayEvents.every((event) => event.sourceColor === "#8E24AA")).toBe(true);
+    expect(communityEvents.every((event) => event.sourceCalendarId === "color-community@example.com")).toBe(true);
+    expect(holidayEvents.every((event) => event.sourceCalendarId === "color-holidays@example.com")).toBe(true);
+  });
+
   it("collects timed, all-day, overnight, and recurring events for today", () => {
     const agenda = buildCalendarAgendaFromIcs({
       feeds: [{ body: calendarFeed, calendarKey: "community" }],

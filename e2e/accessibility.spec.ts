@@ -47,6 +47,7 @@ for (const width of [320, 1280]) {
         await expect(page.locator("[data-day-card]")).toHaveCount(14);
         await expect(page.locator(".day-carousel-viewport")).toBeFocused();
         await page.getByRole("button", { name: /^Return to Today/ }).click();
+        await expect(page.locator(".location-today-control")).toHaveCSS("opacity", "0");
         await page.getByRole("searchbox", { name: "Search events" }).fill("trivia");
         await expect(page.getByText(/\d+ matching events\./)).toBeVisible();
         await audit(page, info, "search-results");

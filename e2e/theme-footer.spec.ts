@@ -26,11 +26,11 @@ test("appearance follows the device and persists explicit choices without hydrat
   await expect(appearance).toHaveValue("system");
   await expectBodyUsesPageToken(page);
   await appearance.selectOption("light");
-  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 244)");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await page.reload();
   await page.getByRole("button", { name: "Open location navigation" }).click();
   await expect(appearance).toHaveValue("light");
-  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 244)");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await appearance.selectOption("dark");
   await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne", exact: true }).click();
   await page.getByRole("button", { name: "Open location navigation" }).click();
@@ -38,7 +38,7 @@ test("appearance follows the device and persists explicit choices without hydrat
   await expectBodyUsesPageToken(page);
   await appearance.selectOption("system");
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(244, 244, 244)");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(errors).toEqual([]);
 });
 

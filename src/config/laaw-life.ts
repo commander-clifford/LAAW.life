@@ -19,6 +19,16 @@ const ivyStationCalendarSrc = [
   "&src=bmZsXzE0XyU0Y29zKyU0MW5nZWxlcyslNTJhbXMjc3BvcnRzQGdyb3VwLnYuY2FsZW5kYXIuZ29vZ2xlLmNvbQ",
   "&src=bmNhYWZfNjRfJTU1JTQzJTRjJTQxKyU0MnJ1aW5zI3Nwb3J0c0Bncm91cC52LmNhbGVuZGFyLmdvb2dsZS5jb20",
   "&src=bmNhYWZfNjJfJTU1JTUzJTQzKyU1NHJvamFucyNzcG9ydHNAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t",
+  // Each existing Ivy source uses this blue in Google's public calendar picker
+  // and rendered events (verified October 12, 2026). Preserve that mapping.
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
+  "&color=%237986CB",
 ].join("");
 
 const hawthorneCalendarSrc = [
