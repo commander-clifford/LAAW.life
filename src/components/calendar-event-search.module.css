@@ -1,7 +1,7 @@
 .search { width: var(--location-content-inline-size); box-sizing: border-box; margin: 1.5rem 0; }
-.searchCard:global(.card.card-borderless) { --search-surface: color-mix(in srgb, var(--surface) 25%, var(--page)); width: 100%; padding: var(--day-card-block-padding) var(--day-card-inline-padding); border-radius: var(--card-radius); background: var(--search-surface); }
+.searchCard:global(.card.card-borderless) { --search-surface: var(--search-panel); width: 100%; padding: var(--day-card-block-padding) var(--day-card-inline-padding); border-radius: var(--card-radius); background: var(--search-surface); }
 .field { position: relative; width: 100%; min-width: 0; }
-.field input { width: 100%; min-width: 0; min-height: 2.75rem; padding: .75rem 2.5rem .75rem 2.5rem; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); color: var(--text); font: inherit; }
+.field input { width: 100%; min-width: 0; min-height: 2.75rem; padding: .75rem 2.5rem .75rem 2.5rem; border: 1px solid var(--control-border); border-radius: var(--card-radius); background: var(--control-surface); color: var(--text); font: inherit; }
 .field input::placeholder { color: var(--text-muted); opacity: 1; }
 .field input::-webkit-search-cancel-button { display: none; }
 .magnifier { position: absolute; inset-inline-start: .875rem; top: 50%; width: 1rem; height: 1rem; color: var(--text-muted); transform: translateY(-50%); pointer-events: none; }

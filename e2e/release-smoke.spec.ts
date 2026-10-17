@@ -105,7 +105,7 @@ test("the drawer opens the unchanged original site in a new tab", async ({ page,
   await originalPage.close();
 });
 
-test("the location drawer uses grayscale state and destination icons", async ({ page }) => {
+test("the location drawer uses neutral state and destination icons", async ({ page }) => {
   await page.goto("hawthorne/");
   await page.getByRole("button", { name: "Open location navigation" }).click();
 
@@ -139,9 +139,9 @@ test("the location drawer uses grayscale state and destination icons", async ({ 
       color: styles.color,
     };
   });
-  expect(selectedStyles.background).toBe("rgb(244, 244, 244)");
+  expect(selectedStyles.background).toBe("rgb(203, 212, 223)");
   expect(selectedStyles.border).toBe("rgba(0, 0, 0, 0)");
-  expect(selectedStyles.color).toBe("rgb(25, 25, 25)");
+  expect(selectedStyles.color).toBe("rgb(17, 17, 17)");
 });
 
 test("a first-time visitor can switch locations, return to the saved route, and go back", async ({ page }) => {

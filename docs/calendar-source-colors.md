@@ -50,8 +50,8 @@ all-day events. Remote snapshots validate the optional color and remain compatib
 with older snapshots without it. New events preserve `sourceCalendarId` from the
 configured feed identity. At the common display boundary, absent colors are filled
 from the trusted location registry using that exact ID; older snapshots use a
-unique `calendarId:` prefix in their existing event IDs. This keeps colors on cards,
-search and the key even when a newer snapshot from an older generator lacks color
+unique `calendarId:` prefix in their existing event IDs. This keeps colors on cards
+and in search even when a newer snapshot from an older generator lacks color
 metadata. Source names and event categories never determine the color.
 
 The inspected public Google ICS feeds contained no calendar or event color
@@ -66,29 +66,33 @@ and the [Colors palettes](https://developers.google.com/workspace/calendar/api/v
 
 Dots are decorative and hidden from assistive technology. Day Card rows expose
 “Calendar: [source name]” as screen-reader text; search results retain their visible
-source names. A compact “Calendar colors” disclosure below the carousel shows
-the source names alongside their dots and opens with a click or keyboard activation.
+source names. A native hover label on existing Day Card headings exposes the source
+name without adding a control or altering the heading text.
+There is no separate calendar-color legend or disclosure.
 Dots are hidden in forced-color mode; labels remain available. The indicator does
 not encode an event category or replace text.
 
 ## Verification
 
-Light mode now paints the page, body, canvas and header pure white. Muted heading
-and selected-control surfaces remain neutral; the explicit and system dark-theme
-token values are preserved. Both location routes are checked in explicit and system
-light mode at mobile and desktop sizes, including navigation, focus and source colors.
+Light mode paints the page, body and canvas pure white. The accepted gray surfaces
+remain distinct: header and footer use `#E1E6ED`, cards use `#E7ECF2`, and headings
+and selected controls use `#CBD4DF`. The “Clifford” and “Open full calendar” text
+remain neutral. The explicit and system dark-theme token values are preserved.
+Both location routes are checked in explicit and system light mode at mobile and
+desktop sizes, including navigation, focus and source colors.
 
 Focused unit checks cover source/color pairing, invalid and incomplete mappings,
 duplicate-source conflicts, optional snapshot validation, and colored/uncolored
 rendering. Browser checks use deterministic events with the real configured source
 colors at 320px and 1280px in light and dark modes. They verify title wrapping,
-source names, all-day labels, day navigation, keyboard access to the source key,
+source names, all-day labels, day navigation, hover labels,
 search results and forced colors, with automated WCAG A/AA scans. The local preview uses actual public feed
 events and preserves the current calendar membership.
 
-Prepared code and preview require review before merge or production publication.
+The light appearance and calendar-source indicators were approved for release on
+October 12, 2026. Release checks and production verification are recorded separately.
 
 The requested local `dev` branch starts at verified GitHub `main` commit
-`e9fa63148fe61ee08b3ac092ffc60ffcca233cb4`. The development preview runs at
-`http://127.0.0.1:4205/hawthorne/`.
-Ivy runs at `http://127.0.0.1:4205/ivy/` on the same local development server.
+`e9fa63148fe61ee08b3ac092ffc60ffcca233cb4`. The development preview URLs are
+`http://127.0.0.1:4205/hawthorne/`
+and `http://127.0.0.1:4205/ivy/` when the local development server is running.

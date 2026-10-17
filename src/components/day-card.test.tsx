@@ -142,6 +142,7 @@ describe("DayCard calendar colors", () => {
       '<span aria-hidden="true" class="day-card-event-source-dot" style="background-color:#0B8043"></span>',
     );
     expect(html).toContain("<span>Columbus Day</span></h3>");
+    expect(html).toContain('title="Calendar: US holidays"');
     expect(html).toContain(
       '<span class="visually-hidden">Calendar: US holidays.</span>',
     );

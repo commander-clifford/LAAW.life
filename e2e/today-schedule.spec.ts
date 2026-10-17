@@ -511,7 +511,16 @@ async function useBusyDayFixture(page: Page): Promise<void> {
       )),
     ],
   };
-  await page.route("**/calendar-data/agendas.json", route => route.fulfill({ json: { ...agendas, hawthorne: fixture } }));
+  const ivyFixture = {
+    ...agenda,
+    generatedAt,
+    events: dateKeys.map((dateKey, index) => fixtureEvent(
+      dateKey, `ivy-compact-${index}`, "Food truck",
+    )),
+  };
+  await page.route("**/calendar-data/agendas.json", route => route.fulfill({
+    json: { ...agendas, hawthorne: fixture, "ivy-station": ivyFixture },
+  }));
 }
 
 test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
@@ -1572,6 +1581,9 @@ for (const width of [320, 1440]) {
     await expect(ivyCarousel).toHaveAttribute("aria-busy", "false");
     await expect(ivyCards).toHaveCount(dayCardCount);
     const ivySchedules = ivyCarousel.locator(".day-card-schedule");
+    await expect(ivySchedules.first().locator(".day-card-event h3")).toHaveText([
+      "Food truck",
+    ]);
     await expect(ivySchedules.first()).toHaveAttribute("data-overflow", "false");
     await expect(ivySchedules.first()).not.toHaveAttribute("tabindex");
     const ivyOverflowStates = await ivySchedules.evaluateAll((elements) =>

@@ -334,6 +334,7 @@ export function DayCard({
                       <span className="visually-hidden">{eventTime.accessibleText}</span>
                     </time>
                     <h3
+                      title={event.sourceColor ? `Calendar: ${event.sourceName}` : undefined}
                       className={
                         event.sourceColor ? "day-card-event-title-with-color" : undefined
                       }

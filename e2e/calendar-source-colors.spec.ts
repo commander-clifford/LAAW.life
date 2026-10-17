@@ -56,6 +56,7 @@ for (const width of [320, 1280]) {
         await expect(row.locator(".day-card-event-source-dot")).toHaveAttribute("aria-hidden", "true");
         await expect(row.locator(".day-card-event-source-dot")).toHaveCSS("background-color", rgb(event.sourceColor));
         await expect(row.getByText(`Calendar: ${event.sourceName}.`, { exact: true })).toHaveCount(1);
+        await expect(row.locator("h3")).toHaveAttribute("title", `Calendar: ${event.sourceName}`);
         await expect(row.locator("time > [aria-hidden]")).toHaveText("All day");
       }
       expect(await card.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
@@ -65,14 +66,8 @@ for (const width of [320, 1280]) {
       await page.getByRole("button", { name: "Go to Today", exact: true }).click();
       await expect(card.locator(".day-card-date time")).toHaveAttribute("datetime", firstCardDate!);
 
-      const legend = page.locator("[data-calendar-source-legend]");
-      await legend.locator("summary").focus();
-      await legend.locator("summary").press("Enter");
-      await expect(legend).toHaveAttribute("open", "");
-      await expect(legend.locator("li")).toHaveCount(4);
-      for (const event of events) {
-        await expect(legend.getByText(event.sourceName, { exact: true })).toBeVisible();
-      }
+      await expect(page.getByText("Calendar colors", { exact: true })).toHaveCount(0);
+      await expect(page.locator("[data-calendar-source-legend]")).toHaveCount(0);
 
       await page.getByRole("searchbox", { name: "Search events" }).fill("fixture");
       const results = page.getByRole("list", { name: "Matching calendar events" }).locator("li");
@@ -88,7 +83,6 @@ for (const width of [320, 1280]) {
       await expect(card.locator(".day-card-event-source-dot").first()).toBeHidden();
       await expect(card.getByText(`Calendar: ${events[0].sourceName}.`, { exact: true })).toHaveCount(1);
       await expect(results.first().locator("h3 > span[aria-hidden='true']")).toBeHidden();
-      await expect(legend.getByText(events[0].sourceName, { exact: true })).toBeVisible();
     });
   }
 }
@@ -106,7 +100,7 @@ test("unknown fixture sources stay uncolored even when Ivy has verified colors",
   }));
   await page.goto("ivy/");
   const card = page.locator("[data-day-card][data-active='true']");
-  await expect(card.locator("h3")).toHaveText("Community event");
+  await expect(card.locator("h3")).toHaveText(["Community event"]);
   await expect(card.locator(".day-card-event-source-dot")).toHaveCount(0);
   await expect(page.locator("[data-calendar-source-legend]")).toHaveCount(0);
   await page.getByRole("searchbox", { name: "Search events" }).fill("Community event");
@@ -147,22 +141,21 @@ for (const [route, locationId, name] of [
         await page.goto(`${route}/`);
         await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
         await expect(page.locator(".site-canvas")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-        await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+        await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(225, 230, 237)");
         const card = page.locator("[data-day-card][data-active='true']");
         await expect(card.locator("h3")).toHaveText(["Vivace", "@Luckyguesstrivia"]);
         await expect(card.locator(".day-card-event-source-dot")).toHaveCount(2);
         for (const dot of await card.locator(".day-card-event-source-dot").all()) {
           await expect(dot).toHaveCSS("background-color", rgb(venue.color));
         }
-        const legend = page.locator("[data-calendar-source-legend]");
-        await legend.locator("summary").focus();
-        await legend.locator("summary").press("Enter");
-        await expect(legend.getByText(name, { exact: true })).toBeVisible();
+        await expect(page.getByText("Calendar colors", { exact: true })).toHaveCount(0);
+        await expect(page.locator("[data-calendar-source-legend]")).toHaveCount(0);
         const input = page.getByRole("searchbox", { name: "Search events" });
         await input.fill("Vivace");
         const resultDot = page.getByRole("list", { name: "Matching calendar events" }).locator("h3 > span[aria-hidden='true']");
         await expect(resultDot).toHaveCount(1);
         await expect(resultDot).toHaveCSS("background-color", rgb(venue.color));
+        await expect(page.getByText("Calendar colors", { exact: true })).toHaveCount(0);
         await input.focus();
         expect(await input.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe("none");
         const audit = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
