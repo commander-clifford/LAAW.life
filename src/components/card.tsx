@@ -1,10 +1,15 @@
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes } from "react";
 
-type CardProps = Readonly<{
-  children: ReactNode;
-  className?: string;
-}>;
+type CardProps = Readonly<{ borderless?: boolean } & (
+  | (HTMLAttributes<HTMLDivElement> & { as?: "div" })
+  | (ButtonHTMLAttributes<HTMLButtonElement> & { as: "button" })
+)>;
 
-export function Card({ children, className = "" }: CardProps) {
-  return <div className={`card ${className}`.trim()}>{children}</div>;
+export function Card(props: CardProps) {
+  if (props.as === "button") {
+    const { as: Element, borderless = false, className = "", ...attributes } = props;
+    return <Element className={`card ${borderless ? "card-borderless" : ""} ${className}`.trim()} {...attributes} />;
+  }
+  const { as: Element = "div", borderless = false, className = "", ...attributes } = props;
+  return <Element className={`card ${borderless ? "card-borderless" : ""} ${className}`.trim()} {...attributes} />;
 }

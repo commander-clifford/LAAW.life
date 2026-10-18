@@ -25,6 +25,7 @@ describe("location routing", () => {
     expect(getPreferredLocation(laawLifeTenant, "retired-location").slug).toBe(
       "ivy",
     );
+    expect(getPreferredLocation(laawLifeTenant, "og").slug).toBe("ivy");
   });
 
   it("rejects a missing default location", () => {

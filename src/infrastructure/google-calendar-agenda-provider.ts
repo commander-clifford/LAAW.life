@@ -13,7 +13,10 @@ import type {
   CalendarAgendaProvider,
 } from "@/src/application/ports";
 import type { CalendarSource } from "@/src/domain/site";
-import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
+import {
+  normalizeGoogleCalendarColor,
+  parseGoogleCalendarEmbed,
+} from "@/src/infrastructure/google-calendar-source";
 
 const feedRequestTimeoutMilliseconds = 10_000;
 const maximumFeedBytes = 10_000_000;
@@ -23,11 +26,13 @@ const coverageDaysAfterToday = 35;
 type ParsedCalendarFeed = Readonly<{
   calendarKey: string;
   data: CalendarResponse;
+  sourceColor?: string;
 }>;
 
 type CalendarAgendaFixture = Readonly<{
   body: string;
   calendarKey: string;
+  sourceColor?: string;
 }>;
 
 type BuildCalendarAgendaOptions = Readonly<{
@@ -163,10 +168,35 @@ function buildCalendarAgenda(
   const today = Temporal.Instant.fromEpochMilliseconds(now.getTime())
     .toZonedDateTimeISO(timeZone)
     .toPlainDate();
-  const coverageStart = today.subtract({ days: coverageDaysBeforeToday });
-  const coverageEndExclusive = today.add({
+  let coverageStart = today.subtract({ days: coverageDaysBeforeToday });
+  let coverageEndExclusive = today.add({
     days: coverageDaysAfterToday + 1,
   });
+  // Explicit feed dates establish the finite searchable horizon. Unbounded
+  // recurrence rules are expanded only through that horizon.
+  for (const feed of feeds) {
+    for (const event of Object.values(feed.data)) {
+      if (!event || event.type !== "VEVENT" || event.status === "CANCELLED") continue;
+      const until = event.rrule?.options.until;
+      const finiteOccurrences = event.rrule?.options.count
+        ? event.rrule.all((_date, index) => index < 20_000)
+        : [];
+      if (finiteOccurrences.length >= 20_000) throw new Error("Calendar recurrence exceeds the searchable safety limit");
+      const lastOccurrence = finiteOccurrences.at(-1);
+      const duration = event.end instanceof Date ? Math.max(0, event.end.getTime() - event.start.getTime()) : 0;
+      const lastEnd = lastOccurrence ? new Date(lastOccurrence.getTime() + duration) : undefined;
+      for (const date of [event.start, event.end, until, lastOccurrence, lastEnd]) {
+        if (!(date instanceof Date) || !Number.isFinite(date.getTime())) continue;
+        const start = getZonedDate(date, timeZone);
+        if (Temporal.PlainDate.compare(start, coverageStart) < 0) coverageStart = start;
+        const end = start.add({ days: 1 });
+        if (Temporal.PlainDate.compare(end, coverageEndExclusive) > 0) coverageEndExclusive = end;
+      }
+    }
+  }
+  if (coverageStart.until(coverageEndExclusive).days > 36_525) {
+    throw new Error("Calendar date range exceeds the searchable safety limit");
+  }
   const rangeStart = new Date(
     coverageStart.toZonedDateTime(timeZone).epochMilliseconds,
   );
@@ -221,15 +251,19 @@ function buildCalendarAgenda(
           continue;
         }
 
+        if (agendaItems.length >= 50_000) throw new Error("Calendar event count exceeds the searchable safety limit");
         agendaItems.push({
           allDay: instance.isFullDay,
           dateKeys,
+          description: getParameterText(instance.event.description, ""),
           end: instance.end.toISOString(),
           id: `${feed.calendarKey}:${instance.event.uid}:${instance.start.toISOString()}`,
           location: instance.event.location
             ? getParameterText(instance.event.location, "") || null
             : null,
+          sourceCalendarId: feed.calendarKey,
           sourceName,
+          ...(feed.sourceColor ? { sourceColor: feed.sourceColor } : {}),
           start: instance.start.toISOString(),
           title: getParameterText(instance.summary, "Untitled event"),
         });
@@ -266,9 +300,10 @@ export function buildCalendarAgendaFromIcs({
   sourceCount = feeds.length + failedSourceCount,
   timeZone,
 }: BuildCalendarAgendaOptions): CalendarAgenda {
-  const parsedFeeds = feeds.map(({ body, calendarKey }) => ({
+  const parsedFeeds = feeds.map(({ body, calendarKey, sourceColor }) => ({
     calendarKey,
     data: ical.sync.parseICS(body),
+    sourceColor: normalizeGoogleCalendarColor(sourceColor),
   }));
 
   return buildCalendarAgenda(parsedFeeds, {
@@ -285,11 +320,12 @@ export const googleCalendarAgendaProvider: CalendarAgendaProvider = {
       throw new Error(`Unsupported calendar provider: ${source.provider}`);
     }
 
-    const { calendarIds, timeZone } = parseGoogleCalendarEmbed(source.src);
+    const { calendarSources, timeZone } = parseGoogleCalendarEmbed(source.src);
     const results = await Promise.allSettled(
-      calendarIds.map(async (calendarId) => ({
+      calendarSources.map(async ({ calendarId, color }) => ({
         calendarKey: calendarId,
         data: await fetchPublicCalendarFeed(calendarId),
+        sourceColor: color,
       })),
     );
     const parsedFeeds = results.flatMap((result) =>
@@ -299,7 +335,7 @@ export const googleCalendarAgendaProvider: CalendarAgendaProvider = {
 
     if (failedSourceCount > 0) {
       console.warn(
-        `Today schedule could not load ${failedSourceCount} of ${results.length} public calendar feeds.`,
+        `Day Card schedule could not load ${failedSourceCount} of ${results.length} public calendar feeds.`,
       );
     }
 

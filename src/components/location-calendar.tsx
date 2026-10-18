@@ -2,9 +2,11 @@ import type {
   CalendarAgenda,
   CalendarEmbedProvider,
 } from "@/src/application/ports";
+import { EventRowPrototype } from "@/src/components/event-row-prototype";
 import { CalendarDisclosure } from "@/src/components/calendar-disclosure";
 import { LiveCalendarSchedule } from "@/src/components/live-calendar-schedule";
 import type { Location } from "@/src/domain/site";
+import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
 type LocationCalendarProps = Readonly<{
   agenda: CalendarAgenda;
@@ -18,14 +20,19 @@ export function LocationCalendar({
   location,
 }: LocationCalendarProps) {
   const embed = calendarProvider.getEmbed(location.calendar);
+  const { calendarSources } = parseGoogleCalendarEmbed(embed.src);
 
   return (
     <div className="location-page">
-      <h1 className="location-page-heading">{location.displayName}</h1>
-      <LiveCalendarSchedule
-        agenda={agenda}
-        locationId={location.id}
-      />
+        <EventRowPrototype>
+          <LiveCalendarSchedule
+            agenda={agenda}
+            key={location.id}
+            locationId={location.id}
+            locationName={location.displayName}
+            sourceColors={calendarSources}
+          />
+        </EventRowPrototype>
       <CalendarDisclosure
         key={location.id}
         src={embed.src}

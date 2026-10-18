@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
+import { getDayCardDates } from "@/src/application/calendar-dates";
 import type { CalendarAgenda } from "@/src/application/ports";
 
+const availableDateKeys = getDayCardDates("2026-09-15").map(
+  ({ dateKey }) => dateKey,
+);
 const bundled: CalendarAgenda = {
-  availableDateKeys: ["2026-09-15", "2026-09-16"],
+  availableDateKeys,
   events: [],
   failedSourceCount: 0,
   generatedAt: "2026-09-15T08:00:00.000Z",
@@ -35,6 +39,45 @@ describe("remote calendar agenda validation", () => {
     expect(select(updated)).toBe(updated);
   });
 
+  it("accepts optional source calendar identity while retaining old snapshots", () => {
+    const identified = {
+      ...updated,
+      events: [{ ...updated.events[0], sourceCalendarId: "venue@example.com" }],
+    };
+
+    expect(select(identified)).toBe(identified);
+    expect(select(updated)).toBe(updated);
+  });
+
+  it.each([null, 123, ""])("rejects invalid optional source identity: %j", (sourceCalendarId) => {
+    expect(select({
+      ...updated,
+      events: [{ ...updated.events[0], sourceCalendarId }],
+    })).toBe(bundled);
+  });
+
+  it.each(["#AABBCC", "#aabbcc"])(
+    "accepts an explicit six-digit source color: %s",
+    (sourceColor) => {
+      const colored = {
+        ...updated,
+        events: [{ ...updated.events[0], sourceColor }],
+      };
+
+      expect(select(colored)).toBe(colored);
+    },
+  );
+
+  it.each([null, 123456, "", "red", "#fff", "#AABBCCDD", " #AABBCC", "rgb(1,2,3)", "#123456;background:red"])(
+    "rejects malformed remote source colors: %j",
+    (sourceColor) => {
+      expect(select({
+        ...updated,
+        events: [{ ...updated.events[0], sourceColor }],
+      })).toBe(bundled);
+    },
+  );
+
   it("keeps the last good agenda when a source rolls back or an update repeats", () => {
     expect(select(bundled, updated)).toBe(updated);
     expect(select(updated, updated)).toBe(updated);
@@ -46,12 +89,13 @@ describe("remote calendar agenda validation", () => {
     { ...updated, generatedAt: undefined },
     { ...updated, generatedAt: "2026-09-15T10:00:00.000Z" },
     { ...updated, timeZone: "Asia/Tokyo" },
+    { ...updated, sourceCount: 2 },
     { ...updated, failedSourceCount: 1 },
     { ...updated, availableDateKeys: ["2026-02-31"] },
     { ...updated, events: [{ ...updated.events[0], end: "invalid" }] },
     { ...updated, events: [{ ...updated.events[0], end: "2026-09-31T03:30:00.000Z" }] },
     { ...updated, events: [{ ...updated.events[0], end: "2026-09-15T00:00:00.000Z" }] },
-    { ...updated, events: [{ ...updated.events[0], dateKeys: ["2026-09-17"] }] },
+    { ...updated, events: [{ ...updated.events[0], dateKeys: ["2026-09-22"] }] },
     { ...updated, events: [updated.events[0], updated.events[0]] },
   ])("preserves the bundled fallback for malformed or incomplete data: %j", (candidate) => {
     expect(select(candidate)).toBe(bundled);
@@ -60,4 +104,18 @@ describe("remote calendar agenda validation", () => {
   it("does not use another location's agenda", () => {
     expect(getNewerCalendarAgenda({ hawthorne: updated }, "ivy-station", bundled, now)).toBe(bundled);
   });
+
+  it.each([0, 3, 6])(
+    "rejects a newer snapshot missing required day offset %i",
+    (missingOffset) => {
+      const incomplete = {
+        ...updated,
+        availableDateKeys: updated.availableDateKeys.filter(
+          (_, index) => index !== missingOffset,
+        ),
+      };
+
+      expect(select(incomplete)).toBe(bundled);
+    },
+  );
 });

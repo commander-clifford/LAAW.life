@@ -2,9 +2,17 @@ import { Buffer } from "node:buffer";
 
 export type ParsedGoogleCalendarEmbed = Readonly<{
   calendarIds: readonly string[];
+  calendarSources: readonly Readonly<{
+    calendarId: string;
+    color?: string;
+  }>[];
   timeZone: string;
   url: URL;
 }>;
+
+export function normalizeGoogleCalendarColor(color: string | undefined): string | undefined {
+  return color && /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : undefined;
+}
 
 function validateTimeZone(timeZone: string): void {
   try {
@@ -42,9 +50,8 @@ export function parseGoogleCalendarEmbed(
     throw new Error("Invalid Google Calendar embed URL");
   }
 
-  const calendarSources = url.searchParams
-    .getAll("src")
-    .filter((calendarId) => calendarId.trim().length > 0);
+  const rawCalendarSources = url.searchParams.getAll("src");
+  const rawColors = url.searchParams.getAll("color");
 
   if (
     url.protocol !== "https:" ||
@@ -53,7 +60,7 @@ export function parseGoogleCalendarEmbed(
     url.username !== "" ||
     url.password !== "" ||
     url.pathname !== "/calendar/embed" ||
-    calendarSources.length === 0
+    !rawCalendarSources.some((calendarId) => calendarId.trim().length > 0)
   ) {
     throw new Error("Invalid Google Calendar embed URL");
   }
@@ -61,8 +68,34 @@ export function parseGoogleCalendarEmbed(
   const timeZone = url.searchParams.get("ctz") ?? "UTC";
   validateTimeZone(timeZone);
 
+  // Google embeds pair repeated color values with repeated src values. Missing
+  // color entries make that positional relationship ambiguous, so retain colors
+  // only when the complete mapping is present. Never infer Google's defaults.
+  const hasCompleteColorMapping = rawColors.length === rawCalendarSources.length;
+  const colorsByCalendarId = new Map<string, string | undefined>();
+  const conflictingCalendarIds = new Set<string>();
+
+  rawCalendarSources.forEach((rawSource, index) => {
+    if (rawSource.trim().length === 0) return;
+    const calendarId = decodeCalendarId(rawSource);
+    const color = hasCompleteColorMapping
+      ? normalizeGoogleCalendarColor(rawColors[index])
+      : undefined;
+
+    if (colorsByCalendarId.has(calendarId) && colorsByCalendarId.get(calendarId) !== color) {
+      conflictingCalendarIds.add(calendarId);
+    } else {
+      colorsByCalendarId.set(calendarId, color);
+    }
+  });
+  const calendarSources = [...colorsByCalendarId].map(([calendarId, color]) => ({
+    calendarId,
+    ...(color && !conflictingCalendarIds.has(calendarId) ? { color } : {}),
+  }));
+
   return {
-    calendarIds: [...new Set(calendarSources.map(decodeCalendarId))],
+    calendarIds: calendarSources.map(({ calendarId }) => calendarId),
+    calendarSources,
     timeZone,
     url,
   };

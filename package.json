@@ -29,6 +29,7 @@
     "temporal-polyfill": "^1.0.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",

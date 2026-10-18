@@ -1,3 +1,7 @@
+export type GoogleAnalyticsEventParameters = Readonly<
+  Record<string, boolean | number | string>
+>;
+
 /** Only a verified GA4 web-stream ID should enable the production tag. */
 export function googleAnalyticsScript(measurementId: string | undefined): string | null {
   const id = measurementId?.trim();
@@ -24,4 +28,33 @@ export function googleAnalyticsScript(measurementId: string | undefined): string
       document.head.appendChild(script);
     })();
   `;
+}
+
+/** Send a custom event only after the existing GA4 bootstrap is available. */
+export function trackGoogleAnalyticsEvent(
+  eventName: string,
+  parameters: GoogleAnalyticsEventParameters,
+): void {
+  if (typeof window === "undefined") return;
+
+  const gtag: unknown = Reflect.get(window, "gtag");
+  if (typeof gtag !== "function") return;
+
+  gtag("event", eventName, { ...parameters });
+}
+
+/** Record a deliberate switch from one location calendar to the other. */
+export function trackLocationSwitch(
+  fromLocation: string,
+  toLocation: string,
+): void {
+  trackGoogleAnalyticsEvent("location_switch", {
+    from_location: fromLocation,
+    to_location: toLocation,
+  });
+}
+
+/** Record when a visitor follows the menu link to the preserved original site. */
+export function trackOgLinkOpen(fromLocation: string): void {
+  trackGoogleAnalyticsEvent("og_link_open", { from_location: fromLocation });
 }

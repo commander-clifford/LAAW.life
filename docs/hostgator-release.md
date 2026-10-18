@@ -34,14 +34,15 @@ Keep the current domain and build for the domain root (`PAGES_BASE_PATH` empty).
    env -u PAGES_BASE_PATH -u NEXT_PUBLIC_BASE_PATH \
      -u NEXT_PUBLIC_CALENDAR_AGENDA_URL -u PLAYWRIGHT_BASE_PATH \
      -u PLAYWRIGHT_PREVIEW_ORIGIN -u PREVIEW_BASE_PATH \
-     NEXT_PUBLIC_GA_MEASUREMENT_ID=G-6YWHB69NED npm run release:check
+     npm run release:check
    npm run calendar:check-public
    ```
 
    Install Chromium with `npx playwright install chromium` if needed. Confirm
    the generated agenda includes the next business day's expected events in
-   Pacific time. The GA4 ID is public; omitting it removes the tag from a new
-   build. Follow the [analytics guide](google-analytics.md) for verification.
+   Pacific time. Tracked `.env.production` supplies the public GA4 ID; confirm
+   the tag is in the generated HTML. Follow the
+   [analytics guide](google-analytics.md) for verification.
 3. Package the same, unchanged export:
 
    ```sh

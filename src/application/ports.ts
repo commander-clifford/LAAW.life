@@ -8,12 +8,20 @@ export type CalendarEmbed = Readonly<{
   src: string;
 }>;
 
+export type CalendarSourceColor = Readonly<{
+  calendarId: string;
+  color?: string;
+}>;
+
 export type CalendarAgendaItem = Readonly<{
   allDay: boolean;
   dateKeys: readonly string[];
+  description?: string;
   end: string;
   id: string;
   location: string | null;
+  sourceCalendarId?: string;
+  sourceColor?: string;
   sourceName: string;
   start: string;
   title: string;

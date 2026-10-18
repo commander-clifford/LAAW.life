@@ -1,4 +1,8 @@
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
+import {
+  getDateKey,
+  getDayCardDates,
+} from "@/src/application/calendar-dates";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -24,7 +28,12 @@ function isAgendaItem(value: unknown, availableDates: Set<string>): value is Cal
     typeof value.allDay === "boolean" &&
     typeof value.id === "string" && value.id.length > 0 &&
     typeof value.title === "string" &&
+    (value.description === undefined || typeof value.description === "string") &&
     typeof value.sourceName === "string" &&
+    (value.sourceCalendarId === undefined ||
+      (typeof value.sourceCalendarId === "string" && value.sourceCalendarId.length > 0)) &&
+    (value.sourceColor === undefined ||
+      (typeof value.sourceColor === "string" && /^#[0-9a-f]{6}$/i.test(value.sourceColor))) &&
     (value.location === null || typeof value.location === "string") &&
     isTimestamp(value.start) && isTimestamp(value.end) &&
     Date.parse(value.end) >= Date.parse(value.start) &&
@@ -32,10 +41,15 @@ function isAgendaItem(value: unknown, availableDates: Set<string>): value is Cal
     value.dateKeys.every((date: unknown) => isDateKey(date) && availableDates.has(date));
 }
 
-function isCalendarAgenda(value: unknown, timeZone: string): value is CalendarAgenda {
+function isCalendarAgenda(
+  value: unknown,
+  timeZone: string,
+  requiredDateKeys: readonly string[],
+  expectedSourceCount: number,
+): value is CalendarAgenda {
   if (!isRecord(value) || value.timeZone !== timeZone ||
     !isTimestamp(value.generatedAt) || !isDateKey(value.initialDateKey) ||
-    !Number.isInteger(value.sourceCount) || (value.sourceCount as number) < 1 ||
+    value.sourceCount !== expectedSourceCount ||
     value.failedSourceCount !== 0 ||
     !Array.isArray(value.availableDateKeys) || value.availableDateKeys.length === 0 ||
     !value.availableDateKeys.every(isDateKey) ||
@@ -45,7 +59,8 @@ function isCalendarAgenda(value: unknown, timeZone: string): value is CalendarAg
   }
 
   const availableDates = new Set<string>(value.availableDateKeys);
-  return value.events.every((event: unknown) => isAgendaItem(event, availableDates)) &&
+  return requiredDateKeys.every((dateKey) => availableDates.has(dateKey)) &&
+    value.events.every((event: unknown) => isAgendaItem(event, availableDates)) &&
     new Set(value.events.map((event: CalendarAgendaItem) => event.id)).size === value.events.length;
 }
 
@@ -59,7 +74,16 @@ export function getNewerCalendarAgenda(
 ): CalendarAgenda {
   if (!isRecord(payload)) return current;
   const candidate = payload[locationId];
-  if (!isCalendarAgenda(candidate, current.timeZone)) return current;
+  const currentDateKey = getDateKey(new Date(now), current.timeZone);
+  const requiredDateKeys = getDayCardDates(currentDateKey).map(
+    ({ dateKey }) => dateKey,
+  );
+  if (!isCalendarAgenda(
+    candidate,
+    current.timeZone,
+    requiredDateKeys,
+    current.sourceCount,
+  )) return current;
 
   const generatedAt = Date.parse(candidate.generatedAt);
   const currentGeneratedAt = Date.parse(current.generatedAt);

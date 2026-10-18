@@ -1,5 +1,7 @@
 "use client";
 
+import { shouldReduceMotion, subscribeToMotionPreference } from "@/src/application/motion-preference";
+import { MotionControl } from "@/src/components/motion-control";
 import gsap from "gsap";
 import { ArrowRight, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -13,10 +15,14 @@ import {
 } from "@/src/application/location-routing";
 import type { Location } from "@/src/domain/site";
 import { browserLocationPreferenceStore } from "@/src/infrastructure/browser-location-preference-store";
+import {
+  trackLocationSwitch,
+  trackOgLinkOpen,
+} from "@/src/infrastructure/google-analytics";
 import { SiteFooter } from "@/src/components/site-footer";
 import { ThemeControl } from "@/src/components/theme-control";
 
-const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+
 const pageCanvasSelector = "[data-page-canvas]";
 const pageInteractionSurfaceSelector = "[data-page-interaction-surface]";
 const navigationMotion = { duration: 0.32, ease: "power2.inOut" } as const;
@@ -27,15 +33,15 @@ function setMenuIcon(
   timeline?: gsap.core.Timeline,
 ): void {
   const strokes = [
-    [".navigation-toggle-line-top", { y: isOpen ? 0 : -8, rotation: isOpen ? 45 : 0 }],
+    [".navigation-toggle-line-top", { y: isOpen ? 8 : 0, rotation: isOpen ? 45 : 0 }],
     [".navigation-toggle-line-middle", { scaleX: isOpen ? 0 : 1 }],
-    [".navigation-toggle-line-bottom", { y: isOpen ? 0 : 8, rotation: isOpen ? -45 : 0 }],
+    [".navigation-toggle-line-bottom", { y: isOpen ? -8 : 0, rotation: isOpen ? -45 : 0 }],
   ] as const;
 
   for (const [selector, transform] of strokes) {
     const stroke = button.querySelector<SVGLineElement>(selector);
     if (!stroke) continue;
-    // Use each stroke's local center; svgOrigin is shifted by its current translation.
+    // Each stroke starts on an exact closed-state pixel row, then moves to center.
     const properties = { ...transform, transformOrigin: "50% 50%", smoothOrigin: false };
     if (timeline) {
       // All strokes inherit the drawer's duration and ease, beginning at time zero.
@@ -338,7 +344,6 @@ export function SiteHeader({
       return;
     }
 
-    const reducedMotion = window.matchMedia(reducedMotionQuery);
 
     const syncDrawerGeometry = () => {
       const drawerWidth = drawer.getBoundingClientRect().width;
@@ -385,9 +390,9 @@ export function SiteHeader({
     };
 
     const syncReducedMotion = () => {
-      reducedMotionRef.current = reducedMotion.matches;
+      reducedMotionRef.current = shouldReduceMotion();
 
-      if (reducedMotion.matches && animationRef.current) {
+      if (reducedMotionRef.current && animationRef.current) {
         syncDrawerGeometry();
       }
     };
@@ -395,11 +400,11 @@ export function SiteHeader({
     syncReducedMotion();
     syncDrawerGeometry();
     setIsNavigationReady(true);
-    reducedMotion.addEventListener("change", syncReducedMotion);
+    const unsubscribeMotion = subscribeToMotionPreference(syncReducedMotion);
     window.addEventListener("resize", syncDrawerGeometry);
 
     return () => {
-      reducedMotion.removeEventListener("change", syncReducedMotion);
+      unsubscribeMotion();
       window.removeEventListener("resize", syncDrawerGeometry);
       stopAnimation();
       drawerOpenRef.current = false;
@@ -530,17 +535,28 @@ export function SiteHeader({
               aria-haspopup="dialog"
               disabled={!isNavigationReady}
               aria-label={isDrawerOpen ? "Close location navigation" : "Open location navigation"}
+              onBlur={(event) => {
+                delete event.currentTarget.dataset.pointerFocus;
+              }}
               onClick={toggleDrawer}
+              onKeyDown={(event) => {
+                delete event.currentTarget.dataset.pointerFocus;
+              }}
+              onPointerDown={(event) => {
+                if (event.isPrimary) {
+                  event.currentTarget.dataset.pointerFocus = "true";
+                }
+              }}
             >
               <svg
                 className="navigation-toggle-icon"
-                viewBox="0 0 32 24"
+                viewBox="0 0 30 24"
                 aria-hidden="true"
                 focusable="false"
               >
-                <line className="navigation-toggle-line navigation-toggle-line-top" x1="3" y1="12" x2="29" y2="12" transform="translate(0 -8)" />
-                <line className="navigation-toggle-line navigation-toggle-line-middle" x1="3" y1="12" x2="29" y2="12" />
-                <line className="navigation-toggle-line navigation-toggle-line-bottom" x1="3" y1="12" x2="29" y2="12" transform="translate(0 8)" />
+                <line className="navigation-toggle-line navigation-toggle-line-top" x1="3" y1="4" x2="27" y2="4" />
+                <line className="navigation-toggle-line navigation-toggle-line-middle" x1="3" y1="12" x2="27" y2="12" />
+                <line className="navigation-toggle-line navigation-toggle-line-bottom" x1="3" y1="20" x2="27" y2="20" />
               </svg>
             </button>
           </div>
@@ -575,6 +591,9 @@ export function SiteHeader({
 
                         navigationFocusPendingRef.current =
                           !isCurrent && !opensInAnotherContext;
+                        if (!isCurrent && !opensInAnotherContext && currentSlug) {
+                          trackLocationSwitch(currentSlug, location.slug);
+                        }
                         closeDrawer({
                           immediate: !isCurrent && !opensInAnotherContext,
                           restoreFocus: isCurrent || opensInAnotherContext,
@@ -592,19 +611,22 @@ export function SiteHeader({
               <a
                 className="original-link"
                 href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/og/`}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={(event) => {
-                  if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && event.button === 0) {
-                    void browserLocationPreferenceStore.setLastLocationId(tenantId, "og");
+                  if (event.button === 0) {
+                    trackOgLinkOpen(currentSlug ?? "other");
                   }
                 }}
               >
-                OG Regular
+                Old version
                 <ExternalLink className="original-link-icon" aria-hidden="true" />
               </a>
             </div>
           </nav>
           <div className="location-drawer-settings">
             <ThemeControl />
+            <MotionControl />
           </div>
         </div>
       </div>
