@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("search finds current downloaded events and clears using the keyboard", async ({ page }) => {
-  await page.goto("/ivy/");
+  await page.goto("ivy/");
   const input = page.getByRole("searchbox", { name: "Search events" });
   await expect(input).toBeVisible();
   await input.fill("not-an-event-6cc782");
