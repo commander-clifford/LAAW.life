@@ -81,7 +81,7 @@ for (const width of [320, 393, 1440]) {
 
 for (const coverage of [13, 14]) {
   test(`load-more requires a complete next week with ${coverage} known dates`, async ({ page }) => {
-    await page.clock.setFixedTime(new Date(`${today}T19:00:00Z`));
+    await page.clock.setFixedTime(new Date(agendas["ivy-station"].generatedAt));
     const refreshed = { ...agendas, "ivy-station": {
       ...agendas["ivy-station"], generatedAt: new Date(Date.parse(agendas["ivy-station"].generatedAt) + 1).toISOString(),
       availableDateKeys: Array.from({ length: coverage }, (_, index) => addDaysToDateKey(today, index)),
@@ -90,6 +90,12 @@ for (const coverage of [13, 14]) {
     await page.route("**/calendar-data/agendas.json*", route => route.fulfill({ json: refreshed }));
     await page.goto("ivy/");
     const carousel = page.locator(".day-carousel");
+    await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+    const dateLabel = (dateKey: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" })
+      .format(new Date(`${dateKey}T12:00:00Z`));
+    await expect(page.locator('p[id$="-range"]')).toHaveText(
+      `Search past and upcoming events from ${dateLabel(today)} through ${dateLabel(addDaysToDateKey(today, coverage - 1))}.`,
+    );
     if (coverage === 13) {
       await expect(carousel.locator(".day-card-more")).toHaveCount(0);
     } else {

@@ -848,6 +848,18 @@ a {
   line-height: 1.45;
 }
 
+.fine-print {
+  color: color-mix(in srgb, var(--text) 62%, var(--page));
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.day-carousel-note.fine-print {
+  border-top: 0;
+}
+
 .calendar-disclosure {
   width: var(--location-content-inline-size);
   margin-top: 1rem;

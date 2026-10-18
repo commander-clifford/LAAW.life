@@ -592,13 +592,14 @@ test("a new public snapshot refreshes future cards and failures keep the last go
   await expect(page.getByText("Updated community event 5", { exact: true })).toHaveCount(0);
 });
 
-test("an old offline snapshot tells visitors to check the live calendar", async ({ page }) => {
+test("an old offline snapshot shows its age without suggesting newer data", async ({ page }) => {
   await page.clock.install({ time: new Date(Date.parse(agenda.generatedAt) + 49 * 60 * 60_000) });
   await page.route("**/calendar-data/agendas.json", (route) => route.fulfill({ status: 503, body: "Unavailable" }));
   await page.goto("ivy/");
-  await expect(page.getByRole("status").filter({ hasText: "Calendar updates are delayed." })).toBeVisible();
-  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
-  await expect(page.locator("iframe.calendar-frame")).toBeVisible();
+  await expect(page.locator(".day-carousel-note")).toHaveText("Updated 2 days ago");
+  await expect(page.locator(".day-carousel-note")).toHaveAttribute("aria-live", "off");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".day-carousel-note")).toBeVisible();
 });
 
 test("a stale build stays neutral until hydration shows the current Pacific day", async ({ page }) => {
