@@ -13,6 +13,7 @@ import { CalendarEventSearch } from "@/src/components/calendar-event-search";
 
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
 import { getDateKey } from "@/src/application/calendar-dates";
+import { formatCalendarFreshness } from "@/src/application/calendar-freshness";
 import { withCalendarSourceColors } from "@/src/application/calendar-source-colors";
 import type { CalendarAgenda, CalendarSourceColor } from "@/src/application/ports";
 import {
@@ -21,7 +22,6 @@ import {
 } from "@/src/components/day-card-carousel";
 
 const refreshIntervalMilliseconds = 5 * 60_000;
-const staleAfterMilliseconds = 48 * 60 * 60_000;
 const todayControlEnableProgress = 0.2;
 const todayControlDisableProgress = 0.1;
 const todayControlMinimumOffstageGapPixels = 20;
@@ -29,22 +29,22 @@ const todayControlMaximumOffstageGapPixels = 32;
 const todayControlOffstageGapRatio = 0.03;
 const agendaUrl = process.env.NEXT_PUBLIC_CALENDAR_AGENDA_URL ||
   `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/calendar-data/agendas.json`;
+let currentClockTimestamp = Date.now();
 
 function subscribeToClock(notify: () => void): () => void {
   let timer: number;
-  const scheduleNextMinute = () => {
-    window.clearTimeout(timer);
-    const millisecondsUntilNextMinute = 60_000 - Date.now() % 60_000;
-    timer = window.setTimeout(() => {
-      notify();
-      scheduleNextMinute();
-    }, millisecondsUntilNextMinute);
-  };
   const refreshAndReschedule = () => {
+    currentClockTimestamp = Date.now();
     notify();
     scheduleNextMinute();
   };
+  const scheduleNextMinute = () => {
+    window.clearTimeout(timer);
+    const millisecondsUntilNextMinute = 60_000 - Date.now() % 60_000;
+    timer = window.setTimeout(refreshAndReschedule, millisecondsUntilNextMinute);
+  };
 
+  currentClockTimestamp = Date.now();
   scheduleNextMinute();
   window.addEventListener("focus", refreshAndReschedule);
   document.addEventListener("visibilitychange", refreshAndReschedule);
@@ -55,8 +55,8 @@ function subscribeToClock(notify: () => void): () => void {
   };
 }
 
-function getCurrentMinute(): number {
-  return Math.floor(Date.now() / 60_000) * 60_000;
+function getCurrentTimestamp(): number {
+  return currentClockTimestamp;
 }
 
 function getServerMinute(): null {
@@ -104,6 +104,7 @@ export function LiveCalendarSchedule({
     agenda: CalendarAgenda;
     locationId: string;
   } | null>(null);
+  const [firstRefreshSettled, setFirstRefreshSettled] = useState(false);
   const [returnToTodayRequest, setReturnToTodayRequest] = useState(0);
   const [todayControlIsInteractive, setTodayControlIsInteractive] = useState(
     false,
@@ -118,10 +119,10 @@ export function LiveCalendarSchedule({
     () => withCalendarSourceColors(rawCurrentAgenda, sourceColors),
     [rawCurrentAgenda, sourceColors],
   );
-  const currentMinute = useSyncExternalStore(subscribeToClock, getCurrentMinute, getServerMinute);
-  const currentDateKey = currentMinute === null
+  const currentTimestamp = useSyncExternalStore(subscribeToClock, getCurrentTimestamp, getServerMinute);
+  const currentDateKey = currentTimestamp === null
     ? null
-    : getDateKey(new Date(currentMinute), currentAgenda.timeZone);
+    : getDateKey(new Date(currentTimestamp), currentAgenda.timeZone);
   const todayDate = currentDateKey === null
     ? null
     : formatTodayDate(currentDateKey);
@@ -214,6 +215,7 @@ export function LiveCalendarSchedule({
       } finally {
         window.clearTimeout(timeout);
         inFlight = false;
+        if (active) setFirstRefreshSettled(true);
       }
     };
 
@@ -233,9 +235,11 @@ export function LiveCalendarSchedule({
     };
   }, [agenda, locationId]);
 
-  const isStale = currentMinute !== null &&
-    (!Number.isFinite(Date.parse(currentAgenda.generatedAt)) ||
-      currentMinute - Date.parse(currentAgenda.generatedAt) >= staleAfterMilliseconds);
+  const freshnessLabel = !firstRefreshSettled
+    ? "Checking for updates…"
+    : currentTimestamp === null
+    ? "Update time unavailable"
+    : formatCalendarFreshness(currentAgenda.generatedAt, currentTimestamp);
 
   return (
     <>
@@ -274,11 +278,9 @@ export function LiveCalendarSchedule({
           onTodayControlMotion={updateTodayControlMotion}
           returnToTodayRequest={returnToTodayRequest}
         >
-          {isStale ? (
-            <p className="day-carousel-note" role="status">
-              Calendar updates are delayed. Check the full calendar below for the latest events.
-            </p>
-          ) : null}
+          <p className="day-carousel-note fine-print" aria-live="off">
+            {freshnessLabel}
+          </p>
         </DayCardCarousel>
       </div>
       <CalendarEventSearch agenda={currentAgenda} />
