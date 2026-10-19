@@ -39,18 +39,3 @@ export function getDayCardDates(
     relativeLabel: dayOffset === 0 ? "Today" : dayOffset === 1 ? "Tomorrow" : `In ${dayOffset} days`,
   }));
 }
-
-// Keep the forward-looking feed window separate from carousel history.
-export function getDayCardCarouselDates(
-  todayDateKey: string,
-  upcomingCount = dayCardCount,
-): readonly DayCardDate[] {
-  return [
-    {
-      dateKey: addDaysToDateKey(todayDateKey, -1),
-      dayOffset: -1,
-      relativeLabel: "Yesterday",
-    },
-    ...getDayCardDates(todayDateKey, upcomingCount),
-  ];
-}

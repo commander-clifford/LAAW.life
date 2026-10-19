@@ -182,20 +182,20 @@ function formatEventTime(
   return formatTimeRange(start, end, timeZone);
 }
 
-function getUnavailableMessage(relativeLabel: string): string {
-  if (relativeLabel === "Today") {
+function getUnavailableMessage(index: number): string {
+  if (index === 0) {
     return "Today's schedule is unavailable.";
   }
 
   return "This day's schedule is unavailable.";
 }
 
-function getEmptyMessage(relativeLabel: string): string {
-  if (relativeLabel === "Today") {
+function getEmptyMessage(index: number): string {
+  if (index === 0) {
     return "Nothing is scheduled for today.";
   }
 
-  if (relativeLabel === "Tomorrow") {
+  if (index === 1) {
     return "Nothing is scheduled for tomorrow.";
   }
 
@@ -312,9 +312,9 @@ export function DayCard({
           tabIndex={scheduleScrollState.overflows ? 0 : undefined}
         >
           {!isDateAvailable || hasNoAvailableSources ? (
-            <p className="day-card-message">{getUnavailableMessage(relativeLabel)}</p>
+            <p className="day-card-message">{getUnavailableMessage(index)}</p>
           ) : events.length === 0 ? (
-            <p className="day-card-message">{getEmptyMessage(relativeLabel)}</p>
+            <p className="day-card-message">{getEmptyMessage(index)}</p>
           ) : (
             <ol className="day-card-event-list" ref={eventListRef}>
               {events.map((event) => {

@@ -13,7 +13,7 @@ async function capture(page: Page, name: string) {
   await expect.poll(async () => page.locator('.day-card[data-active="true"]').evaluate(element => {
     const viewport = element.closest('.day-carousel-viewport')!.getBoundingClientRect();
     const card = element.getBoundingClientRect();
-    return Math.abs(card.x - viewport.x);
+    return Math.abs(card.x + card.width / 2 - viewport.x - viewport.width / 2);
   })).toBeLessThanOrEqual(1);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   if (screenshotDirectory) await page.screenshot({ path: join(screenshotDirectory, name), fullPage: false });
@@ -31,26 +31,26 @@ for (const width of [393, 1280]) {
     const carousel = page.locator(".day-carousel");
     const cards = carousel.locator("[data-day-card]");
     const layer = page.locator(".location-today-control");
-    await expect(cards).toHaveCount(8);
+    await expect(cards).toHaveCount(7);
     await expect(layer).toHaveAttribute("data-scroll-progress", /^0(?:\.0+)?$/);
     await expect(page.locator(".event-row-prototype")).toHaveAttribute("data-event-layout", "title-first");
-    const initial = (await carousel.locator("[data-day-card][data-active='true']").boundingBox())!;
+    const initial = (await cards.first().boundingBox())!;
     if (width === 393) await capture(page, "candidate-today.png");
     else await capture(page, "candidate-desktop.png");
     await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
     const more = carousel.locator(".day-card-more");
-    await expect(carousel).toHaveAttribute("data-active-index", "8");
+    await expect(carousel).toHaveAttribute("data-active-index", "7");
     await expect(more).toHaveCSS("border-top-width", "0px");
     const moreBox = (await more.boundingBox())!;
     expect(moreBox.width).toBeCloseTo(initial.width, 0);
     expect(moreBox.height).toBeCloseTo(initial.height, 0);
     if (width === 393) await capture(page, "candidate-load-more.png");
     await more.click();
-    await expect(cards).toHaveCount(15);
+    await expect(cards).toHaveCount(14);
     await expect(layer).toHaveAttribute("data-scroll-progress", /^1(?:\.0+)?$/);
     if (width === 393) await capture(page, "candidate-fourteen-days.png");
     await page.getByRole("button", { name: /^Return to Today/ }).click();
-    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(carousel).toHaveAttribute("data-active-index", "0");
     await expect(layer).toHaveAttribute("data-scroll-progress", /^0(?:\.0+)?$/);
     const input = page.getByRole("searchbox", { name: "Search events" });
     await input.fill("trivia");
@@ -64,7 +64,7 @@ for (const width of [393, 1280]) {
     if (reviewComparison) {
     await page.getByRole("button", { name: "Preview controls", exact: true }).click();
     await page.getByRole("button", { name: "Current: time first" }).click();
-    await expect(cards).toHaveCount(15);
+    await expect(cards).toHaveCount(14);
     await expect(layer).toHaveAttribute("data-scroll-progress", /^0(?:\.0+)?$/);
     if (width === 393) {
       await page.getByRole("button", { name: "Hide preview controls", exact: true }).click();
@@ -81,7 +81,7 @@ for (const width of [393, 1280]) {
     if (width === 393) await capture(page, "candidate-date-header.png");
     await page.getByRole("button", { name: /^Return to Today/ }).click();
     await expect(layer).toHaveAttribute("data-scroll-progress", /^0(?:\.0+)?$/);
-    const card = (await carousel.locator("[data-day-card][data-active='true']").boundingBox())!;
+    const card = (await cards.first().boundingBox())!;
     for (const locator of [page.locator(".location-heading-section"), page.locator("section").filter({ has: input }), page.locator(".calendar-disclosure")]) {
       const bounds = (await locator.boundingBox())!;
       expect(Math.abs(bounds.x - card.x)).toBeLessThanOrEqual(1);

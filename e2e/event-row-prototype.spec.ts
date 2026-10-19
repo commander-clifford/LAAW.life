@@ -24,7 +24,7 @@ for (const width of [320, 1440]) {
     await page.goto("hawthorne/?eventLayout=title-first");
     await expect(page.locator(".event-row-prototype-controls")).toHaveCount(reviewComparison ? 1 : 0);
     await expect(page.locator(".event-row-prototype")).toHaveAttribute("data-event-layout", "title-first");
-    await page.locator(".day-carousel-dot").nth(2).click();
+    await page.locator(".day-carousel-dot").nth(1).click();
     const card = page.locator('[data-day-card][data-active="true"]');
     const schedule = card.locator(".day-card-schedule");
     await expect(schedule).toHaveAttribute("data-overflow", "true");
@@ -50,23 +50,23 @@ for (const width of [320, 1440]) {
     await page.getByRole("button", { name: "Preview controls", exact: true }).click();
     await page.getByRole("button", { name: "Current: time first" }).click();
     await expect(page.getByRole("button", { name: "Current: time first" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "2");
+    await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "1");
     await page.getByRole("button", { name: "Proposed: title first" }).click();
     } else await expect(page.locator(".event-row-prototype-controls")).toHaveCount(0);
     const viewport = page.locator('.day-carousel-viewport');
     await viewport.focus();
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '3');
-    await page.keyboard.press('ArrowLeft');
     await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '2');
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '1');
     if (width === 1440) {
       await page.getByRole('button', { name: 'Next day', exact: true }).click();
-      await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '3');
-      await page.getByRole('button', { name: 'Previous day', exact: true }).click();
       await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '2');
+      await page.getByRole('button', { name: 'Previous day', exact: true }).click();
+      await expect(page.locator('.day-carousel')).toHaveAttribute('data-active-index', '1');
     }
     await page.goto("ivy/?eventLayout=title-first");
-    await expect(page.locator('[data-day-card]')).toHaveCount(8);
+    await expect(page.locator('[data-day-card]')).toHaveCount(7);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }

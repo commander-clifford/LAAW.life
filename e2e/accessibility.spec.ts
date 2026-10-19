@@ -40,11 +40,11 @@ for (const width of [320, 1280]) {
         const more = page.locator(".day-card-more");
         await expect.poll(async () => more.evaluate(element => {
           const a = element.getBoundingClientRect(), b = element.closest(".day-carousel-viewport")!.getBoundingClientRect();
-          return Math.abs(a.x - b.x);
+          return Math.abs(a.x + a.width / 2 - b.x - b.width / 2);
         })).toBeLessThanOrEqual(1);
         await audit(page, info, "load-more");
         await more.click();
-        await expect(page.locator("[data-day-card]")).toHaveCount(15);
+        await expect(page.locator("[data-day-card]")).toHaveCount(14);
         await expect(page.locator(".day-carousel-viewport")).toBeFocused();
         await page.getByRole("button", { name: /^Return to Today/ }).click();
         await expect(page.locator(".location-today-control")).toHaveCSS("opacity", "0");

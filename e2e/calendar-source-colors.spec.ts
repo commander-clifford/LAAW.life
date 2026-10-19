@@ -70,7 +70,7 @@ for (const width of [320, 1280]) {
       expect(await card.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
       const firstCardDate = await card.locator(".day-card-date time").getAttribute("datetime");
       await page.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
-      await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "2");
+      await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "1");
       await page.getByRole("button", { name: "Go to Today", exact: true }).click();
       await expect(card.locator(".day-card-date time")).toHaveAttribute("datetime", firstCardDate!);
 
