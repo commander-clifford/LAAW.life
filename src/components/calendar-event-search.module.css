@@ -8,7 +8,7 @@
 .clear { position: absolute; inset-inline-end: .375rem; top: 50%; width: 2rem; height: 2rem; padding: .375rem; display: grid; place-items: center; border: 0; border-radius: .375rem; color: var(--text-muted); background: transparent; cursor: pointer; touch-action: manipulation; transform: translateY(-50%); }
 .clear svg { width: 1rem; height: 1rem; pointer-events: none; }
 .clear:hover { color: var(--text); background: var(--surface-muted); }
-.coverageNote { max-width: 42ch; margin: .5rem auto 0; color: color-mix(in srgb, var(--text) 62%, var(--search-surface)); font-size: .75rem; font-weight: 400; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
+.coverageNote { max-width: 42ch; margin: .5rem auto 0; color: var(--search-coverage-color); font-size: .75rem; font-weight: 400; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
 .field input:focus-visible, .clear:focus-visible, .results:focus-visible, .results summary:focus-visible { outline: none; box-shadow: var(--focus-ring-shadow); }
 .results:focus-visible, .results summary:focus-visible { border-radius: .5rem; }
 .note { color: var(--text-muted); font-size: .9rem; }

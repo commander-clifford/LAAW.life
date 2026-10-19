@@ -27,6 +27,12 @@ test("appearance follows the device and persists explicit choices without hydrat
   await expectBodyUsesPageToken(page);
   await appearance.selectOption("light");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  for (const selector of [".site-header", ".site-footer", ".day-card-heading"]) {
+    await expect(page.locator(selector).first()).toHaveCSS("background-color", "rgb(227, 227, 227)");
+  }
+  await expect(page.locator("[data-day-card]").first()).toHaveCSS("background-color", "rgb(244, 244, 244)");
+  await expect(page.getByRole("region", { name: "Search events", exact: true }).locator(".card.card-borderless")).toHaveCSS("background-color", "rgb(244, 244, 244)");
+  await expect(page.getByRole("searchbox", { name: "Search events", exact: true })).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await page.reload();
   await page.getByRole("button", { name: "Open location navigation" }).click();
   await expect(appearance).toHaveValue("light");
@@ -89,21 +95,25 @@ for (const [width, height] of [[320, 667], [1440, 1000]]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Open location navigation" })).toBeFocused();
     await expect(page.locator(".day-carousel")).toHaveAttribute("aria-busy", "false");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(13, 13, 13)");
     const activeCard = page.locator("[data-day-card][data-active=true]");
     const cardHeading = activeCard.locator(".day-card-heading");
-    await expect(activeCard).toHaveCSS("background-color", "rgb(25, 25, 25)");
-    await expect(activeCard.locator(".day-card-weekday")).toHaveCSS("color", "rgb(255, 255, 255)");
-    await expect(activeCard.locator(".day-card-calendar-date")).toHaveCSS("color", "rgb(146, 146, 146)");
+    await expect(activeCard).toHaveCSS("background-color", "rgb(56, 56, 56)");
+    await expect(activeCard.locator(".day-card-weekday")).toHaveCSS("color", "rgb(227, 227, 227)");
+    await expect(activeCard.locator(".day-card-calendar-date")).toHaveCSS("color", "rgb(176, 176, 176)");
     await expect(activeCard).toHaveCSS("border-radius", "24px");
     await expect(activeCard).toHaveCSS("box-shadow", "none");
     for (const edge of ["top", "right", "bottom", "left"]) {
       await expect(activeCard).toHaveCSS(`border-${edge}-width`, "0px");
     }
-    await expect(cardHeading).toHaveCSS("background-color", "rgb(20, 20, 20)");
+    await expect(cardHeading).toHaveCSS("background-color", "rgb(43, 43, 43)");
+    await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(43, 43, 43)");
+    await expect(page.locator(".site-footer")).toHaveCSS("background-color", "rgb(43, 43, 43)");
+    await expect(page.getByRole("region", { name: "Search events", exact: true }).locator(".card.card-borderless")).toHaveCSS("background-color", "rgb(56, 56, 56)");
+    await expect(page.getByRole("searchbox", { name: "Search events", exact: true })).toHaveCSS("background-color", "rgb(77, 77, 77)");
     await expect(cardHeading).toHaveCSS("border-bottom-width", "0px");
     const pagination = page.getByRole("group", { name: "Choose a day", exact: true });
-    await expect(pagination).toHaveCSS("background-color", "rgb(25, 25, 25)");
+    await expect(pagination).toHaveCSS("background-color", "rgb(56, 56, 56)");
     await expect(pagination).toHaveCSS("border-radius", "24px");
     const currentIndicator = pagination.locator("button[aria-current=true] > span");
     const inactiveIndicators = pagination.locator("button:not([aria-current=true]) > span");

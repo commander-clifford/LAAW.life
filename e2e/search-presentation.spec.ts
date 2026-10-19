@@ -39,7 +39,7 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     const card = (await page.locator("[data-day-card]").first().boundingBox())!;
     const cardRadius = await page.locator("[data-day-card]").first().evaluate(element => getComputedStyle(element).borderTopLeftRadius);
-    await expect(input).toHaveCSS("border-top-color", appearance === "light" ? "rgb(96, 112, 134)" : "rgb(146, 146, 146)");
+    await expect(input).toHaveCSS("border-top-color", appearance === "light" ? "rgb(111, 111, 111)" : "rgb(146, 146, 146)");
     await expect(input).toHaveCSS("border-top-width", "1px");
     await expect(input).toHaveCSS("border-top-style", "solid");
     await expect(input).toHaveCSS("border-top-left-radius", cardRadius);
