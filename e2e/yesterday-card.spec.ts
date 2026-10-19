@@ -11,7 +11,7 @@ const today = getDateKey(now, agenda.timeZone);
 test.use({ timezoneId: "Asia/Tokyo" });
 
 for (const width of [393, 1440]) for (const appearance of ["light", "dark"] as const) {
-  test(`Yesterday precedes default Today with orange focus and stable indicators at ${width}px ${appearance}`, async ({ page }) => {
+  test(`Yesterday precedes default Today with orange card focus and neutral indicators at ${width}px ${appearance}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ colorScheme: appearance, reducedMotion: "no-preference" });
     await page.clock.setFixedTime(now);
@@ -40,16 +40,21 @@ for (const width of [393, 1440]) for (const appearance of ["light", "dark"] as c
     expect(frame.separator).toContain(appearance === "dark" ? "rgb(13, 13, 13)" : "rgb(25, 25, 25)");
     const selectedDot = carousel.locator(".day-carousel-dot[aria-current='true'] > span");
     const otherDot = carousel.getByRole("button", { name: "Go to Today", exact: true }).locator("span");
-    await expect(selectedDot).toHaveCSS("background-color", "rgb(237, 85, 55)");
+    await expect(selectedDot).toHaveCSS("background-color", appearance === "dark" ? "rgb(227, 227, 227)" : "rgb(17, 17, 17)");
     await expect(selectedDot).toHaveCSS("width", "24px");
     await expect(selectedDot).toHaveCSS("height", "6px");
     await expect(selectedDot).toHaveCSS("opacity", "1");
-    await expect(otherDot).toHaveCSS("background-color", "rgb(203, 51, 21)");
+    await expect(otherDot).toHaveCSS("background-color", appearance === "dark" ? "rgb(176, 176, 176)" : "rgb(77, 77, 77)");
     await expect(otherDot).toHaveCSS("width", "6px");
     await expect(otherDot).toHaveCSS("opacity", "0.72");
     await expect(otherDot).toHaveCSS("transition-duration", "0.16s, 0.16s, 0.16s");
     await expect(otherDot).toHaveCSS("transition-property", "width, height, opacity");
     await expect(otherDot).toHaveCSS("transition-timing-function", "ease, ease, ease");
+    await carousel.getByRole("button", { name: "Go to Today", exact: true }).focus();
+    await expect(otherDot).toHaveCSS("opacity", "1");
+    const dotFocus = await otherDot.evaluate(element => getComputedStyle(element).boxShadow);
+    expect(dotFocus).toContain(appearance === "dark" ? "rgb(244, 244, 244)" : "rgb(77, 77, 77)");
+    expect(dotFocus).not.toContain("rgb(237, 85, 55)");
     await page.keyboard.press("ArrowLeft");
     await expect(carousel).toHaveAttribute("data-active-index", "0");
     await page.getByRole("button", { name: /^Return to Today/ }).click();
