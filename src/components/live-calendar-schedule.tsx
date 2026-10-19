@@ -289,7 +289,7 @@ export function LiveCalendarSchedule({
           </p>
         </DayCardCarousel>
       </div>
-      <CalendarEventSearch agenda={currentAgenda} />
+      <CalendarEventSearch agenda={currentAgenda} loading={currentDateKey === null} />
     </>
   );
 }

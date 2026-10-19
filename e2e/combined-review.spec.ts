@@ -97,7 +97,7 @@ test("combined preview keeps calendar recovery available alongside the carousel 
   await page.clock.setFixedTime(new Date(now));
   await page.route("https://calendar.google.com/**", () => new Promise(() => undefined));
   await page.goto("ivy/?eventLayout=title-first");
-  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
   const shell = page.locator(".calendar-shell");
   await expect(shell).toHaveAttribute("data-calendar-status", "loading");
   await expect(page.getByRole("button", { name: "Reload calendar", exact: true })).toBeVisible();

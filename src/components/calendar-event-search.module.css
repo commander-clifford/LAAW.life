@@ -21,3 +21,8 @@
 .results summary { min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
 @media (forced-colors: active) { .field input:focus-visible, .clear:focus-visible, .results:focus-visible, .results summary:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; } }
 @media (forced-colors: active) { .sourceDot { display: none; } }
+
+.search[data-loading="true"] .magnifier,
+.search[data-loading="true"] .coverageNote,
+.search[data-loading="true"] .note { visibility: hidden; }
+.search[data-loading="true"] input { color: transparent; opacity: 1; cursor: default; }

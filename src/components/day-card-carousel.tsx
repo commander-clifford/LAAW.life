@@ -22,6 +22,7 @@ import {
 import type { CalendarAgenda } from "@/src/application/ports";
 import { Card } from "@/src/components/card";
 import { DayCard } from "@/src/components/day-card";
+import { DayCardShell } from "@/src/components/day-card-shell";
 import { trackGoogleAnalyticsEvent } from "@/src/infrastructure/google-analytics";
 
 const swipeThresholdPixels = 48;
@@ -108,6 +109,12 @@ function getPointerNavigationThreshold(
   return Math.abs(adjacentCenter - activeCenter) / 2;
 }
 
+function hasNextWeek(agenda: CalendarAgenda, dateKey: string, visibleDayCount: number): boolean {
+  return !(agenda.sourceCount > 0 && agenda.failedSourceCount === agenda.sourceCount) &&
+    getDayCardDates(dateKey, visibleDayCount + dayCardCount).slice(visibleDayCount)
+      .every(({ dateKey }) => agenda.availableDateKeys.includes(dateKey));
+}
+
 export function DayCardCarousel({
   agenda,
   children,
@@ -140,10 +147,7 @@ export function DayCardCarousel({
   const hasNoAvailableSources =
     agenda.sourceCount > 0 &&
     agenda.failedSourceCount === agenda.sourceCount;
-  const hasMoreDays = currentDateKey !== null && !hasNoAvailableSources &&
-    getDayCardDates(currentDateKey, visibleDayCount + dayCardCount)
-      .slice(visibleDayCount)
-      .every(({ dateKey }) => agenda.availableDateKeys.includes(dateKey));
+  const hasMoreDays = currentDateKey !== null && hasNextWeek(agenda, currentDateKey, visibleDayCount);
   const itemCount = dayCardDates.length + (hasMoreDays ? 1 : 0);
   const selectedIndex = selectedDateKey === "load-more" && hasMoreDays
     ? dayCardDates.length
@@ -709,13 +713,17 @@ export function DayCardCarousel({
         aria-roledescription="carousel"
       >
         <div className="day-carousel-loading-frame">
-          <Card className="day-card day-card-loading">
-            <div className="day-card-heading" aria-hidden="true" />
-            <p className="day-card-message" role="status">
-              Loading today&apos;s schedule…
-            </p>
-          </Card>
+          <DayCardShell className="day-card-loading" heading={null} aria-hidden="true">
+            <div className="day-card-schedule-frame" />
+          </DayCardShell>
         </div>
+        <div className="day-carousel-pagination" aria-hidden="true">
+          {Array.from({ length: dayCardCount + (hasNextWeek(agenda, agenda.initialDateKey, dayCardCount) ? 1 : 0) }, (_, index) => (
+            <span className="day-carousel-dot day-carousel-loading-dot" data-active={index === 0} key={index}><span /></span>
+          ))}
+        </div>
+        <p className="visually-hidden" role="status">Loading today&apos;s schedule…</p>
+        <div className="day-carousel-loading-age" aria-hidden="true">{children}</div>
       </section>
     );
   }

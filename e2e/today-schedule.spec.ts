@@ -731,7 +731,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     await expect(getActiveCard(page).getByRole("heading", { level: 3 })).toHaveText(
       agenda.events.filter((event) => event.dateKeys.includes(currentDateKey)).map((event) => event.title),
     );
-    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+    await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
     await expect(page.locator("iframe.calendar-frame")).toBeVisible();
     const renderStates: string[] = await page.evaluate(() => Reflect.get(window, "todayRenderStates"));
     expect(renderStates.some((state) => state.includes(formatDate(agenda.initialDateKey)))).toBe(false);
@@ -1961,7 +1961,7 @@ for (const width of [1440, 600, 393, 320]) {
       }
       await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
       await expect(card.locator(".day-card-relative-label")).toHaveText("Today");
-      await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+      await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
       const calendarBox = (await page.locator("iframe.calendar-frame").boundingBox())!;
       const disclosureBox = (await page.locator(".calendar-disclosure").boundingBox())!;
       const fullCarouselBox = (await carousel.boundingBox())!;
@@ -1981,7 +1981,7 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   });
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("ivy/");
-  const toggle = page.getByRole("button", { name: "Open full calendar", exact: true });
+  const toggle = page.getByRole("button", { name: "Open OG Calendar", exact: true });
   await expect(getCarousel(page)).toHaveAttribute("aria-busy", "false");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).toHaveCSS("text-decoration-line", "none");
@@ -1989,7 +1989,7 @@ test("the calendar loads on first opening and keeps its loaded frame when closed
   expect(calendarRequests).toBe(0);
   await toggle.focus();
   await page.keyboard.press("Enter");
-  const close = page.getByRole("button", { name: "Close calendar", exact: true });
+  const close = page.getByRole("button", { name: "Close OG Calendar", exact: true });
   await expect(close).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => calendarRequests).toBe(1);
@@ -2052,7 +2052,7 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
       }
       for (const open of [false, true]) {
         if (open) {
-          await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+          await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
           await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
         }
         const main = (await page.locator(".site-main").boundingBox())!;
@@ -2215,7 +2215,7 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
   await expect(cards.locator(".day-card-event")).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ivy Station");
   await expect(page.getByRole("heading", { name: "Full calendar" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
   await expect(page.locator("iframe.calendar-frame")).toHaveAttribute("title", "Ivy Station Calendar");
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
 });
