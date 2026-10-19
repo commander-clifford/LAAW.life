@@ -40,7 +40,7 @@ for (const width of [320, 1280]) {
         const more = page.locator(".day-card-more");
         await expect.poll(async () => more.evaluate(element => {
           const a = element.getBoundingClientRect(), b = element.closest(".day-carousel-viewport")!.getBoundingClientRect();
-          return Math.abs(a.x + a.width / 2 - b.x - b.width / 2);
+          return Math.abs(a.x - b.x);
         })).toBeLessThanOrEqual(1);
         await audit(page, info, "load-more");
         await more.click();

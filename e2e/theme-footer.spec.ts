@@ -54,14 +54,73 @@ test("appearance still changes when local storage is blocked", async ({ page }) 
   await expectBodyUsesPageToken(page);
 });
 
+for (const location of ["ivy", "hawthorne"]) {
+  test(`navigation remains ready after ordinary reloads at ${location}`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${location}/`);
+
+    for (let reload = 0; reload < 3; reload++) {
+      const opener = page.getByRole("button", { name: "Open location navigation", exact: true });
+      await expect(opener).toBeEnabled();
+      await opener.click();
+      await expect(page.getByRole("dialog", { name: "Location navigation", exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(opener).toBeFocused();
+      await page.reload();
+    }
+
+    await expect(page.getByRole("button", { name: "Open location navigation", exact: true })).toBeEnabled();
+    expect(errors).toEqual([]);
+  });
+}
+
 for (const [width, height] of [[320, 667], [1440, 1000]]) {
   test(`footer credit and the tip dialog work at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("ivy/");
     await page.getByRole("button", { name: "Open location navigation" }).click();
     await page.getByLabel("Appearance").selectOption("dark");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Open location navigation" })).toBeFocused();
+    await expect(page.locator(".day-carousel")).toHaveAttribute("aria-busy", "false");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    const activeCard = page.locator("[data-day-card][data-active=true]");
+    const cardHeading = activeCard.locator(".day-card-heading");
+    await expect(activeCard).toHaveCSS("background-color", "rgb(25, 25, 25)");
+    await expect(activeCard.locator(".day-card-weekday")).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(activeCard.locator(".day-card-calendar-date")).toHaveCSS("color", "rgb(146, 146, 146)");
+    await expect(activeCard).toHaveCSS("border-radius", "24px");
+    await expect(activeCard).toHaveCSS("box-shadow", "none");
+    for (const edge of ["top", "right", "bottom", "left"]) {
+      await expect(activeCard).toHaveCSS(`border-${edge}-width`, "0px");
+    }
+    await expect(cardHeading).toHaveCSS("background-color", "rgb(20, 20, 20)");
+    await expect(cardHeading).toHaveCSS("border-bottom-width", "0px");
+    const pagination = page.getByRole("group", { name: "Choose a day", exact: true });
+    await expect(pagination).toHaveCSS("background-color", "rgb(25, 25, 25)");
+    await expect(pagination).toHaveCSS("border-radius", "24px");
+    const currentIndicator = pagination.locator("button[aria-current=true] > span");
+    const inactiveIndicators = pagination.locator("button:not([aria-current=true]) > span");
+    await expect(currentIndicator).toHaveCount(1);
+    await expect(currentIndicator).toHaveCSS("width", "24px");
+    await expect(currentIndicator).toHaveCSS("height", "6px");
+    await expect(currentIndicator).toHaveCSS("border-radius", "24px");
+    expect(await inactiveIndicators.count()).toBeGreaterThan(0);
+    for (const indicator of await inactiveIndicators.all()) {
+      await expect(indicator).toHaveCSS("width", "6px");
+      await expect(indicator).toHaveCSS("height", "6px");
+      await expect(indicator).toHaveCSS("border-radius", "50%");
+    }
+    const paginationBounds = (await pagination.boundingBox())!;
+    const cardBounds = (await activeCard.boundingBox())!;
+    expect(paginationBounds.width).toBeLessThan(cardBounds.width);
+    expect(paginationBounds.height).toBeLessThanOrEqual(48);
     const footer = page.getByRole("contentinfo");
     await expect(footer).toHaveText("Brewed by Clifford.");
     await expect(footer.getByRole("link", { name: "Clifford", exact: true })).toHaveAttribute("href", "https://www.instagram.com/ludocliff/");

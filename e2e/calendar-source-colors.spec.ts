@@ -25,6 +25,7 @@ function rgb(color: string | undefined): string {
   return `rgb(${[1, 3, 5].map(offset => parseInt(color.slice(offset, offset + 2), 16)).join(", ")})`;
 }
 async function expectSourceDot(dot: Locator, sourceColor: string | undefined) {
+  await expect(dot).toBeHidden();
   await expect(dot).not.toHaveAttribute("style");
   await expect(dot).toHaveClass(/(?:^|\s)calendar-source--[a-z0-9]+(?:-[a-z0-9]+)*(?:\s|$)/);
   await expect(dot).not.toHaveClass(new RegExp(sourceColor!.slice(1), "i"));
@@ -47,7 +48,7 @@ test.use({ timezoneId: "Asia/Tokyo", reducedMotion: "reduce" });
 
 for (const width of [320, 1280]) {
   for (const appearance of ["light", "dark"] as const) {
-    test(`configured colors supplement source names at ${width}px in ${appearance}`, async ({ page }) => {
+    test(`source colors remain available while indicators are hidden at ${width}px in ${appearance}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.emulateMedia({ colorScheme: appearance });
       await page.clock.setFixedTime(now);
@@ -120,7 +121,7 @@ for (const [route, locationId, name] of [
 ] as const) {
   for (const width of [448, 1280]) {
     for (const appearance of ["system", "light"] as const) {
-      test(`${route} preserves source colors on a white page at ${width}px with ${appearance} light`, async ({ page }) => {
+      test(`${route} preserves hidden source colors on a white page at ${width}px with ${appearance} light`, async ({ page }) => {
         const bundled = agendas[locationId];
         const location = laawLifeTenant.locations.find(location => location.id === locationId)!;
         const venue = parseGoogleCalendarEmbed(location.calendar.src).calendarSources[0];

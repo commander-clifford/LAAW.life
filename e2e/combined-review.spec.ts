@@ -13,7 +13,7 @@ async function capture(page: Page, name: string) {
   await expect.poll(async () => page.locator('.day-card[data-active="true"]').evaluate(element => {
     const viewport = element.closest('.day-carousel-viewport')!.getBoundingClientRect();
     const card = element.getBoundingClientRect();
-    return Math.abs(card.x + card.width / 2 - viewport.x - viewport.width / 2);
+    return Math.abs(card.x - viewport.x);
   })).toBeLessThanOrEqual(1);
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   if (screenshotDirectory) await page.screenshot({ path: join(screenshotDirectory, name), fullPage: false });

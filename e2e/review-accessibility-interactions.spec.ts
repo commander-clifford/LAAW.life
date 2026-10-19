@@ -61,7 +61,7 @@ for (const width of [320, 1280]) {
 }
 
 for (const width of [320, 393, 1280]) {
-  test(`card radius, spacing, neighbor peeks and detached controls remain coherent at ${width}px`, async ({ page }) => {
+  test(`card radius, spacing, next-only peek and detached controls remain coherent at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     const boxes = async () => page.locator(".location-heading-section, [data-day-card][data-active='true'], section:has(input[type='search']), .calendar-disclosure").evaluateAll(elements => elements.map(element => {
@@ -78,14 +78,16 @@ for (const width of [320, 393, 1280]) {
     await page.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
     const metrics = await page.locator(".day-carousel-viewport").evaluate(element => {
       const view = element.getBoundingClientRect();
+      const heading = document.querySelector(".location-heading-section")!.getBoundingClientRect();
       const cards = [...element.querySelectorAll("[data-day-card]")].map(card => card.getBoundingClientRect());
       const visible = (box: DOMRect) => Math.max(0, Math.min(box.right, view.right) - Math.max(box.left, view.left));
-      return { gap: cards[1].left - cards[0].right, previousPeek: visible(cards[0]), nextPeek: visible(cards[2]), centered: Math.abs(cards[1].x + cards[1].width / 2 - view.x - view.width / 2) };
+      return { gap: cards[1].left - cards[0].right, previousPeek: visible(cards[0]), nextPeek: visible(cards[2]), aligned: Math.abs(cards[1].x - view.x), headingAlignment: Math.abs(cards[1].x - heading.x) };
     });
     expect(metrics.gap).toBeGreaterThanOrEqual(width < 704 ? 12 : 16);
-    expect(metrics.previousPeek).toBeGreaterThanOrEqual(7);
+    expect(metrics.previousPeek).toBeLessThan(1);
     expect(metrics.nextPeek).toBeGreaterThanOrEqual(7);
-    expect(metrics.centered).toBeLessThanOrEqual(1);
+    expect(metrics.aligned).toBeLessThanOrEqual(1);
+    expect(metrics.headingAlignment).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (reviewComparison) {
     await page.getByRole("button", { name: "Preview controls", exact: true }).click();

@@ -107,7 +107,7 @@ async function expectActiveDay(page: Page, index: number): Promise<void> {
 
 type CarouselGeometry = Readonly<{
   activeWidth: number;
-  activeCenterError: number;
+  activeStartError: number;
   leftInset: number;
   maxScrollLeft: number;
   rightInset: number;
@@ -177,13 +177,11 @@ async function getTodayControlMotion(page: Page): Promise<TodayControlMotion> {
     const tomorrowRect = cards?.item(1).getBoundingClientRect();
     const viewportRect = viewport?.getBoundingClientRect();
     const snapDistance = todayRect && tomorrowRect
-      ? tomorrowRect.left + tomorrowRect.width / 2 -
-        (todayRect.left + todayRect.width / 2)
+      ? tomorrowRect.left - todayRect.left
       : 0;
     const physicalProgress = viewportRect && todayRect && snapDistance > 0
       ? Math.min(Math.max(
-        (viewportRect.left + viewportRect.width / 2 -
-          (todayRect.left + todayRect.width / 2)) / snapDistance,
+        (viewportRect.left - todayRect.left) / snapDistance,
         0,
       ), 1)
       : 0;
@@ -238,8 +236,6 @@ async function getCarouselGeometry(page: Page): Promise<CarouselGeometry> {
 
     const activeRect = activeCard.getBoundingClientRect();
     const viewportRect = viewport.getBoundingClientRect();
-    const activeCenter = activeRect.left + activeRect.width / 2;
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
     const visibleWidths = [
       ...viewport.querySelectorAll<HTMLElement>("[data-day-card]"),
     ].map((card) => {
@@ -253,7 +249,7 @@ async function getCarouselGeometry(page: Page): Promise<CarouselGeometry> {
 
     return {
       activeWidth: activeRect.width,
-      activeCenterError: Math.abs(activeCenter - viewportCenter),
+      activeStartError: Math.abs(activeRect.left - viewportRect.left),
       leftInset: activeRect.left - viewportRect.left,
       maxScrollLeft: viewport.scrollWidth - viewport.clientWidth,
       rightInset: viewportRect.right - activeRect.right,
@@ -265,47 +261,36 @@ async function getCarouselGeometry(page: Page): Promise<CarouselGeometry> {
   });
 }
 
-async function expectCenteredCard(
+async function expectAlignedCard(
   page: Page,
   index: number,
 ): Promise<CarouselGeometry> {
   await expect.poll(async () =>
-    (await getCarouselGeometry(page)).activeCenterError
+    (await getCarouselGeometry(page)).activeStartError
   ).toBeLessThan(0.5);
   const geometry = await getCarouselGeometry(page);
-  expect(Math.abs(geometry.leftInset - geometry.rightInset)).toBeLessThanOrEqual(2);
-  expect(geometry.leftInset).toBeGreaterThanOrEqual(-1);
-  expect(geometry.rightInset).toBeGreaterThanOrEqual(-1);
+  expect(Math.abs(geometry.leftInset)).toBeLessThanOrEqual(1);
+  expect(geometry.rightInset).toBeGreaterThan(0);
 
   const previousPeek = index === 0 ? 0 : geometry.visibleWidths[index - 1];
   const nextPeek = index === dayCardCount - 1
     ? 0
     : geometry.visibleWidths[index + 1];
-  if (index > 0) expect(previousPeek).toBeGreaterThanOrEqual(8);
+  expect(previousPeek).toBeLessThan(1);
   if (index < dayCardCount - 1) expect(nextPeek).toBeGreaterThanOrEqual(8);
   if (geometry.windowWidth < 552) {
     expect(geometry.activeWidth / geometry.viewportWidth).toBeGreaterThanOrEqual(
-      0.87,
-    );
-    expect(geometry.activeWidth / geometry.viewportWidth).toBeLessThanOrEqual(
       0.93,
     );
-    const minimumPeek = 8;
-    const maximumPeek = geometry.windowWidth <= 330 ? 12 : 24;
-    if (index > 0) {
-      expect(previousPeek).toBeGreaterThanOrEqual(minimumPeek);
-      expect(previousPeek).toBeLessThanOrEqual(maximumPeek);
-    }
+    expect(geometry.activeWidth / geometry.viewportWidth).toBeLessThanOrEqual(
+      0.96,
+    );
     if (index < dayCardCount - 1) {
-      expect(nextPeek).toBeGreaterThanOrEqual(minimumPeek);
-      expect(nextPeek).toBeLessThanOrEqual(maximumPeek);
+      expect(nextPeek).toBeLessThanOrEqual(24);
     }
-  }
-  if (index > 0 && index < dayCardCount - 1) {
-    expect(Math.abs(previousPeek - nextPeek)).toBeLessThanOrEqual(2);
   }
   for (const [cardIndex, visibleWidth] of geometry.visibleWidths.entries()) {
-    if (Math.abs(cardIndex - index) > 1) {
+    if (cardIndex < index || cardIndex > index + 1) {
       expect(visibleWidth).toBeLessThan(1);
     }
   }
@@ -475,7 +460,7 @@ async function dispatchPenDrag(
     await session.detach();
   }
   // Let Chromium finish releasing the synthetic pen contact and apply the
-  // carousel's nearest-card snap before measuring its centered geometry.
+  // carousel's nearest-card snap before measuring its leading-edge alignment.
   await page.waitForTimeout(100);
 }
 
@@ -561,7 +546,7 @@ test("a new public snapshot refreshes future cards and failures keep the last go
   await expect(getDots(page)).toHaveCount(dayCardCount);
   await getDots(page).nth(4).click();
   await expectActiveDay(page, 4);
-  await expectCenteredCard(page, 4);
+  await expectAlignedCard(page, 4);
   const selectedDateKey = await getActiveCard(page)
     .locator(".day-card-date time")
     .getAttribute("datetime");
@@ -939,18 +924,18 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
 
   await page.keyboard.press("ArrowRight");
   await expectActiveDay(page, 1);
-  await expectCenteredCard(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "1");
   await expect(todayControl).toBeEnabled();
   await page.keyboard.press("ArrowLeft");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(todayControl).toHaveCSS("opacity", "0");
 
   await next.focus();
   await page.keyboard.press("Enter");
   await expectActiveDay(page, 1);
-  await expectCenteredCard(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(previous).toBeEnabled();
   await expect(todayControl.locator("time")).toHaveAttribute(
     "datetime",
@@ -958,7 +943,7 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   );
   await dots.nth(4).click();
   await expectActiveDay(page, 4);
-  const futureScrollLeft = (await expectCenteredCard(page, 4)).scrollLeft;
+  const futureScrollLeft = (await expectAlignedCard(page, 4)).scrollLeft;
   await expect(todayControl).toHaveCSS("opacity", "1");
   await todayControl.click();
   await expectActiveDay(page, 0);
@@ -973,18 +958,18 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
     returningMotion.progress,
     3,
   );
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(todayControl).toHaveCSS("opacity", "0");
   await expect(todayControl).toBeDisabled();
   await expect(viewport).toBeFocused();
 
   await next.click();
   await expectActiveDay(page, 1);
-  await expectCenteredCard(page, 1);
+  await expectAlignedCard(page, 1);
   await todayControl.focus();
   await page.keyboard.press("Enter");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(viewport).toBeFocused();
 
   await previous.focus();
@@ -994,7 +979,7 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   for (let index = 1; index < dayCardCount; index++) {
     await next.click();
     await expectActiveDay(page, index);
-    await expectCenteredCard(page, index);
+    await expectAlignedCard(page, index);
   }
   await expect(next).toBeDisabled();
   await viewport.focus();
@@ -1004,24 +989,24 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   await dots.nth(2).focus();
   await page.keyboard.press("Enter");
   await expectActiveDay(page, 2);
-  await expectCenteredCard(page, 2);
+  await expectAlignedCard(page, 2);
   await dots.first().focus();
   await page.keyboard.press("Space");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(previous).toBeDisabled();
   await expect(dots.first()).toBeFocused();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await dots.nth(3).click();
   await expectActiveDay(page, 3);
-  expect((await getCarouselGeometry(page)).activeCenterError).toBeLessThan(2);
+  expect((await getCarouselGeometry(page)).activeStartError).toBeLessThan(2);
   await expect(todayControl).toBeEnabled();
   await expect(todayControl).toHaveCSS("opacity", "1");
   await todayControl.focus();
   await page.keyboard.press("Space");
   await expectActiveDay(page, 0);
-  expect((await getCarouselGeometry(page)).activeCenterError).toBeLessThan(2);
+  expect((await getCarouselGeometry(page)).activeStartError).toBeLessThan(2);
   await expect(todayControl).toHaveCSS("opacity", "0");
   await expect(viewport).toBeFocused();
 });
@@ -1182,7 +1167,7 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   const todayControl = page.locator(".location-today-control");
   await expect(carousel).toHaveAttribute("aria-busy", "false");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(viewport).toHaveCSS("cursor", "grab");
 
   const box = (await viewport.boundingBox())!;
@@ -1211,7 +1196,7 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   await expect(viewport).not.toHaveAttribute("data-pointer-dragging", "true");
   await expect(viewport).toHaveCSS("cursor", "grab");
   await expectActiveDay(page, 1);
-  await expectCenteredCard(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "1");
 
   const backwardStartX = box.x + box.width * 0.28;
@@ -1227,17 +1212,17 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   expect(motion.opacity).toBeCloseTo(motion.progress, 3);
   await page.mouse.up();
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(todayControl).toHaveCSS("opacity", "0");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
 
   await dispatchPenDrag(page, viewport, "left");
   await expectActiveDay(page, 1);
-  await expectCenteredCard(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "1");
   await dispatchPenDrag(page, viewport, "right");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await expect(todayControl).toHaveCSS("opacity", "0");
   const analyticsEvents = await getAnalyticsEvents(page);
   expect(analyticsEvents.map(({ name }) => name)).toEqual([
@@ -1272,7 +1257,7 @@ test("pointer cancellation restores the origin and boundary analytics use the sn
   const viewport = carousel.locator(".day-carousel-viewport");
   await expect(carousel).toHaveAttribute("aria-busy", "false");
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
 
   const box = (await viewport.boundingBox())!;
   const cardStep = await viewport.evaluate((element) => {
@@ -1303,7 +1288,7 @@ test("pointer cancellation restores the origin and boundary analytics use the sn
   });
   await page.mouse.up();
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   expect(await getAnalyticsEvents(page)).toEqual([]);
 
   const boundaryStartX = box.x + box.width * 0.25;
@@ -1313,7 +1298,7 @@ test("pointer cancellation restores the origin and boundary analytics use the sn
   await page.mouse.move(boundaryStartX + snapThreshold - 8, y, { steps: 4 });
   await page.mouse.up();
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   expect(await getAnalyticsEvents(page)).toEqual([]);
 
   await page.mouse.move(boundaryStartX, y);
@@ -1321,7 +1306,7 @@ test("pointer cancellation restores the origin and boundary analytics use the sn
   await page.mouse.move(boundaryStartX + snapThreshold + 8, y, { steps: 4 });
   await page.mouse.up();
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   const events = await getAnalyticsEvents(page);
   expect(events).toHaveLength(1);
   expect(events[0]).toMatchObject({
@@ -1342,28 +1327,28 @@ test("the selected card stays aligned across responsive resizing", async ({ page
 
   await getDots(page).nth(3).click();
   await expectActiveDay(page, 3);
-  await expectCenteredCard(page, 3);
+  await expectAlignedCard(page, 3);
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await expectActiveDay(page, 3);
-  await expectCenteredCard(page, 3);
+  await expectAlignedCard(page, 3);
 
   await page.setViewportSize({ width: 600, height: 900 });
   await expectActiveDay(page, 3);
-  await expectCenteredCard(page, 3);
+  await expectAlignedCard(page, 3);
   await getDots(page).last().click();
   await expectActiveDay(page, dayCardCount - 1);
-  await expectCenteredCard(page, dayCardCount - 1);
+  await expectAlignedCard(page, dayCardCount - 1);
   await getDots(page).first().click();
   await expectActiveDay(page, 0);
-  await expectCenteredCard(page, 0);
+  await expectAlignedCard(page, 0);
   await getDots(page).nth(3).click();
   await expectActiveDay(page, 3);
-  await expectCenteredCard(page, 3);
+  await expectAlignedCard(page, 3);
 
   await page.setViewportSize({ width: 320, height: 900 });
   await expectActiveDay(page, 3);
-  await expectCenteredCard(page, 3);
+  await expectAlignedCard(page, 3);
 });
 
 for (const width of [320, 1440]) {
@@ -1401,7 +1386,7 @@ for (const width of [320, 1440]) {
 
     await getDots(page).nth(5).click();
     await expectActiveDay(page, 5);
-    await expectCenteredCard(page, 5);
+    await expectAlignedCard(page, 5);
     await expect(sparseSchedule).toHaveAttribute("data-overflow", "false");
     await expect(sparseScheduleFrame).toHaveAttribute("data-overflow", "false");
     await expect(sparseSchedule).not.toHaveAttribute("tabindex");
@@ -1422,7 +1407,7 @@ for (const width of [320, 1440]) {
 
     await getDots(page).last().click();
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
     await expect(busySchedule).toHaveAttribute("tabindex", "0");
     await expect(busySchedule).toHaveAttribute(
       "aria-label",
@@ -1573,7 +1558,7 @@ for (const width of [320, 1440]) {
       );
       await page.mouse.up();
       await expectActiveDay(page, 5);
-      await expectCenteredCard(page, 5);
+      await expectAlignedCard(page, 5);
     }
 
     await page.goto("ivy/");
@@ -1610,7 +1595,7 @@ for (const width of [320, 1440]) {
     expect(Math.max(...ivyHeights) - Math.min(...ivyHeights)).toBeLessThanOrEqual(1);
     await getDots(page).last().click();
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
     const ivyViewport = ivyCarousel.locator(".day-carousel-viewport");
     await ivyViewport.focus();
     await page.keyboard.press("ArrowRight");
@@ -1626,7 +1611,7 @@ test.describe("touch day-card carousel", () => {
     viewport: { width: 393, height: 852 },
   });
 
-  test("swipes follow platform direction, stop at boundaries, and preserve a neighboring peek", async ({ page }) => {
+  test("swipes follow platform direction, stop at boundaries, and only preview the next card", async ({ page }) => {
     await installAnalyticsRecorder(page);
     await page.clock.setFixedTime(snapshotDay());
     await useOneWeekCoverage(page);
@@ -1640,7 +1625,7 @@ test.describe("touch day-card carousel", () => {
     await expect(getDots(page)).toHaveCount(dayCardCount);
     await expectActiveDay(page, 0);
 
-    const firstGeometry = await expectCenteredCard(page, 0);
+    const firstGeometry = await expectAlignedCard(page, 0);
     expect(firstGeometry.scrollLeft).toBeLessThan(1);
     expect(await page.evaluate(() =>
       document.documentElement.scrollWidth <= document.documentElement.clientWidth
@@ -1648,29 +1633,24 @@ test.describe("touch day-card carousel", () => {
 
     await dispatchTouchSwipe(page, viewport, "right");
     await expectActiveDay(page, 0);
-    await expectCenteredCard(page, 0);
+    await expectAlignedCard(page, 0);
     await dispatchTouchSwipe(page, viewport, "left");
     await expectActiveDay(page, 1);
-    await expectCenteredCard(page, 1);
+    await expectAlignedCard(page, 1);
     await dispatchTouchSwipe(page, viewport, "right");
     await expectActiveDay(page, 0);
-    await expectCenteredCard(page, 0);
+    await expectAlignedCard(page, 0);
 
     await getDots(page).last().click();
     await expectActiveDay(page, dayCardCount - 1);
-    const lastGeometry = await expectCenteredCard(page, dayCardCount - 1);
+    const lastGeometry = await expectAlignedCard(page, dayCardCount - 1);
     expect(
       Math.abs(lastGeometry.scrollLeft - lastGeometry.maxScrollLeft),
     ).toBeLessThan(1);
-    expect(
-      Math.abs(
-        firstGeometry.visibleWidths[1] -
-          lastGeometry.visibleWidths[dayCardCount - 2],
-      ),
-    ).toBeLessThan(2);
+    expect(lastGeometry.visibleWidths[dayCardCount - 2]).toBeLessThan(1);
     await dispatchTouchSwipe(page, viewport, "left");
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
 
     const analyticsEvents = await getAnalyticsEvents(page);
     expect(analyticsEvents.map(({ name }) => name)).toEqual([
@@ -1713,10 +1693,10 @@ test.describe("touch day-card carousel", () => {
     await expectActiveDay(page, 0);
     await dispatchTouchSwipe(page, viewport, "left");
     await expectActiveDay(page, 1);
-    await expectCenteredCard(page, 1);
+    await expectAlignedCard(page, 1);
     await dispatchTouchSwipe(page, viewport, "right");
     await expectActiveDay(page, 0);
-    await expectCenteredCard(page, 0);
+    await expectAlignedCard(page, 0);
   });
 
   test("a busy event region separates vertical scrolling from horizontal day swipes", async ({ page }) => {
@@ -1729,7 +1709,7 @@ test.describe("touch day-card carousel", () => {
     await expect(carousel).toHaveAttribute("aria-busy", "false");
     await getDots(page).last().click();
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
 
     let busySchedule = getActiveCard(page).locator(".day-card-schedule");
     await expect(busySchedule).toHaveAttribute("data-overflow", "true");
@@ -1759,18 +1739,18 @@ test.describe("touch day-card carousel", () => {
       { x: 180, y: -48 },
     ]);
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
 
     await busySchedule.evaluate((element) => { element.scrollTop = 0; });
     await dispatchTouchDrag(page, busySchedule, 200, 8);
     await expectActiveDay(page, 5);
-    await expectCenteredCard(page, 5);
+    await expectAlignedCard(page, 5);
 
     const sparseSchedule = getActiveCard(page).locator(".day-card-schedule");
     await expect(sparseSchedule).toHaveAttribute("data-overflow", "false");
     await dispatchTouchDrag(page, sparseSchedule, -200, 8);
     await expectActiveDay(page, dayCardCount - 1);
-    await expectCenteredCard(page, dayCardCount - 1);
+    await expectAlignedCard(page, dayCardCount - 1);
 
     busySchedule = getActiveCard(page).locator(".day-card-schedule");
     await dispatchTouchDrag(page, busySchedule, -200, 8);
@@ -1780,7 +1760,7 @@ test.describe("touch day-card carousel", () => {
 });
 
 for (const width of [1440, 600, 393, 320]) {
-  test(`the carousel stays centered and wraps long schedules at ${width}px`, async ({ page }) => {
+  test(`the carousel aligns with the page and wraps long schedules at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.clock.setFixedTime(snapshotDay());
     let eventCount = 1;
@@ -1828,7 +1808,7 @@ for (const width of [1440, 600, 393, 320]) {
         : Math.min(contentWidth, 656);
       expect(Math.abs(carouselBox.width - expectedCarouselWidth)).toBeLessThan(1);
       expect(carouselBox.x + carouselBox.width / 2).toBeCloseTo(width / 2, 0);
-      expect(viewportBox.x + viewportBox.width / 2).toBeCloseTo(width / 2, 0);
+      expect(viewportBox.x).toBeCloseTo(compactBox.x, 0);
       expect(compactBox.x + compactBox.width / 2).toBeCloseTo(width / 2, 0);
       expect(compactBox.width).toBeLessThan(viewportBox.width);
       if (width < 552) {
@@ -1870,7 +1850,11 @@ for (const width of [1440, 600, 393, 320]) {
         })
       );
       expect(paginationBox.x + paginationBox.width / 2).toBeCloseTo(width / 2, 0);
-      expect(paginationBox.width).toBeCloseTo((dayCardCount + 1) * 24, 0);
+      const paginationContentsWidth = await pagination.evaluate(element =>
+        [...element.children].reduce((sum, child) => sum + child.getBoundingClientRect().width, 0),
+      );
+      expect(paginationBox.width).toBeGreaterThan(paginationContentsWidth);
+      expect(paginationBox.width).toBeLessThan(width);
       expect(dotGeometry).toHaveLength(dayCardCount);
       for (const [index, box] of dotGeometry.entries()) {
         expect(box.width).toBeGreaterThanOrEqual(23.5);
@@ -1883,7 +1867,7 @@ for (const width of [1440, 600, 393, 320]) {
           );
           expect(
             box.markerCenter - dotGeometry[index - 1].markerCenter,
-          ).toBeCloseTo(24, 0);
+          ).toBeGreaterThanOrEqual(24);
         }
       }
       expect(

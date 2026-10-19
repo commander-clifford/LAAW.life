@@ -75,14 +75,12 @@ function clampDayIndex(index: number, itemCount: number): number {
 function getClosestCardIndex(viewport: HTMLDivElement): number {
   const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
   const viewportRect = viewport.getBoundingClientRect();
-  const viewportCenter = viewportRect.left + viewportRect.width / 2;
   let closestIndex = 0;
   let closestDistance = Number.POSITIVE_INFINITY;
 
   cards.forEach((card, index) => {
     const cardRect = card.getBoundingClientRect();
-    const cardCenter = cardRect.left + cardRect.width / 2;
-    const distance = Math.abs(viewportCenter - cardCenter);
+    const distance = Math.abs(viewportRect.left - cardRect.left);
     if (distance < closestDistance) {
       closestDistance = distance;
       closestIndex = index;
@@ -169,13 +167,11 @@ export function DayCardCarousel({
 
     const viewportRect = viewport.getBoundingClientRect();
     const cardRect = nextCard.getBoundingClientRect();
-    const centerDelta =
-      cardRect.left + cardRect.width / 2 -
-      (viewportRect.left + viewportRect.width / 2);
+    const startDelta = cardRect.left - viewportRect.left;
 
     viewport.scrollTo({
       behavior,
-      left: viewport.scrollLeft + centerDelta,
+      left: viewport.scrollLeft + startDelta,
     });
   }, [itemCount]);
 
@@ -311,15 +307,13 @@ export function DayCardCarousel({
     if (pendingLoadedIndexRef.current !== null) return;
     const cards = viewport.querySelectorAll<HTMLElement>("[data-carousel-item]");
     const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
     const closestIndex = getClosestCardIndex(viewport);
     const programmaticTargetIndex = programmaticTargetIndexRef.current;
     if (programmaticTargetIndex !== null) {
       const targetCard = cards.item(programmaticTargetIndex);
       if (!targetCard) return;
       const targetRect = targetCard.getBoundingClientRect();
-      const targetCenter = targetRect.left + targetRect.width / 2;
-      if (Math.abs(viewportCenter - targetCenter) > 2) return;
+      if (Math.abs(viewportRect.left - targetRect.left) > 2) return;
       programmaticTargetIndexRef.current = null;
     }
     const closestDate = dayCardDates[closestIndex];
@@ -348,12 +342,9 @@ export function DayCardCarousel({
     const viewportRect = viewport.getBoundingClientRect();
     const todayRect = todayCard.getBoundingClientRect();
     const tomorrowRect = tomorrowCard.getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
-    const todayCenter = todayRect.left + todayRect.width / 2;
-    const tomorrowCenter = tomorrowRect.left + tomorrowRect.width / 2;
-    const snapDistance = tomorrowCenter - todayCenter;
+    const snapDistance = tomorrowRect.left - todayRect.left;
     const rawProgress = snapDistance > 0
-      ? Math.min(Math.max((viewportCenter - todayCenter) / snapDistance, 0), 1)
+      ? Math.min(Math.max((viewportRect.left - todayRect.left) / snapDistance, 0), 1)
       : 0;
     const progress = rawProgress < 0.005
       ? 0

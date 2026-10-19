@@ -530,6 +530,8 @@ export function SiteHeader({
               ref={menuButtonRef}
               className="navigation-toggle"
               type="button"
+              // Firefox-only button attribute prevents state restoration before hydration.
+              {...{ autoComplete: "off" }}
               aria-controls="location-drawer"
               aria-expanded={isDrawerOpen}
               aria-haspopup="dialog"

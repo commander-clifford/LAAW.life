@@ -72,7 +72,7 @@ for (const width of [393, 1280]) for (const appearance of ["light", "dark"] as c
     await expect(loader).toHaveCSS("border-top-width", "0px");
     await expect.poll(() => loader.evaluate(element => {
       const box = element.getBoundingClientRect(); const rail = element.closest(".day-carousel-viewport")!.getBoundingClientRect();
-      return Math.abs(box.x + box.width / 2 - rail.x - rail.width / 2);
+      return Math.abs(box.x - rail.x);
     })).toBeLessThanOrEqual(1);
     await capture("load-more");
     await page.keyboard.press("Enter");
