@@ -16,9 +16,9 @@ for (const width of [320, 393, 1440]) {
     const cards = carousel.locator("[data-day-card]");
     const moreCard = carousel.locator(".day-card-more");
     const viewport = carousel.locator(".day-carousel-viewport");
-    await expect(cards).toHaveCount(7);
+    await expect(cards).toHaveCount(8);
     await expect(moreCard).toHaveCount(1);
-    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(8);
+    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(9);
     await expect(moreCard).toHaveCSS("border-top-width", "0px");
     await expect(moreCard).toHaveCSS("box-shadow", "none");
     await expect(moreCard.locator("header, h2, .day-card-heading")).toHaveCount(0);
@@ -28,7 +28,7 @@ for (const width of [320, 393, 1440]) {
     expect(more.height).toBeCloseTo(original.height, 0);
     const button = carousel.getByRole("button", { name: "Load seven more days", exact: true });
     await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
-    await expect(carousel).toHaveAttribute("data-active-index", "7");
+    await expect(carousel).toHaveAttribute("data-active-index", "8");
     await expect(button).toHaveClass(/day-card-more/);
     await expect(button.locator("button, a, input, select")).toHaveCount(0);
     await expect.poll(async () => moreCard.evaluate(element => {
@@ -38,29 +38,29 @@ for (const width of [320, 393, 1440]) {
     })).toBeLessThanOrEqual(1);
     await button.focus();
     await page.keyboard.press("Enter");
-    await expect(cards).toHaveCount(14);
-    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(15);
-    await expect(carousel).toHaveAttribute("data-active-index", "7");
+    await expect(cards).toHaveCount(15);
+    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(16);
+    await expect(carousel).toHaveAttribute("data-active-index", "8");
     await expect(viewport).toBeFocused();
     expect(await cards.locator(".day-card-date time").evaluateAll(elements => elements.map(element => element.getAttribute("datetime")))).toEqual(
-      Array.from({ length: 14 }, (_, index) => addDaysToDateKey(today, index)),
+      Array.from({ length: 15 }, (_, index) => addDaysToDateKey(today, index - 1)),
     );
-    await expect(carousel.locator("[aria-live='polite']")).toHaveText("Showing In 7 days, day 8 of 14.");
+    await expect(carousel.locator("[aria-live='polite']")).toHaveText("Showing In 7 days, day 9 of 15.");
     await page.keyboard.press("ArrowLeft");
-    await expect(carousel).toHaveAttribute("data-active-index", "6");
-    await page.keyboard.press("ArrowRight");
     await expect(carousel).toHaveAttribute("data-active-index", "7");
+    await page.keyboard.press("ArrowRight");
+    await expect(carousel).toHaveAttribute("data-active-index", "8");
     await page.getByRole("button", { name: /^Return to Today/ }).click();
-    await expect(carousel).toHaveAttribute("data-active-index", "0");
-    await expect(cards).toHaveCount(14);
-    for (const total of [21, 28, 35]) {
+    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(cards).toHaveCount(15);
+    for (const total of [22, 29, 36]) {
       await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
       const cornerInset = await button.evaluate(element =>
         Math.max(4, Math.ceil(parseFloat(getComputedStyle(element).borderTopLeftRadius) / 2)),
       );
-      if (total === 21) {
+      if (total === 22) {
         await button.click({ position: { x: cornerInset, y: cornerInset } });
-      } else if (total === 28) {
+      } else if (total === 29) {
         const bounds = (await button.boundingBox())!;
         await button.click({ position: { x: bounds.width - cornerInset, y: bounds.height - cornerInset } });
       } else {
@@ -73,11 +73,11 @@ for (const width of [320, 393, 1440]) {
       await expect(carousel).toHaveAttribute("data-active-index", String(total - 7));
     }
     await expect(moreCard).toHaveCount(0);
-    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(35);
+    await expect(carousel.locator("[data-carousel-item]")).toHaveCount(36);
     await carousel.getByRole("button", { name: "Go to In 34 days", exact: true }).click();
     await viewport.focus();
     await page.keyboard.press("ArrowRight");
-    await expect(carousel).toHaveAttribute("data-active-index", "34");
+    await expect(carousel).toHaveAttribute("data-active-index", "35");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 }
@@ -93,7 +93,7 @@ for (const coverage of [13, 14]) {
     await page.route("**/calendar-data/agendas.json*", route => route.fulfill({ json: refreshed }));
     await page.goto("ivy/");
     const carousel = page.locator(".day-carousel");
-    await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+    await expect(carousel.locator("[data-day-card]")).toHaveCount(8);
     const dateLabel = (dateKey: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" })
       .format(new Date(`${dateKey}T12:00:00Z`));
     await expect(page.locator('p[id$="-range"]')).toHaveText(
@@ -104,7 +104,7 @@ for (const coverage of [13, 14]) {
     } else {
       await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
       await carousel.getByRole("button", { name: "Load seven more days", exact: true }).click();
-      await expect(carousel.locator("[data-day-card]")).toHaveCount(14);
+      await expect(carousel.locator("[data-day-card]")).toHaveCount(15);
       await expect(carousel.locator(".day-card-more")).toHaveCount(0);
     }
   });

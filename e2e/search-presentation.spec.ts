@@ -37,7 +37,7 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     expect(surface.background).not.toBe("rgba(0, 0, 0, 0)");
     await expect(page.getByRole("button", { name: "About search coverage", exact: true })).toHaveCount(0);
     await expect(page.getByRole("tooltip")).toHaveCount(0);
-    const card = (await page.locator("[data-day-card]").first().boundingBox())!;
+    const card = (await page.locator("[data-day-card][data-active='true']").boundingBox())!;
     const cardRadius = await page.locator("[data-day-card]").first().evaluate(element => getComputedStyle(element).borderTopLeftRadius);
     await expect(input).toHaveCSS("border-top-color", appearance === "light" ? "rgb(111, 111, 111)" : "rgb(146, 146, 146)");
     await expect(input).toHaveCSS("border-top-width", "1px");

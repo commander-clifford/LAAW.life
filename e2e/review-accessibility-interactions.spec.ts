@@ -12,21 +12,21 @@ for (const width of [320, 1280]) {
     const viewport = page.locator(".day-carousel-viewport");
     await expect(carousel).toHaveAttribute("aria-busy", "false");
     await page.keyboard.press("ArrowRight");
-    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(carousel).toHaveAttribute("data-active-index", "2");
     await expect(viewport).toBeFocused();
     await page.keyboard.press("ArrowLeft");
-    await expect(carousel).toHaveAttribute("data-active-index", "0");
+    await expect(carousel).toHaveAttribute("data-active-index", "1");
     await carousel.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
     await page.keyboard.press("ArrowRight");
-    await expect(carousel).toHaveAttribute("data-active-index", "2");
+    await expect(carousel).toHaveAttribute("data-active-index", "3");
     if (width === 1280) {
       await carousel.getByRole("button", { name: "Next day", exact: true }).click();
-      await expect(carousel).toHaveAttribute("data-active-index", "3");
-      await page.keyboard.press("ArrowRight");
       await expect(carousel).toHaveAttribute("data-active-index", "4");
+      await page.keyboard.press("ArrowRight");
+      await expect(carousel).toHaveAttribute("data-active-index", "5");
       await page.keyboard.press("ArrowLeft");
-      await expect(carousel).toHaveAttribute("data-active-index", "3");
-      for (let i = 0; i < 3; i++) await carousel.getByRole("button", { name: "Previous day", exact: true }).click();
+      await expect(carousel).toHaveAttribute("data-active-index", "4");
+      for (let i = 0; i < 4; i++) await carousel.getByRole("button", { name: "Previous day", exact: true }).click();
       await expect(carousel).toHaveAttribute("data-active-index", "0");
       await page.keyboard.press("ArrowRight");
       await expect(carousel).toHaveAttribute("data-active-index", "1");
@@ -35,16 +35,17 @@ for (const width of [320, 1280]) {
       await expect(viewport).toBeFocused();
       await page.keyboard.press("ArrowRight");
       await expect(carousel).toHaveAttribute("data-active-index", "1");
+      await page.keyboard.press("ArrowRight");
     }
     await page.getByRole("button", { name: /^Return to Today/ }).click();
     await expect(viewport).toBeFocused();
     await page.keyboard.press("ArrowRight");
-    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(carousel).toHaveAttribute("data-active-index", "2");
     const input = page.getByRole("searchbox", { name: "Search events" });
     await input.fill("trivia");
     await input.press("ArrowLeft"); await input.press("ArrowRight");
     await expect(input).toBeFocused();
-    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(carousel).toHaveAttribute("data-active-index", "2");
     const results = page.getByRole("list", { name: "Matching calendar events" });
     await results.focus();
     await page.keyboard.press("End");
@@ -53,7 +54,7 @@ for (const width of [320, 1280]) {
     if (reviewComparison) {
     await page.getByRole("button", { name: "Preview controls", exact: true }).click();
     await page.keyboard.press("ArrowRight");
-    await expect(carousel).toHaveAttribute("data-active-index", "1");
+    await expect(carousel).toHaveAttribute("data-active-index", "2");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Preview controls", exact: true })).toBeFocused();
     } else await expect(page.locator(".event-row-prototype-controls")).toHaveCount(0);
@@ -81,7 +82,7 @@ for (const width of [320, 393, 1280]) {
       const heading = document.querySelector(".location-heading-section")!.getBoundingClientRect();
       const cards = [...element.querySelectorAll("[data-day-card]")].map(card => card.getBoundingClientRect());
       const visible = (box: DOMRect) => Math.max(0, Math.min(box.right, view.right) - Math.max(box.left, view.left));
-      return { gap: cards[1].left - cards[0].right, previousPeek: visible(cards[0]), nextPeek: visible(cards[2]), aligned: Math.abs(cards[1].x - view.x), headingAlignment: Math.abs(cards[1].x - heading.x) };
+      return { gap: cards[1].left - cards[0].right, previousPeek: visible(cards[1]), nextPeek: visible(cards[3]), aligned: Math.abs(cards[2].x - view.x), headingAlignment: Math.abs(cards[2].x - heading.x) };
     });
     expect(metrics.gap).toBeGreaterThanOrEqual(width < 704 ? 12 : 16);
     expect(metrics.previousPeek).toBeLessThan(1);
@@ -106,7 +107,7 @@ test("the motion preference persists and follows the device without a proposed d
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduce");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
-  await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "1");
+  await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "2");
   await expect(page.locator(".location-today-control")).toHaveAttribute("data-scroll-progress", /^1(?:\.0+)?$/);
   await expect(page.locator(".date-handoff-layer")).toHaveCount(0);
   await page.reload();

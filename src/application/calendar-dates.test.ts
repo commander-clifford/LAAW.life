@@ -4,9 +4,23 @@ import {
   dayCardCount,
   getDateKey,
   getDayCardDates,
+  getDayCardCarouselDates,
 } from "@/src/application/calendar-dates";
 
 describe("calendar civil dates", () => {
+  it.each([
+    ["2026-01-01", "2025-12-31"],
+    ["2026-03-09", "2026-03-08"],
+    ["2026-11-02", "2026-11-01"],
+    ["2028-03-01", "2028-02-29"],
+  ])("includes Yesterday before the seven upcoming civil dates at %s", (today, yesterday) => {
+    const dates = getDayCardCarouselDates(today);
+    expect(dates).toHaveLength(8);
+    expect(dates[0]).toEqual({ dateKey: yesterday, dayOffset: -1, relativeLabel: "Yesterday" });
+    expect(dates.slice(1)).toEqual(getDayCardDates(today));
+    expect(getDayCardCarouselDates(today, 14).slice(8)).toEqual(getDayCardDates(today, 14).slice(7));
+  });
+
   it("builds exactly seven forward-looking dates with their relative labels", () => {
     expect(dayCardCount).toBe(7);
     expect(getDayCardDates("2026-09-15")).toEqual([

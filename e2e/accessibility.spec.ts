@@ -44,7 +44,7 @@ for (const width of [320, 1280]) {
         })).toBeLessThanOrEqual(1);
         await audit(page, info, "load-more");
         await more.click();
-        await expect(page.locator("[data-day-card]")).toHaveCount(14);
+        await expect(page.locator("[data-day-card]")).toHaveCount(15);
         await expect(page.locator(".day-carousel-viewport")).toBeFocused();
         await page.getByRole("button", { name: /^Return to Today/ }).click();
         await expect(page.locator(".location-today-control")).toHaveCSS("opacity", "0");

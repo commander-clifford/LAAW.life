@@ -9,8 +9,9 @@ const agendas = JSON.parse(
   readFileSync(new URL("../.calendar-data/agendas.json", import.meta.url), "utf8"),
 ) as Record<string, CalendarAgenda>;
 const agenda = agendas["ivy-station"];
-const dayCardCount = 7;
+const dayCardCount = 8;
 const relativeDayLabels = [
+  "Yesterday",
   "Today",
   "Tomorrow",
   "In 2 days",
@@ -29,7 +30,7 @@ function addDays(dateKey: string, days: number): string {
 
 function getDayCardDateKeys(dateKey: string): string[] {
   return Array.from({ length: dayCardCount }, (_, index) =>
-    addDays(dateKey, index)
+    addDays(dateKey, index - 1)
   );
 }
 
@@ -79,7 +80,7 @@ function formatFullDate(dateKey: string): string {
 }
 
 function getCarousel(page: Page): Locator {
-  return page.getByRole("region", { name: "Seven-day schedule" });
+  return page.getByRole("region", { name: "Daily schedule" });
 }
 
 function getActiveCard(page: Page): Locator {
@@ -173,15 +174,15 @@ async function getTodayControlMotion(page: Page): Promise<TodayControlMotion> {
       ".day-carousel-viewport",
     );
     const cards = viewport?.querySelectorAll<HTMLElement>("[data-day-card]");
-    const todayRect = cards?.item(0).getBoundingClientRect();
-    const tomorrowRect = cards?.item(1).getBoundingClientRect();
+    const todayRect = cards?.item(1).getBoundingClientRect();
+    const tomorrowRect = cards?.item(2).getBoundingClientRect();
     const viewportRect = viewport?.getBoundingClientRect();
     const snapDistance = todayRect && tomorrowRect
       ? tomorrowRect.left - todayRect.left
       : 0;
     const physicalProgress = viewportRect && todayRect && snapDistance > 0
       ? Math.min(Math.max(
-        (viewportRect.left - todayRect.left) / snapDistance,
+        Math.abs(viewportRect.left - todayRect.left) / snapDistance,
         0,
       ), 1)
       : 0;
@@ -209,15 +210,15 @@ async function setTodayScrollProgress(
   return getCarousel(page).locator(".day-carousel-viewport").evaluate(
     (viewport, requestedFraction) => {
       const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
-      const todayCard = cards.item(0);
-      const tomorrowCard = cards.item(1);
+      const todayCard = cards.item(1);
+      const tomorrowCard = cards.item(2);
       if (!todayCard || !tomorrowCard) {
         throw new Error("The carousel needs Today and Tomorrow cards.");
       }
 
       viewport.style.scrollSnapType = "none";
       const snapDistance = tomorrowCard.offsetLeft - todayCard.offsetLeft;
-      viewport.scrollLeft = snapDistance * requestedFraction;
+      viewport.scrollLeft = snapDistance * (requestedFraction + 1);
       viewport.dispatchEvent(new Event("scroll"));
       return snapDistance;
     },
@@ -490,9 +491,9 @@ async function useBusyDayFixture(page: Page): Promise<void> {
     ...source,
     generatedAt,
     events: [
-      fixtureEvent(dateKeys[5], "sparse", "Food truck"),
+      fixtureEvent(dateKeys[6], "sparse", "Food truck"),
       ...Array.from({ length: 8 }, (_, index) => fixtureEvent(
-        dateKeys[6], `busy-${index}`, index < 3 ? `Event ${index + 1}` : "Hawthorne community food truck and neighborhood event",
+        dateKeys[7], `busy-${index}`, index < 3 ? `Event ${index + 1}` : "Hawthorne community food truck and neighborhood event",
       )),
     ],
   };
@@ -544,15 +545,15 @@ test("a new public snapshot refreshes future cards and failures keep the last go
   await page.goto("ivy/");
   await expect(getCarousel(page)).toHaveAttribute("aria-busy", "false");
   await expect(getDots(page)).toHaveCount(dayCardCount);
-  await getDots(page).nth(4).click();
-  await expectActiveDay(page, 4);
-  await expectAlignedCard(page, 4);
+  await getDots(page).nth(5).click();
+  await expectActiveDay(page, 5);
+  await expectAlignedCard(page, 5);
   const selectedDateKey = await getActiveCard(page)
     .locator(".day-card-date time")
     .getAttribute("datetime");
   expect(selectedDateKey).toBeTruthy();
   const futureEvents = getActiveCard(page).locator(".day-card-event h3");
-  await expect(futureEvents).toHaveText(["Updated community event 5"]);
+  await expect(futureEvents).toHaveText(["Updated community event 6"]);
   responseState = "failed";
   const beforeFailure = requests;
   await page.clock.runFor(5 * 60_000);
@@ -561,7 +562,7 @@ test("a new public snapshot refreshes future cards and failures keep the last go
     "datetime",
     selectedDateKey!,
   );
-  await expect(futureEvents).toHaveText(["Updated community event 5"]);
+  await expect(futureEvents).toHaveText(["Updated community event 6"]);
   responseState = "older";
   const beforeOlder = requests;
   await page.clock.runFor(5 * 60_000);
@@ -570,11 +571,11 @@ test("a new public snapshot refreshes future cards and failures keep the last go
     "datetime",
     selectedDateKey!,
   );
-  await expect(futureEvents).toHaveText(["Updated community event 5"]);
+  await expect(futureEvents).toHaveText(["Updated community event 6"]);
   await page.getByRole("button", { name: "Open location navigation" }).click();
   await page.getByRole("navigation", { name: "Location calendars" }).getByRole("link", { name: "Hawthorne", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
-  await expect(page.getByText("Updated community event 5", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Updated community event 6", { exact: true })).toHaveCount(0);
 });
 
 test("an old offline snapshot shows its age without suggesting newer data", async ({ page }) => {
@@ -601,7 +602,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     const states: string[] = [];
     Reflect.set(window, "todayRenderStates", states);
     new MutationObserver(() => {
-      const text = document.querySelector(".location-page")?.textContent;
+      const text = document.querySelector("[data-day-card][data-active='true'] .day-card-date")?.textContent ?? document.querySelector(".day-carousel-loading-frame")?.textContent;
       if (text && states.at(-1) !== text) states.push(text);
     }).observe(document, { childList: true, subtree: true, characterData: true });
   });
@@ -618,7 +619,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
     await expect(carousel).toHaveAttribute("aria-busy", "true");
     await expect(carousel.getByRole("status")).toHaveText("Loading today's schedule…");
     await expect(carousel.getByRole("heading")).toHaveCount(0);
-    await expect(carousel).toHaveAttribute("aria-label", "Seven-day schedule");
+    await expect(carousel).toHaveAttribute("aria-label", "Daily schedule");
     await expect(carousel).not.toHaveAttribute("aria-labelledby");
     await expect(carousel.locator("time, [data-day-card]")).toHaveCount(0);
     await expect(page.locator(".location-today-placeholder")).toHaveCount(1);
@@ -696,7 +697,7 @@ test("a stale build stays neutral until hydration shows the current Pacific day"
         dateKey,
       );
     }
-    await expectActiveDay(page, 0);
+    await expectActiveDay(page, 1);
     await expect(carousel.getByRole("button", { name: "Today", exact: true })).toHaveCount(0);
     await expect(carousel.getByRole("button", { name: "Go to Today", exact: true })).toHaveCount(1);
 
@@ -801,7 +802,7 @@ test(`the current date scrubs from offstage without shifting the heading at ${wi
   expect(motion.physicalProgress).toBeCloseTo(0.25, 2);
   expect(motion.direction).toBe("forward");
   expect(motion.translationX).toBeCloseTo(motion.travel * 0.75, 0);
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
 
   await setTodayScrollProgress(page, 0.5);
   await expect.poll(async () =>
@@ -825,7 +826,7 @@ test(`the current date scrubs from offstage without shifting the heading at ${wi
   motion = await getTodayControlMotion(page);
   expect(motion.opacity).toBeCloseTo(0.75, 2);
   expect(motion.physicalProgress).toBeCloseTo(0.75, 2);
-  await expectActiveDay(page, 1);
+  await expectActiveDay(page, 2);
 
   await setTodayScrollProgress(page, 1.25);
   await expect.poll(async () =>
@@ -910,10 +911,10 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   await expect(carousel).toHaveAttribute("aria-busy", "false");
   await expect(previous).toBeVisible();
   await expect(next).toBeVisible();
-  await expect(previous).toBeDisabled();
+  await expect(previous).toBeEnabled();
   await expect(next).toBeEnabled();
   await expect(dots).toHaveCount(dayCardCount);
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "0");
   await expect(todayControl).toBeDisabled();
   await expect(todayControl).toHaveAttribute("aria-hidden", "true");
@@ -921,32 +922,38 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   await viewport.focus();
   await page.keyboard.press("ArrowLeft");
   await expectActiveDay(page, 0);
-
-  await page.keyboard.press("ArrowRight");
-  await expectActiveDay(page, 1);
-  await expectAlignedCard(page, 1);
-  await expect(todayControl).toHaveCSS("opacity", "1");
+  await expect(previous).toBeDisabled();
   await expect(todayControl).toBeEnabled();
   await page.keyboard.press("ArrowLeft");
   await expectActiveDay(page, 0);
-  await expectAlignedCard(page, 0);
+  await todayControl.click();
+  await expectActiveDay(page, 1);
+
+  await page.keyboard.press("ArrowRight");
+  await expectActiveDay(page, 2);
+  await expectAlignedCard(page, 2);
+  await expect(todayControl).toHaveCSS("opacity", "1");
+  await expect(todayControl).toBeEnabled();
+  await page.keyboard.press("ArrowLeft");
+  await expectActiveDay(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "0");
 
   await next.focus();
   await page.keyboard.press("Enter");
-  await expectActiveDay(page, 1);
-  await expectAlignedCard(page, 1);
+  await expectActiveDay(page, 2);
+  await expectAlignedCard(page, 2);
   await expect(previous).toBeEnabled();
   await expect(todayControl.locator("time")).toHaveAttribute(
     "datetime",
     todayDateKey,
   );
-  await dots.nth(4).click();
-  await expectActiveDay(page, 4);
-  const futureScrollLeft = (await expectAlignedCard(page, 4)).scrollLeft;
+  await dots.nth(5).click();
+  await expectActiveDay(page, 5);
+  const futureScrollLeft = (await expectAlignedCard(page, 5)).scrollLeft;
   await expect(todayControl).toHaveCSS("opacity", "1");
   await todayControl.click();
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   let returningMotion = await getTodayControlMotion(page);
   await expect.poll(async () => {
     returningMotion = await getTodayControlMotion(page);
@@ -958,18 +965,18 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
     returningMotion.progress,
     3,
   );
-  await expectAlignedCard(page, 0);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "0");
   await expect(todayControl).toBeDisabled();
   await expect(viewport).toBeFocused();
 
   await next.click();
-  await expectActiveDay(page, 1);
-  await expectAlignedCard(page, 1);
+  await expectActiveDay(page, 2);
+  await expectAlignedCard(page, 2);
   await todayControl.focus();
   await page.keyboard.press("Enter");
-  await expectActiveDay(page, 0);
-  await expectAlignedCard(page, 0);
+  await expectActiveDay(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(viewport).toBeFocused();
 
   await previous.focus();
@@ -986,10 +993,10 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   await page.keyboard.press("ArrowRight");
   await expectActiveDay(page, dayCardCount - 1);
 
-  await dots.nth(2).focus();
+  await dots.nth(3).focus();
   await page.keyboard.press("Enter");
-  await expectActiveDay(page, 2);
-  await expectAlignedCard(page, 2);
+  await expectActiveDay(page, 3);
+  await expectAlignedCard(page, 3);
   await dots.first().focus();
   await page.keyboard.press("Space");
   await expectActiveDay(page, 0);
@@ -998,14 +1005,14 @@ test("desktop arrows and day dots navigate without wrapping", async ({ page }) =
   await expect(dots.first()).toBeFocused();
 
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await dots.nth(3).click();
-  await expectActiveDay(page, 3);
+  await dots.nth(4).click();
+  await expectActiveDay(page, 4);
   expect((await getCarouselGeometry(page)).activeStartError).toBeLessThan(2);
   await expect(todayControl).toBeEnabled();
   await expect(todayControl).toHaveCSS("opacity", "1");
   await todayControl.focus();
   await page.keyboard.press("Space");
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   expect((await getCarouselGeometry(page)).activeStartError).toBeLessThan(2);
   await expect(todayControl).toHaveCSS("opacity", "0");
   await expect(viewport).toBeFocused();
@@ -1026,6 +1033,9 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
   const todayDateKey = getDateKey(snapshotDay(), agenda.timeZone);
   const todayControl = getTodayControl(page, todayDateKey);
   await expect(carousel).toHaveAttribute("aria-busy", "false");
+  await getDots(page).first().click();
+  await expectAlignedCard(page, 0);
+  await page.evaluate(() => { (Reflect.get(window, "analyticsEvents") as unknown[]).length = 0; });
   await expect(previous).toBeDisabled();
 
   await viewport.evaluate((element) => {
@@ -1064,7 +1074,7 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
 
   await expect(todayControl).toBeEnabled();
   await todayControl.click();
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   await expect.poll(async () => (await getAnalyticsEvents(page)).length).toBe(7);
 
   const events = await getAnalyticsEvents(page);
@@ -1090,7 +1100,7 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
     attempted_direction: "backward",
     boundary: "start",
     current_index: 0,
-    current_relative_label: "Today",
+    current_relative_label: "Yesterday",
     interaction_source: "carousel_viewport",
     location_id: "ivy-station",
     visible_day_count: dayCardCount,
@@ -1125,7 +1135,7 @@ test("intentional carousel controls emit one privacy-safe analytics event", asyn
     from_index: dayCardCount - 1,
     interaction_source: "header_date_control",
     resulting_action: "return_to_today",
-    to_index: 0,
+    to_index: 1,
   });
 
   const permittedParameterNames = new Set([
@@ -1166,8 +1176,8 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   const viewport = carousel.locator(".day-carousel-viewport");
   const todayControl = page.locator(".location-today-control");
   await expect(carousel).toHaveAttribute("aria-busy", "false");
-  await expectActiveDay(page, 0);
-  await expectAlignedCard(page, 0);
+  await expectActiveDay(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(viewport).toHaveCSS("cursor", "grab");
 
   const box = (await viewport.boundingBox())!;
@@ -1186,7 +1196,7 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   let motion = await getTodayControlMotion(page);
   expect(motion.progress).toBeLessThan(0.5);
   expect(motion.opacity).toBeCloseTo(motion.progress, 3);
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
 
   await page.mouse.move(box.x - 40, y, { steps: 5 });
   await expect.poll(async () =>
@@ -1195,8 +1205,8 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   await page.mouse.up();
   await expect(viewport).not.toHaveAttribute("data-pointer-dragging", "true");
   await expect(viewport).toHaveCSS("cursor", "grab");
-  await expectActiveDay(page, 1);
-  await expectAlignedCard(page, 1);
+  await expectActiveDay(page, 2);
+  await expectAlignedCard(page, 2);
   await expect(todayControl).toHaveCSS("opacity", "1");
 
   const backwardStartX = box.x + box.width * 0.28;
@@ -1211,18 +1221,18 @@ test("desktop pointer dragging scrubs the rail and snaps to the nearest card", a
   expect(motion.direction).toBe("backward");
   expect(motion.opacity).toBeCloseTo(motion.progress, 3);
   await page.mouse.up();
-  await expectActiveDay(page, 0);
-  await expectAlignedCard(page, 0);
+  await expectActiveDay(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "0");
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe("");
 
   await dispatchPenDrag(page, viewport, "left");
-  await expectActiveDay(page, 1);
-  await expectAlignedCard(page, 1);
+  await expectActiveDay(page, 2);
+  await expectAlignedCard(page, 2);
   await expect(todayControl).toHaveCSS("opacity", "1");
   await dispatchPenDrag(page, viewport, "right");
-  await expectActiveDay(page, 0);
-  await expectAlignedCard(page, 0);
+  await expectActiveDay(page, 1);
+  await expectAlignedCard(page, 1);
   await expect(todayControl).toHaveCSS("opacity", "0");
   const analyticsEvents = await getAnalyticsEvents(page);
   expect(analyticsEvents.map(({ name }) => name)).toEqual([
@@ -1256,6 +1266,9 @@ test("pointer cancellation restores the origin and boundary analytics use the sn
   const carousel = getCarousel(page);
   const viewport = carousel.locator(".day-carousel-viewport");
   await expect(carousel).toHaveAttribute("aria-busy", "false");
+  await getDots(page).first().click();
+  await expectAlignedCard(page, 0);
+  await page.evaluate(() => { (Reflect.get(window, "analyticsEvents") as unknown[]).length = 0; });
   await expectActiveDay(page, 0);
   await expectAlignedCard(page, 0);
 
@@ -1325,30 +1338,30 @@ test("the selected card stays aligned across responsive resizing", async ({ page
   await page.clock.setFixedTime(snapshotDay());
   await page.goto("ivy/");
 
-  await getDots(page).nth(3).click();
-  await expectActiveDay(page, 3);
-  await expectAlignedCard(page, 3);
+  await getDots(page).nth(4).click();
+  await expectActiveDay(page, 4);
+  await expectAlignedCard(page, 4);
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expectActiveDay(page, 3);
-  await expectAlignedCard(page, 3);
+  await expectActiveDay(page, 4);
+  await expectAlignedCard(page, 4);
 
   await page.setViewportSize({ width: 600, height: 900 });
-  await expectActiveDay(page, 3);
-  await expectAlignedCard(page, 3);
+  await expectActiveDay(page, 4);
+  await expectAlignedCard(page, 4);
   await getDots(page).last().click();
   await expectActiveDay(page, dayCardCount - 1);
   await expectAlignedCard(page, dayCardCount - 1);
   await getDots(page).first().click();
   await expectActiveDay(page, 0);
   await expectAlignedCard(page, 0);
-  await getDots(page).nth(3).click();
-  await expectActiveDay(page, 3);
-  await expectAlignedCard(page, 3);
+  await getDots(page).nth(4).click();
+  await expectActiveDay(page, 4);
+  await expectAlignedCard(page, 4);
 
   await page.setViewportSize({ width: 320, height: 900 });
-  await expectActiveDay(page, 3);
-  await expectAlignedCard(page, 3);
+  await expectActiveDay(page, 4);
+  await expectAlignedCard(page, 4);
 });
 
 for (const width of [320, 1440]) {
@@ -1360,8 +1373,8 @@ for (const width of [320, 1440]) {
     const carousel = getCarousel(page);
     const viewport = carousel.locator(".day-carousel-viewport");
     const cards = carousel.locator("[data-day-card]");
-    const sparseCard = cards.nth(5);
-    const busyCard = cards.nth(6);
+    const sparseCard = cards.nth(6);
+    const busyCard = cards.nth(7);
     const sparseSchedule = sparseCard.locator(".day-card-schedule");
     const busySchedule = busyCard.locator(".day-card-schedule");
     const sparseScheduleFrame = sparseCard.locator(".day-card-schedule-frame");
@@ -1384,9 +1397,9 @@ for (const width of [320, 1440]) {
       (element as HTMLElement).offsetHeight
     ));
 
-    await getDots(page).nth(5).click();
-    await expectActiveDay(page, 5);
-    await expectAlignedCard(page, 5);
+    await getDots(page).nth(6).click();
+    await expectActiveDay(page, 6);
+    await expectAlignedCard(page, 6);
     await expect(sparseSchedule).toHaveAttribute("data-overflow", "false");
     await expect(sparseScheduleFrame).toHaveAttribute("data-overflow", "false");
     await expect(sparseSchedule).not.toHaveAttribute("tabindex");
@@ -1557,8 +1570,8 @@ for (const width of [320, 1440]) {
         { steps: 10 },
       );
       await page.mouse.up();
-      await expectActiveDay(page, 5);
-      await expectAlignedCard(page, 5);
+      await expectActiveDay(page, 6);
+      await expectAlignedCard(page, 6);
     }
 
     await page.goto("ivy/");
@@ -1620,6 +1633,11 @@ test.describe("touch day-card carousel", () => {
     const carousel = getCarousel(page);
     const viewport = carousel.locator(".day-carousel-viewport");
     await expect(carousel).toHaveAttribute("aria-busy", "false");
+  await expectActiveDay(page, 1);
+  await dispatchTouchSwipe(page, viewport, "right");
+  await expectActiveDay(page, 0);
+  await expectAlignedCard(page, 0);
+  await page.evaluate(() => { (Reflect.get(window, "analyticsEvents") as unknown[]).length = 0; });
     await expect(carousel.locator(".day-carousel-arrow-previous")).toBeHidden();
     await expect(carousel.locator(".day-carousel-arrow-next")).toBeHidden();
     await expect(getDots(page)).toHaveCount(dayCardCount);
@@ -1690,13 +1708,13 @@ test.describe("touch day-card carousel", () => {
     const viewport = carousel.locator(".day-carousel-viewport");
     await expect(carousel).toHaveAttribute("aria-busy", "false");
     await expect(viewport).toHaveCSS("touch-action", "pan-y pinch-zoom");
-    await expectActiveDay(page, 0);
+    await expectActiveDay(page, 1);
     await dispatchTouchSwipe(page, viewport, "left");
+    await expectActiveDay(page, 2);
+    await expectAlignedCard(page, 2);
+    await dispatchTouchSwipe(page, viewport, "right");
     await expectActiveDay(page, 1);
     await expectAlignedCard(page, 1);
-    await dispatchTouchSwipe(page, viewport, "right");
-    await expectActiveDay(page, 0);
-    await expectAlignedCard(page, 0);
   });
 
   test("a busy event region separates vertical scrolling from horizontal day swipes", async ({ page }) => {
@@ -1743,8 +1761,8 @@ test.describe("touch day-card carousel", () => {
 
     await busySchedule.evaluate((element) => { element.scrollTop = 0; });
     await dispatchTouchDrag(page, busySchedule, 200, 8);
-    await expectActiveDay(page, 5);
-    await expectAlignedCard(page, 5);
+    await expectActiveDay(page, 6);
+    await expectAlignedCard(page, 6);
 
     const sparseSchedule = getActiveCard(page).locator(".day-card-schedule");
     await expect(sparseSchedule).toHaveAttribute("data-overflow", "false");
@@ -2080,7 +2098,7 @@ test("the centered app shell fills mobile and stays intentional on wide screens"
   }
 });
 
-test("the seven-card window rolls over at Pacific midnight and keeps future empty and unavailable days visible", async ({ page }) => {
+test("the window with Yesterday rolls over at Pacific midnight and keeps future empty and unavailable days visible", async ({ page }) => {
   // Intl derives the UTC offset for this date so the regression also runs in
   // winter and across daylight-saving changes without hardcoding PDT.
   const offset = new Intl.DateTimeFormat("en-US", {
@@ -2124,7 +2142,7 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
     "datetime",
     currentDateKey,
   );
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   await expect(getActiveCard(page).getByRole("heading", { level: 3 })).toHaveText(
     ["Deterministic today event"],
   );
@@ -2136,7 +2154,7 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
     elements.map((element) => element.getAttribute("datetime"))
   )).toEqual(getDayCardDateKeys(nextDateKey));
   await expect(cards).toHaveCount(dayCardCount);
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   await expect(todayControl).toHaveAttribute(
     "aria-label",
     `Return to Today, ${formatFullDate(nextDateKey)}`,
@@ -2154,7 +2172,7 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
 
   const emptyWindowStart = addDays(currentDateKey, 2);
   const emptyDateKeys = getDayCardDateKeys(emptyWindowStart);
-  const emptyIndex = 1;
+  const emptyIndex = 2;
   await page.clock.setSystemTime(pacificDay(emptyWindowStart));
   await page.clock.runFor(60_000);
   await expect.poll(() => dateLines.evaluateAll((elements) =>
@@ -2163,28 +2181,29 @@ test("the seven-card window rolls over at Pacific midnight and keeps future empt
   await getDots(page).nth(emptyIndex).click();
   await expectActiveDay(page, emptyIndex);
   await expect(getActiveCard(page).locator(".day-card-message")).toHaveText(
-    emptyIndex === 1
+    emptyIndex === 2
       ? "Nothing is scheduled for tomorrow."
       : "Nothing is scheduled for this day.",
   );
   await expect(cards).toHaveCount(dayCardCount);
 
   const lastDateKey = agenda.availableDateKeys.at(-1)!;
-  const expiredDateKey = addDays(lastDateKey, 1);
+  const expiredDateKey = addDays(lastDateKey, 2);
   await page.clock.setSystemTime(pacificDay(expiredDateKey));
   await page.clock.runFor(60_000);
   await expect.poll(() => dateLines.evaluateAll((elements) =>
     elements.map((element) => element.getAttribute("datetime"))
   )).toEqual(getDayCardDateKeys(expiredDateKey));
   await expect(cards).toHaveCount(dayCardCount);
-  await expectActiveDay(page, 0);
+  await expectActiveDay(page, 1);
   await expect(getActiveCard(page).locator(".day-card-message")).toHaveText(
     "Today's schedule is unavailable.",
   );
   expect(await cards.locator(".day-card-message").allTextContents()).toEqual([
+    "This day's schedule is unavailable.",
     "Today's schedule is unavailable.",
     ...Array.from(
-      { length: dayCardCount - 1 },
+      { length: dayCardCount - 2 },
       () => "This day's schedule is unavailable.",
     ),
   ]);

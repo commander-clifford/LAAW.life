@@ -70,7 +70,7 @@ for (const width of [320, 1280]) {
       expect(await card.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
       const firstCardDate = await card.locator(".day-card-date time").getAttribute("datetime");
       await page.getByRole("button", { name: "Go to Tomorrow", exact: true }).click();
-      await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "1");
+      await expect(page.locator(".day-carousel")).toHaveAttribute("data-active-index", "2");
       await page.getByRole("button", { name: "Go to Today", exact: true }).click();
       await expect(card.locator(".day-card-date time")).toHaveAttribute("datetime", firstCardDate!);
 
@@ -149,7 +149,7 @@ for (const [route, locationId, name] of [
         await page.goto(`${route}/`);
         await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
         await expect(page.locator(".site-canvas")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-        await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(225, 230, 237)");
+        await expect(page.locator(".site-header")).toHaveCSS("background-color", "rgb(227, 227, 227)");
         const card = page.locator("[data-day-card][data-active='true']");
         await expect(card.locator("h3")).toHaveText(["Vivace", "@Luckyguesstrivia"]);
         await expect(card.locator(".day-card-event-source-dot")).toHaveCount(2);

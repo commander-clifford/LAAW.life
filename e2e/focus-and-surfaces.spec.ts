@@ -50,7 +50,7 @@ for (const width of [393, 1280]) for (const appearance of ["light", "dark"] as c
     for (const item of colors.text) expect(item.ratio, item.label ?? "date/time/title").toBeGreaterThanOrEqual(4.5);
     expect(colors.placeholderRatio).toBeGreaterThanOrEqual(4.5);
     if (appearance === "light") expect(colors.page).not.toEqual(colors.card);
-    const card = page.locator("[data-day-card]").first();
+    const card = page.locator("[data-day-card][data-active='true']");
     const background = await card.evaluate(element => getComputedStyle(element).backgroundColor);
     await card.locator(".day-card-heading").hover();
     await expect(card).toHaveCSS("background-color", background);
@@ -76,8 +76,8 @@ for (const width of [393, 1280]) for (const appearance of ["light", "dark"] as c
     })).toBeLessThanOrEqual(1);
     await capture("load-more");
     await page.keyboard.press("Enter");
-    await expect(carousel).toHaveAttribute("data-active-index", "7");
-    await expect(page.locator("[data-day-card]")).toHaveCount(14);
+    await expect(carousel).toHaveAttribute("data-active-index", "8");
+    await expect(page.locator("[data-day-card]")).toHaveCount(15);
     const search = page.getByRole("searchbox", { name: "Search events", exact: true });
     await search.fill("trivia");
     await expect(search).toBeFocused();

@@ -18,6 +18,7 @@ import {
 import {
   dayCardCount,
   getDayCardDates,
+  getDayCardCarouselDates,
 } from "@/src/application/calendar-dates";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { Card } from "@/src/components/card";
@@ -129,24 +130,26 @@ export function DayCardCarousel({
     "forward",
   );
   const pendingLoadedIndexRef = useRef<number | null>(null);
-  const [visibleDayCount, setVisibleDayCount] = useState(dayCardCount);
+  const [visibleUpcomingDayCount, setVisibleUpcomingDayCount] = useState(dayCardCount);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const dayCardDates = useMemo(
-    () => currentDateKey === null ? [] : getDayCardDates(currentDateKey, visibleDayCount),
-    [currentDateKey, visibleDayCount],
+    () => currentDateKey === null ? [] : getDayCardCarouselDates(currentDateKey, visibleUpcomingDayCount),
+    [currentDateKey, visibleUpcomingDayCount],
   );
+  const visibleDayCount = dayCardDates.length;
+  const todayIndex = Math.max(dayCardDates.findIndex(({ dateKey }) => dateKey === currentDateKey), 0);
   const hasNoAvailableSources =
     agenda.sourceCount > 0 &&
     agenda.failedSourceCount === agenda.sourceCount;
   const hasMoreDays = currentDateKey !== null && !hasNoAvailableSources &&
-    getDayCardDates(currentDateKey, visibleDayCount + dayCardCount)
-      .slice(visibleDayCount)
+    getDayCardDates(currentDateKey, visibleUpcomingDayCount + dayCardCount)
+      .slice(visibleUpcomingDayCount)
       .every(({ dateKey }) => agenda.availableDateKeys.includes(dateKey));
   const itemCount = dayCardDates.length + (hasMoreDays ? 1 : 0);
   const selectedIndex = selectedDateKey === "load-more" && hasMoreDays
     ? dayCardDates.length
     : dayCardDates.findIndex(({ dateKey }) => dateKey === selectedDateKey);
-  const activeIndex = Math.max(selectedIndex, 0);
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : todayIndex;
   const hasNoAvailableDates =
     dayCardDates.length > 0 &&
     dayCardDates.every(({ dateKey }) =>
@@ -187,9 +190,9 @@ export function DayCardCarousel({
     const reduceMotion = shouldReduceMotion();
     activeIndexRef.current = nextIndex;
     programmaticTargetIndexRef.current = nextIndex;
-    setSelectedDateKey(nextDate?.dateKey ?? "load-more");
+    setSelectedDateKey(nextDate?.dateKey === currentDateKey ? null : nextDate?.dateKey ?? "load-more");
     positionViewport(nextIndex, reduceMotion ? "auto" : "smooth");
-  }, [dayCardDates, hasMoreDays, itemCount, positionViewport]);
+  }, [currentDateKey, dayCardDates, hasMoreDays, itemCount, positionViewport]);
 
   const trackNavigation = useCallback((
     fromIndex: number,
@@ -318,16 +321,16 @@ export function DayCardCarousel({
     }
     const closestDate = dayCardDates[closestIndex];
     if (closestDate) {
-      setSelectedDateKey(closestDate.dateKey);
+      setSelectedDateKey(closestDate.dateKey === currentDateKey ? null : closestDate.dateKey);
     } else if (hasMoreDays && closestIndex === dayCardDates.length) {
       setSelectedDateKey("load-more");
     }
-  }, [dayCardDates, hasMoreDays]);
+  }, [currentDateKey, dayCardDates, hasMoreDays]);
 
   const updateTodayControlMotion = useCallback((viewport: HTMLDivElement) => {
     const cards = viewport.querySelectorAll<HTMLElement>("[data-day-card]");
-    const todayCard = cards.item(0);
-    const tomorrowCard = cards.item(1);
+    const todayCard = cards.item(todayIndex);
+    const tomorrowCard = cards.item(todayIndex + 1);
     if (!todayCard || !tomorrowCard) return;
 
     const scrollLeft = viewport.scrollLeft;
@@ -344,7 +347,7 @@ export function DayCardCarousel({
     const tomorrowRect = tomorrowCard.getBoundingClientRect();
     const snapDistance = tomorrowRect.left - todayRect.left;
     const rawProgress = snapDistance > 0
-      ? Math.min(Math.max((viewportRect.left - todayRect.left) / snapDistance, 0), 1)
+      ? Math.min(Math.max(Math.abs(viewportRect.left - todayRect.left) / snapDistance, 0), 1)
       : 0;
     const progress = rawProgress < 0.005
       ? 0
@@ -356,7 +359,7 @@ export function DayCardCarousel({
       direction: todayControlDirectionRef.current,
       progress,
     });
-  }, [onTodayControlMotion]);
+  }, [onTodayControlMotion, todayIndex]);
 
   const handleScroll = useCallback((event: ReactUIEvent<HTMLDivElement>) => {
     const viewport = event.currentTarget;
@@ -614,18 +617,19 @@ export function DayCardCarousel({
     const fromIndex = clampDayIndex(activeIndexRef.current, itemCount);
     trackNavigation(
       fromIndex,
-      0,
+      todayIndex,
       "date_control",
       "header_date_control",
       "return_to_today",
     );
-    scrollToCard(0);
+    scrollToCard(todayIndex);
     viewportRef.current?.focus({ preventScroll: true });
   }, [
     currentDateKey,
     itemCount,
     returnToTodayRequest,
     scrollToCard,
+    todayIndex,
     trackNavigation,
   ]);
 
@@ -653,14 +657,15 @@ export function DayCardCarousel({
     return () => window.removeEventListener("resize", handleResize);
   }, [currentDateKey, positionViewport, updateTodayControlMotion]);
 
-  useEffect(() => {
-    if (currentDateKey === null) return;
-    const previousDateKey = previousCurrentDateKeyRef.current;
+  useLayoutEffect(() => {
+    if (currentDateKey === null || previousCurrentDateKeyRef.current === currentDateKey) return;
     previousCurrentDateKeyRef.current = currentDateKey;
-    if (previousDateKey === null || previousDateKey === currentDateKey) return;
-
-    positionViewport(activeIndex, "auto");
-  }, [activeIndex, currentDateKey, positionViewport]);
+    // Position Today before paint on first hydration; preserve a browsed date at midnight.
+    activeIndexRef.current = activeIndex;
+    programmaticTargetIndexRef.current = activeIndex;
+    positionViewport(activeIndex, "instant");
+    if (viewportRef.current) updateTodayControlMotion(viewportRef.current);
+  }, [activeIndex, currentDateKey, positionViewport, updateTodayControlMotion]);
 
   const loadMoreDays = () => {
     if (!hasMoreDays || currentDateKey === null) return;
@@ -668,17 +673,17 @@ export function DayCardCarousel({
       window.cancelAnimationFrame(scrollFrameRef.current);
       scrollFrameRef.current = null;
     }
-    const nextCount = visibleDayCount + dayCardCount;
-    const firstNewDay = getDayCardDates(currentDateKey, nextCount)[visibleDayCount];
+    const nextCount = visibleUpcomingDayCount + dayCardCount;
+    const firstNewDay = getDayCardDates(currentDateKey, nextCount)[visibleUpcomingDayCount];
     pendingLoadedIndexRef.current = visibleDayCount;
     activeIndexRef.current = visibleDayCount;
     programmaticTargetIndexRef.current = visibleDayCount;
     setSelectedDateKey(firstNewDay.dateKey);
-    setVisibleDayCount(nextCount);
+    setVisibleUpcomingDayCount(nextCount);
     trackGoogleAnalyticsEvent("carousel_load_more", {
       added_day_count: dayCardCount,
       location_id: locationId,
-      visible_day_count: nextCount,
+      visible_day_count: nextCount + 1,
     });
   };
 
@@ -695,7 +700,7 @@ export function DayCardCarousel({
     return (
       <section
         className="day-carousel"
-        aria-label="Seven-day schedule"
+        aria-label="Daily schedule"
         aria-busy="true"
         aria-roledescription="carousel"
       >
@@ -716,7 +721,7 @@ export function DayCardCarousel({
   return (
     <section
       className="day-carousel"
-      aria-label={visibleDayCount === dayCardCount ? "Seven-day schedule" : `${visibleDayCount}-day schedule`}
+      aria-label="Daily schedule"
       aria-busy="false"
       aria-roledescription="carousel"
       data-active-index={activeIndex}

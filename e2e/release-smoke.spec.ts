@@ -28,7 +28,7 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   const main = page.getByRole("main");
   const content = page.locator(".site-main-content");
   const calendar = page.locator("iframe.calendar-frame");
-  const carousel = page.getByRole("region", { name: "Seven-day schedule" });
+  const carousel = page.getByRole("region", { name: "Daily schedule" });
   const card = carousel.locator("[data-day-card][data-active='true']");
 
   await expect(opener).toBeVisible();
@@ -43,7 +43,7 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
     await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
   }
   await expect(calendar).toBeVisible();
-  await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+  await expect(carousel.locator("[data-day-card]")).toHaveCount(8);
   await expect(card.locator(".day-card-date time")).toBeVisible();
 
   const mainBox = (await main.boundingBox())!;
@@ -139,7 +139,7 @@ test("the location drawer uses neutral state and destination icons", async ({ pa
       color: styles.color,
     };
   });
-  expect(selectedStyles.background).toBe("rgb(203, 212, 223)");
+  expect(selectedStyles.background).toBe("rgb(227, 227, 227)");
   expect(selectedStyles.border).toBe("rgba(0, 0, 0, 0)");
   expect(selectedStyles.color).toBe("rgb(17, 17, 17)");
 });
@@ -461,9 +461,9 @@ for (const [device, width] of [["mobile", 320], ["tablet", 768], ["desktop", 144
     await expectPageInteractionState(page, false);
     await expect(page.locator(".drawer-overlay")).toHaveCSS("pointer-events", "none");
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
-    const carousel = page.getByRole("region", { name: "Seven-day schedule" });
+    const carousel = page.getByRole("region", { name: "Daily schedule" });
     await expect(carousel).toBeVisible();
-    await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
+    await expect(carousel.locator("[data-day-card]")).toHaveCount(8);
     await expect(carousel.locator(".day-carousel-dot[aria-current='true']")).toHaveAccessibleName("Go to Today");
   });
 }
