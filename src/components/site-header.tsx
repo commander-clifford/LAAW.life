@@ -135,7 +135,8 @@ export function SiteHeader({
       bodyOverflow: document.body.style.overflow,
       documentOverflow: document.documentElement.style.overflow,
     };
-    document.body.style.overflow = "hidden";
+    // Clip without creating a new scroll container for the sticky header.
+    document.body.style.overflow = "clip";
     document.documentElement.style.overflow = "hidden";
   }, []);
 
@@ -530,6 +531,8 @@ export function SiteHeader({
               ref={menuButtonRef}
               className="navigation-toggle"
               type="button"
+              // Firefox-only button attribute prevents state restoration before hydration.
+              {...{ autoComplete: "off" }}
               aria-controls="location-drawer"
               aria-expanded={isDrawerOpen}
               aria-haspopup="dialog"

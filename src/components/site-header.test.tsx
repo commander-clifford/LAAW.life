@@ -43,6 +43,7 @@ describe("SiteHeader", () => {
     expect(openerTag).toContain('aria-expanded="false"');
     expect(openerTag).toContain('aria-haspopup="dialog"');
     expect(openerTag).toContain('disabled=""');
+    expect(openerTag).toContain('autoComplete="off"');
     expect(html).not.toContain("<h1");
     expect(html.slice(html.indexOf("<header"), html.indexOf("</header>"))).not.toContain("Ivy Station");
     expect(html).toContain(

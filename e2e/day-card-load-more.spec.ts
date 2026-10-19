@@ -55,11 +55,14 @@ for (const width of [320, 393, 1440]) {
     await expect(cards).toHaveCount(14);
     for (const total of [21, 28, 35]) {
       await carousel.getByRole("button", { name: "Go to load more days", exact: true }).click();
+      const cornerInset = await button.evaluate(element =>
+        Math.max(4, Math.ceil(parseFloat(getComputedStyle(element).borderTopLeftRadius) / 2)),
+      );
       if (total === 21) {
-        await button.click({ position: { x: 4, y: 4 } });
+        await button.click({ position: { x: cornerInset, y: cornerInset } });
       } else if (total === 28) {
         const bounds = (await button.boundingBox())!;
-        await button.click({ position: { x: bounds.width - 4, y: bounds.height - 4 } });
+        await button.click({ position: { x: bounds.width - cornerInset, y: bounds.height - cornerInset } });
       } else {
         await page.keyboard.press("ArrowLeft");
         await page.keyboard.press("ArrowRight");

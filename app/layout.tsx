@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("laaw-life:theme:v1");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("laaw-life:theme:v1");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}try{var m=localStorage.getItem("laaw-life:motion:v1");if(m==="reduce")document.documentElement.dataset.motion=m}catch{}` }} />
       </head>
       <body>
         <GoogleAnalytics />

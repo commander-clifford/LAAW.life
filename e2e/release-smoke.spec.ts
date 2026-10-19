@@ -19,7 +19,7 @@ async function expectPageInteractionState(page: Page, drawerOpen: boolean): Prom
   await expect.poll(() => page.evaluate(() => [
     document.body.style.overflow,
     document.documentElement.style.overflow,
-  ])).toEqual(drawerOpen ? ["hidden", "hidden"] : ["", ""]);
+  ])).toEqual(drawerOpen ? ["clip", "hidden"] : ["", ""]);
 }
 
 async function expectClosedNavigationLayout(page: Page, viewportWidth: number): Promise<void> {
@@ -39,8 +39,8 @@ async function expectClosedNavigationLayout(page: Page, viewportWidth: number): 
   await expect(drawer).not.toBeInViewport();
   await expect(page.locator(".site-navigation")).not.toHaveAttribute("aria-modal", "true");
   await expectPageInteractionState(page, false);
-  if (await page.getByRole("button", { name: "Open full calendar", exact: true }).isVisible()) {
-    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+  if (await page.getByRole("button", { name: "Open OG Calendar", exact: true }).isVisible()) {
+    await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
   }
   await expect(calendar).toBeVisible();
   await expect(carousel.locator("[data-day-card]")).toHaveCount(7);
@@ -139,7 +139,7 @@ test("the location drawer uses neutral state and destination icons", async ({ pa
       color: styles.color,
     };
   });
-  expect(selectedStyles.background).toBe("rgb(203, 212, 223)");
+  expect(selectedStyles.background).toBe("rgb(227, 227, 227)");
   expect(selectedStyles.border).toBe("rgba(0, 0, 0, 0)");
   expect(selectedStyles.color).toBe("rgb(17, 17, 17)");
 });
@@ -166,7 +166,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(
     page.getByRole("heading", { level: 2, name: "Full calendar" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
   const calendarFrame = page.locator("iframe.calendar-frame");
   await expect(calendarFrame).toHaveCount(1);
   await expect(calendarFrame).toHaveAttribute("title", "Ivy Station Calendar");
@@ -232,7 +232,7 @@ test("a first-time visitor can switch locations, return to the saved route, and 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hawthorne");
   await expect(page.locator(".site-header")).not.toContainText("Hawthorne");
   await expect(page.getByRole("main")).toBeFocused();
-  await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
   await expect(page.getByText("Loading calendar…")).toBeVisible();
   await expect(page.locator("iframe.calendar-frame")).toBeVisible();
   await expect.poll(() => hawthorneCalendarRoutes.length).toBe(1);
@@ -652,7 +652,7 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 667 });
     await page.emulateMedia({ reducedMotion: width === 320 ? "reduce" : "no-preference" });
     await page.goto("hawthorne/");
-    await page.getByRole("button", { name: "Open full calendar", exact: true }).click();
+    await page.getByRole("button", { name: "Open OG Calendar", exact: true }).click();
     await expect(page.locator(".calendar-shell")).toHaveAttribute("aria-busy", "false");
     await page.evaluate(() => window.scrollTo(0, 300));
     await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
@@ -664,10 +664,17 @@ for (const width of [320, 1440]) {
     const toggleBefore = (await toggle.boundingBox())!;
     expect(headerBefore.y).toBe(0);
 
-    await toggle.click();
+    // Locator.click scrolls sticky targets into their original flow position.
+    // Click the visible button as a pointer would, preserving the scrolled page.
+    const clickVisibleToggle = async () => {
+      const bounds = (await toggle.boundingBox())!;
+      await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    };
+    await clickVisibleToggle();
     await expect(toggle).toHaveAccessibleName("Close location navigation");
     await expect(toggle).toBeEnabled();
     await expect(toggle).toBeFocused();
+    expect(await page.evaluate(() => scrollY)).toBe(scrollPosition);
     await expect.poll(async () => {
       const bounds = (await drawer.boundingBox())!;
       return bounds.x + bounds.width;
@@ -690,7 +697,7 @@ for (const width of [320, 1440]) {
     }
     await page.screenshot({ path: testInfo.outputPath(`fixed-header-drawer-${width}.png`) });
 
-    await toggle.click();
+    await clickVisibleToggle();
     await expect(toggle).toHaveAccessibleName("Open location navigation");
     await expect(drawer).toHaveAttribute("aria-hidden", "true");
     expect(await page.evaluate(() => scrollY)).toBe(scrollPosition);

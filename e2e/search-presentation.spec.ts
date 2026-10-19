@@ -37,12 +37,13 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     expect(surface.background).not.toBe("rgba(0, 0, 0, 0)");
     await expect(page.getByRole("button", { name: "About search coverage", exact: true })).toHaveCount(0);
     await expect(page.getByRole("tooltip")).toHaveCount(0);
-    const card = (await page.locator("[data-day-card]").first().boundingBox())!;
-    const referenceBorder = await page.locator("[data-day-card]").first().evaluate(element => ({ width: getComputedStyle(element).borderTopWidth, style: getComputedStyle(element).borderTopStyle, radius: getComputedStyle(element).borderTopLeftRadius }));
-    await expect(input).toHaveCSS("border-top-color", appearance === "light" ? "rgb(96, 112, 134)" : "rgb(146, 146, 146)");
-    await expect(input).toHaveCSS("border-top-width", referenceBorder.width);
-    await expect(input).toHaveCSS("border-top-style", referenceBorder.style);
-    await expect(input).toHaveCSS("border-top-left-radius", referenceBorder.radius);
+    const card = (await page.locator("[data-day-card][data-active='true']").boundingBox())!;
+    const cardRadius = await page.locator("[data-day-card]").first().evaluate(element => getComputedStyle(element).borderTopLeftRadius);
+    await expect(input).toHaveCSS("border-top-width", "0px");
+    await expect(input).toHaveCSS("border-top-style", "none");
+    await expect(input).toHaveCSS("box-shadow", "none");
+    await expect(input).toHaveCSS("background-color", appearance === "light" ? "rgb(255, 255, 255)" : "rgb(77, 77, 77)");
+    await expect(input).toHaveCSS("border-top-left-radius", cardRadius);
     const field = (await input.boundingBox())!;
     const support = (await note.boundingBox())!;
     for (const box of [(await container.boundingBox())!, (await section.boundingBox())!]) {
@@ -51,7 +52,7 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     }
     const wrapper = (await container.boundingBox())!;
     const padding = await container.evaluate(element => ({ left: parseFloat(getComputedStyle(element).paddingLeft), right: parseFloat(getComputedStyle(element).paddingRight) }));
-    const dayPadding = await page.locator("[data-day-card]").first().evaluate(element => ({ left: parseFloat(getComputedStyle(element).paddingLeft), right: parseFloat(getComputedStyle(element).paddingRight), radius: getComputedStyle(element).borderTopLeftRadius }));
+    const dayPadding = await page.locator("[data-day-card] .day-card-heading").first().evaluate(element => ({ left: parseFloat(getComputedStyle(element).paddingLeft), right: parseFloat(getComputedStyle(element).paddingRight), radius: getComputedStyle(element.closest("[data-day-card]")!).borderTopLeftRadius }));
     expect(padding).toEqual({ left: dayPadding.left, right: dayPadding.right });
     await expect(container).toHaveCSS("border-top-left-radius", dayPadding.radius);
     expect(Math.abs(field.x - wrapper.x - padding.left)).toBeLessThanOrEqual(1);
@@ -80,7 +81,7 @@ for (const width of [320, 1280]) for (const appearance of ["light", "dark"] as c
     if (directory) await page.screenshot({ path: join(directory, `search-container-${appearance}-${width}.png`) });
     await input.focus();
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "Open full calendar", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Open OG Calendar", exact: true })).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(input).toBeFocused();
     await expect(input).not.toHaveCSS("box-shadow", "none");

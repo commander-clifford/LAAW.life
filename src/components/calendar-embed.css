@@ -17,4 +17,4 @@
 .calendar-loading-notice span { max-width: 32rem; }
 .calendar-embed-help { width: 100%; margin: 0; }
 .calendar-recovery-stable { min-height: 6rem; }
-.calendar-recovery-stable a:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+.calendar-recovery-stable a:focus-visible { outline: 3px solid var(--focus-color); outline-offset: 4px; }

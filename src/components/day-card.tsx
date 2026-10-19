@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getDateKey } from "@/src/application/calendar-dates";
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
-import { Card } from "@/src/components/card";
+import { DayCardShell } from "@/src/components/day-card-shell";
+import { getCalendarSourceClassName } from "@/src/components/calendar-source-styles";
 
 type DayCardProps = Readonly<{
   agenda: CalendarAgenda;
@@ -266,8 +267,7 @@ export function DayCard({
   }, [agenda.generatedAt, dateKey, events.length, measureSchedule]);
 
   return (
-    <Card
-      className="day-card"
+    <DayCardShell
       data-active={isActive}
       data-day-card=""
       data-carousel-item=""
@@ -276,8 +276,7 @@ export function DayCard({
       role="group"
       aria-labelledby={headingId}
       aria-roledescription="slide"
-    >
-      <header className="day-card-heading">
+      heading={<>
         <h2 className="day-card-date" id={headingId} aria-label={`${relativeLabel}, ${formattedDate.weekday}, ${formattedDate.calendarDate}`}>
           <time
             dateTime={dateKey}
@@ -291,7 +290,9 @@ export function DayCard({
         <span className="day-card-relative-label" aria-hidden="true">
           {relativeLabel}
         </span>
-      </header>
+      </>}
+    >
+
       <div
         className="day-card-schedule-frame"
         data-at-end={scheduleScrollState.atEnd}
@@ -343,8 +344,7 @@ export function DayCard({
                         <>
                           <span
                             aria-hidden="true"
-                            className="day-card-event-source-dot"
-                            style={{ backgroundColor: event.sourceColor }}
+                            className={`day-card-event-source-dot calendar-source-dot ${getCalendarSourceClassName(event) ?? ""}`}
                           />
                           <span>{event.title}</span>
                         </>
@@ -375,6 +375,6 @@ export function DayCard({
           aria-hidden="true"
         />
       </div>
-    </Card>
+    </DayCardShell>
   );
 }
