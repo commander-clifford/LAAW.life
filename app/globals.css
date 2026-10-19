@@ -15,6 +15,14 @@
   --gray-1000: #000000;
 
   --page: var(--gray-0);
+  --page-ambient-glow: radial-gradient(
+    ellipse 90% 75% at 50% 45%,
+    color-mix(in srgb, var(--gray-0) 6%, transparent),
+    color-mix(in srgb, var(--gray-0) 3%, transparent) 45%,
+    transparent 100%
+  );
+  --page-background-image: none;
+  --page-canvas-background: var(--page);
   --site-chrome: #e6e6e6;
   --surface: #ececec;
   --surface-muted: #d3d3d3;
@@ -46,6 +54,8 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: var(--gray-1000);
+  --page-background-image: var(--page-ambient-glow);
+  --page-canvas-background: transparent;
   --site-chrome: var(--gray-975);
   --surface: var(--gray-900);
   --surface-muted: var(--gray-950);
@@ -71,6 +81,8 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
     color-scheme: dark;
     --page: var(--gray-1000);
+    --page-background-image: var(--page-ambient-glow);
+    --page-canvas-background: transparent;
     --site-chrome: var(--gray-975);
     --surface: var(--gray-900);
     --surface-muted: var(--gray-950);
@@ -104,6 +116,8 @@ html {
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
@@ -112,6 +126,17 @@ body {
   color: var(--text);
   background: var(--page);
   overflow-x: clip;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--page-background-image);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 a {
@@ -164,7 +189,7 @@ a {
   display: flex;
   flex: 1;
   flex-direction: column;
-  background: var(--page);
+  background: var(--page-canvas-background);
 }
 
 .site-header-inner {
