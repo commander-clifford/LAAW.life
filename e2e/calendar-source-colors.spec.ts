@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 import type { CalendarAgenda, CalendarAgendaItem } from "../src/application/ports";
 import { laawLifeTenant } from "../src/config/laaw-life";
@@ -23,6 +23,13 @@ const now = new Date(Date.parse(source.generatedAt) + 2000);
 function rgb(color: string | undefined): string {
   if (!color) throw new Error("Calendar color fixture is missing its configured color.");
   return `rgb(${[1, 3, 5].map(offset => parseInt(color.slice(offset, offset + 2), 16)).join(", ")})`;
+}
+async function expectSourceDot(dot: Locator, sourceColor: string | undefined) {
+  await expect(dot).not.toHaveAttribute("style");
+  await expect(dot).toHaveClass(/(?:^|\s)calendar-source--[a-z0-9]+(?:-[a-z0-9]+)*(?:\s|$)/);
+  await expect(dot).not.toHaveClass(new RegExp(sourceColor!.slice(1), "i"));
+  await expect(dot).toHaveCSS("border-width", "0px");
+  await expect(dot).toHaveCSS("background-color", rgb(sourceColor));
 }
 const events: CalendarAgendaItem[] = calendarFixtures.map((calendar, index) => ({
   allDay: true,
@@ -54,7 +61,7 @@ for (const width of [320, 1280]) {
       for (const [index, event] of events.entries()) {
         const row = card.locator(".day-card-event").nth(index);
         await expect(row.locator(".day-card-event-source-dot")).toHaveAttribute("aria-hidden", "true");
-        await expect(row.locator(".day-card-event-source-dot")).toHaveCSS("background-color", rgb(event.sourceColor));
+        await expectSourceDot(row.locator(".day-card-event-source-dot"), event.sourceColor);
         await expect(row.getByText(`Calendar: ${event.sourceName}.`, { exact: true })).toHaveCount(1);
         await expect(row.locator("h3")).toHaveAttribute("title", `Calendar: ${event.sourceName}`);
         await expect(row.locator("time > [aria-hidden]")).toHaveText("All day");
@@ -74,7 +81,7 @@ for (const width of [320, 1280]) {
       await expect(results).toHaveCount(3);
       await expect(results.locator("h3 > span[aria-hidden='true']")).toHaveCount(3);
       for (const [index, event] of events.slice(1).entries()) {
-        await expect(results.nth(index).locator("h3 > span[aria-hidden='true']")).toHaveCSS("background-color", rgb(event.sourceColor));
+        await expectSourceDot(results.nth(index).locator("h3 > span[aria-hidden='true']"), event.sourceColor);
         await expect(results.nth(index).getByText(event.sourceName, { exact: true })).toBeVisible();
       }
       const audit = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
@@ -146,7 +153,7 @@ for (const [route, locationId, name] of [
         await expect(card.locator("h3")).toHaveText(["Vivace", "@Luckyguesstrivia"]);
         await expect(card.locator(".day-card-event-source-dot")).toHaveCount(2);
         for (const dot of await card.locator(".day-card-event-source-dot").all()) {
-          await expect(dot).toHaveCSS("background-color", rgb(venue.color));
+          await expectSourceDot(dot, venue.color);
         }
         await expect(page.getByText("Calendar colors", { exact: true })).toHaveCount(0);
         await expect(page.locator("[data-calendar-source-legend]")).toHaveCount(0);
@@ -154,7 +161,7 @@ for (const [route, locationId, name] of [
         await input.fill("Vivace");
         const resultDot = page.getByRole("list", { name: "Matching calendar events" }).locator("h3 > span[aria-hidden='true']");
         await expect(resultDot).toHaveCount(1);
-        await expect(resultDot).toHaveCSS("background-color", rgb(venue.color));
+        await expectSourceDot(resultDot, venue.color);
         await expect(page.getByText("Calendar colors", { exact: true })).toHaveCount(0);
         await input.focus();
         expect(await input.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe("none");

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getDateKey } from "@/src/application/calendar-dates";
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
 import { Card } from "@/src/components/card";
+import { getCalendarSourceClassName } from "@/src/components/calendar-source-styles";
 
 type DayCardProps = Readonly<{
   agenda: CalendarAgenda;
@@ -343,8 +344,7 @@ export function DayCard({
                         <>
                           <span
                             aria-hidden="true"
-                            className="day-card-event-source-dot"
-                            style={{ backgroundColor: event.sourceColor }}
+                            className={`day-card-event-source-dot calendar-source-dot ${getCalendarSourceClassName(event) ?? ""}`}
                           />
                           <span>{event.title}</span>
                         </>

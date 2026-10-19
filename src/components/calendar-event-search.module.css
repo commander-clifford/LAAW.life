@@ -16,7 +16,7 @@
 .results li { padding: .75rem .25rem; border-bottom: 1px solid var(--border-soft); overflow-wrap: anywhere; }
 .results h3, .results p { margin: .35rem 0; }
 .titleWithColor { display: flex; align-items: baseline; gap: .375rem; }
-.sourceDot { flex: 0 0 calc(.5rem + 2px); inline-size: calc(.5rem + 2px); block-size: calc(.5rem + 2px); border: 1px solid var(--border-strong); border-radius: 50%; }
+.sourceDot { flex: 0 0 calc(.5rem + 2px); inline-size: calc(.5rem + 2px); block-size: calc(.5rem + 2px); border-radius: 50%; }
 .details { white-space: pre-wrap; }
 .results summary { min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
 @media (forced-colors: active) { .field input:focus-visible, .clear:focus-visible, .results:focus-visible, .results summary:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; } }

@@ -782,11 +782,14 @@ a {
   gap: 0.375rem;
 }
 
+.calendar-source-dot {
+  background-color: var(--calendar-source-color);
+}
+
 .day-card-event-source-dot {
   flex: 0 0 calc(0.5rem + 2px);
   inline-size: calc(0.5rem + 2px);
   block-size: calc(0.5rem + 2px);
-  border: 1px solid var(--border-strong);
   border-radius: 50%;
 }
 

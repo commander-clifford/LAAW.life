@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { searchCalendarEvents } from "@/src/application/calendar-search";
 import { Card } from "./card";
+import { getCalendarSourceClassName } from "./calendar-source-styles";
 import styles from "./calendar-event-search.module.css";
 
 function dateLabel(dateKey: string): string {
@@ -42,7 +43,7 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
         <li key={event.id}>
           <h3 className={event.sourceColor ? styles.titleWithColor : undefined}>
             {event.sourceColor ? <>
-              <span className={styles.sourceDot} aria-hidden="true" style={{ backgroundColor: event.sourceColor }} />
+              <span className={`${styles.sourceDot} calendar-source-dot ${getCalendarSourceClassName(event) ?? ""}`} aria-hidden="true" />
               <span>{event.title}</span>
             </> : event.title}
           </h3>
