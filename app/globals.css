@@ -17,8 +17,8 @@
   --page: var(--gray-0);
   --page-ambient-glow: radial-gradient(
     ellipse 90% 75% at 50% 45%,
-    color-mix(in srgb, var(--gray-0) 6%, transparent),
-    color-mix(in srgb, var(--gray-0) 3%, transparent) 45%,
+    color-mix(in srgb, var(--gray-0) 9%, transparent),
+    color-mix(in srgb, var(--gray-0) 4.5%, transparent) 45%,
     transparent 100%
   );
   --page-background-image: none;
