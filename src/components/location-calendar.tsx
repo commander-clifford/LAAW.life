@@ -5,6 +5,7 @@ import type {
 import { EventRowPrototype } from "@/src/components/event-row-prototype";
 import { CalendarDisclosure } from "@/src/components/calendar-disclosure";
 import { LiveCalendarSchedule } from "@/src/components/live-calendar-schedule";
+import { getCalendarLocationClassName } from "@/src/components/calendar-source-styles";
 import type { Location } from "@/src/domain/site";
 import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
@@ -23,7 +24,7 @@ export function LocationCalendar({
   const { calendarSources } = parseGoogleCalendarEmbed(embed.src);
 
   return (
-    <div className="location-page">
+    <div className={`location-page ${getCalendarLocationClassName(location.id)}`}>
         <EventRowPrototype>
           <LiveCalendarSchedule
             agenda={agenda}

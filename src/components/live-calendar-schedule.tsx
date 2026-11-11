@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { CalendarEventSearch } from "@/src/components/calendar-event-search";
+import { getCalendarSourceStyles } from "@/src/components/calendar-source-styles";
 
 import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
 import { getDateKey } from "@/src/application/calendar-dates";
@@ -118,6 +119,10 @@ export function LiveCalendarSchedule({
   const currentAgenda = useMemo(
     () => withCalendarSourceColors(rawCurrentAgenda, sourceColors),
     [rawCurrentAgenda, sourceColors],
+  );
+  const calendarSourceStyles = useMemo(
+    () => getCalendarSourceStyles(currentAgenda.events, locationId),
+    [currentAgenda.events, locationId],
   );
   const currentTimestamp = useSyncExternalStore(subscribeToClock, getCurrentTimestamp, getServerMinute);
   const currentDateKey = currentTimestamp === null
@@ -243,6 +248,7 @@ export function LiveCalendarSchedule({
 
   return (
     <>
+      <style data-calendar-source-styles="">{calendarSourceStyles}</style>
       <header className="location-heading-section">
         <h1 className="location-page-heading">{locationName}</h1>
         {currentDateKey === null || todayDate === null ? (
@@ -283,7 +289,7 @@ export function LiveCalendarSchedule({
           </p>
         </DayCardCarousel>
       </div>
-      <CalendarEventSearch agenda={currentAgenda} />
+      <CalendarEventSearch agenda={currentAgenda} loading={currentDateKey === null} />
     </>
   );
 }

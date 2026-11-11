@@ -5,13 +5,14 @@ import { Search, X } from "lucide-react";
 import type { CalendarAgenda } from "@/src/application/ports";
 import { searchCalendarEvents } from "@/src/application/calendar-search";
 import { Card } from "./card";
+import { getCalendarSourceClassName } from "./calendar-source-styles";
 import styles from "./calendar-event-search.module.css";
 
 function dateLabel(dateKey: string): string {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${dateKey}T12:00:00Z`));
 }
 
-export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgenda }>) {
+export function CalendarEventSearch({ agenda, loading = false }: Readonly<{ agenda: CalendarAgenda; loading?: boolean }>) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const [visibleCount, setVisibleCount] = useState(50);
@@ -21,14 +22,14 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
     ...agenda.availableDateKeys,
     ...agenda.events.flatMap(event => event.dateKeys),
   ])].sort(), [agenda.availableDateKeys, agenda.events]);
-  const searching = query.trim().length > 0;
+  const searching = !loading && query.trim().length > 0;
   return (
-    <section className={styles.search} aria-labelledby={`${id}-label`}>
-      <Card borderless className={styles.searchCard}>
+    <section className={styles.search} data-loading={loading ? true : undefined} aria-busy={loading} aria-labelledby={`${id}-label`}>
+      <Card borderless className={`${styles.searchCard} ${loading ? "schedule-loading-surface" : ""}`}>
       <label className="visually-hidden" id={`${id}-label`} htmlFor={id}>Search events</label>
       <div className={styles.field}>
         <Search className={styles.magnifier} aria-hidden="true" />
-        <input id={id} ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} placeholder="Search events" aria-describedby={`${id}-range`} />
+        <input id={id} ref={inputRef} type="search" autoComplete="off" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(50); }} disabled={loading} placeholder={loading ? "" : "Search events"} aria-describedby={loading ? undefined : `${id}-range`} />
         {searching ? <button className={styles.clear} type="button" aria-label="Clear search" onClick={() => { setQuery(""); setVisibleCount(50); inputRef.current?.focus(); }}><X aria-hidden="true" /></button> : null}
       </div>
       <p className={styles.coverageNote} id={`${id}-range`}>
@@ -42,7 +43,7 @@ export function CalendarEventSearch({ agenda }: Readonly<{ agenda: CalendarAgend
         <li key={event.id}>
           <h3 className={event.sourceColor ? styles.titleWithColor : undefined}>
             {event.sourceColor ? <>
-              <span className={styles.sourceDot} aria-hidden="true" style={{ backgroundColor: event.sourceColor }} />
+              <span className={`${styles.sourceDot} calendar-source-dot ${getCalendarSourceClassName(event) ?? ""}`} aria-hidden="true" />
               <span>{event.title}</span>
             </> : event.title}
           </h3>

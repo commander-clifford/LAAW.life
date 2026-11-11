@@ -59,6 +59,9 @@ separately published correction for HostGator's inherited fallback rule.
 
 ## Where the website and automation run
 
+Follow the [branch and release workflow](docs/release-workflow.md) for topic PRs,
+preview validation, promotion to `main`, and the separate HostGator upload.
+
 | Place | Purpose | What updates it |
 | --- | --- | --- |
 | [laaw.life](https://laaw.life/) on HostGator/Apache | Public production website | A reviewed root-path static export uploaded to the site's document root |

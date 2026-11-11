@@ -49,7 +49,7 @@ describe("LocationCalendar", () => {
 
       expect(html).not.toContain("<iframe");
       expect(html).not.toContain("data-calendar-placeholder");
-      expect(html).toContain("Open full calendar");
+      expect(html).toContain("Open OG Calendar");
       expect(html).toContain('aria-expanded="false"');
       expect(html).toContain('class="day-carousel"');
       expect(html).toContain("Search events");
@@ -58,7 +58,9 @@ describe("LocationCalendar", () => {
       expect(html).toContain("Loading today&#x27;s schedule…");
       expect(html).toContain('aria-busy="true"');
       expect(html).toContain('role="status"');
-      expect(html).not.toContain("day-carousel-pagination");
+      expect(html).toContain("day-carousel-pagination");
+      expect(html).toContain("day-carousel-loading-dot");
+      expect(html).toContain('class="visually-hidden" role="status"');
       expect(html).not.toContain("day-card-relative-label");
       expect(html).not.toContain("<time");
       expect(html).not.toContain("Thursday, September 3, 2026");
