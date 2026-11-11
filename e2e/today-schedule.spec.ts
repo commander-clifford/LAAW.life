@@ -1786,6 +1786,13 @@ for (const width of [1440, 600, 393, 320]) {
     let eventCount = 1;
     await page.route("**/calendar-data/agendas.json", (route) => {
       const payload = Object.fromEntries(Object.entries(agendas).map(([id, source]) => {
+        const offset = new Intl.DateTimeFormat("en-US", {
+          timeZone: source.timeZone,
+          timeZoneName: "longOffset",
+        }).formatToParts(pacificDay(source.initialDateKey))
+          .find((part) => part.type === "timeZoneName")!.value.replace("GMT", "");
+        const localTime = (hour: string) =>
+          new Date(`${source.initialDateKey}T${hour}:00:00${offset}`).toISOString();
         return [id, {
           ...source,
           generatedAt: new Date(Date.parse(source.generatedAt) + eventCount * 60_000).toISOString(),
@@ -1797,8 +1804,8 @@ for (const width of [1440, 600, 393, 320]) {
               : "AReallyLongUnbrokenCommunityEventNameThatMustNeverEscapeTheCardBoundary",
             {
               allDay: index === 0,
-              end: `${source.initialDateKey}T${index === 1 ? "17" : "20"}:00:00.000Z`,
-              start: `${source.initialDateKey}T${index === 1 ? "16" : "18"}:00:00.000Z`,
+              end: localTime(index === 1 ? "10" : "13"),
+              start: localTime(index === 1 ? "09" : "11"),
             },
           )),
         }];
