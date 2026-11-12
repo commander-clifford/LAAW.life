@@ -12,8 +12,9 @@ import {
 import { CalendarEventSearch } from "@/src/components/calendar-event-search";
 import { getCalendarSourceStyles } from "@/src/components/calendar-source-styles";
 
-import { getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
-import { getDateKey } from "@/src/application/calendar-dates";
+import { rememberCalendarAgenda, restoreCalendarAgenda } from "@/src/application/calendar-cache";
+import { isCalendarAgenda, getNewerCalendarAgenda } from "@/src/application/calendar-agenda";
+import { getDateKey, getDayCardDates } from "@/src/application/calendar-dates";
 import { formatCalendarFreshness } from "@/src/application/calendar-freshness";
 import { withCalendarSourceColors } from "@/src/application/calendar-source-colors";
 import type { CalendarAgenda, CalendarSourceColor } from "@/src/application/ports";
@@ -105,7 +106,6 @@ export function LiveCalendarSchedule({
     agenda: CalendarAgenda;
     locationId: string;
   } | null>(null);
-  const [firstRefreshSettled, setFirstRefreshSettled] = useState(false);
   const [returnToTodayRequest, setReturnToTodayRequest] = useState(0);
   const [todayControlIsInteractive, setTodayControlIsInteractive] = useState(
     false,
@@ -192,12 +192,20 @@ export function LiveCalendarSchedule({
     let active = true;
     let inFlight = false;
     let controller: AbortController | undefined;
+    let storage: Storage | undefined;
+    try { storage = window.sessionStorage; } catch { /* Storage may be disabled. */ }
+    let latest = restoreCalendarAgenda(locationId, agenda, Date.now(), storage);
+    // Defer state updates to the asynchronous refresh below.
+
 
     const refresh = async () => {
       if (inFlight || document.visibilityState === "hidden") return;
       inFlight = true;
+      await Promise.resolve();
+      if (!active) { inFlight = false; return; }
+      setRefreshed({ agenda: latest, locationId });
       controller = new AbortController();
-      const timeout = window.setTimeout(() => controller?.abort(), 10_000);
+      const timeout = window.setTimeout(() => controller?.abort(), 30_000);
       try {
         const response = await fetch(agendaUrl, {
           cache: "no-store",
@@ -207,20 +215,19 @@ export function LiveCalendarSchedule({
         if (!response.ok) return;
         const payload: unknown = await response.json();
         if (!active) return;
-        setRefreshed((previous) => {
-          const current = previous?.locationId === locationId &&
-            Date.parse(previous.agenda.generatedAt) > Date.parse(agenda.generatedAt)
-            ? previous.agenda
-            : agenda;
-          const next = getNewerCalendarAgenda(payload, locationId, current, Date.now());
-          return next === current ? previous : { agenda: next, locationId };
-        });
+        const candidate = payload !== null && typeof payload === "object"
+          ? (payload as Record<string, unknown>)[locationId] : undefined;
+        const requiredDates = getDayCardDates(getDateKey(new Date(), agenda.timeZone)).map(({ dateKey }) => dateKey);
+        if (!isCalendarAgenda(candidate, agenda.timeZone, requiredDates, agenda.sourceCount) ||
+          Date.parse(candidate.generatedAt) > Date.now() + 5 * 60_000) return;
+        latest = getNewerCalendarAgenda(payload, locationId, latest, Date.now());
+        rememberCalendarAgenda(locationId, latest, storage);
+        setRefreshed({ agenda: latest, locationId });
       } catch {
         // Keep the bundled or last successful agenda during network failures.
       } finally {
         window.clearTimeout(timeout);
         inFlight = false;
-        if (active) setFirstRefreshSettled(true);
       }
     };
 
@@ -240,9 +247,7 @@ export function LiveCalendarSchedule({
     };
   }, [agenda, locationId]);
 
-  const freshnessLabel = !firstRefreshSettled
-    ? "Checking for updates…"
-    : currentTimestamp === null
+  const freshnessLabel = currentTimestamp === null
     ? "Update time unavailable"
     : formatCalendarFreshness(currentAgenda.generatedAt, currentTimestamp);
 

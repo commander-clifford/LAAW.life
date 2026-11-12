@@ -577,6 +577,10 @@ test("a new public snapshot refreshes future cards and failures keep the last go
     selectedDateKey!,
   );
   await expect(futureEvents).toHaveText(["Updated community event 5"]);
+  await page.reload();
+  await expect(page.getByText("Updated community event 5", { exact: true })).toHaveCount(1);
+  await expect(page.locator(".day-carousel-note")).toHaveText(/^Updated .+ ago$/);
+  await getDots(page).nth(4).click();
   responseState = "older";
   const beforeOlder = requests;
   await page.clock.runFor(5 * 60_000);
