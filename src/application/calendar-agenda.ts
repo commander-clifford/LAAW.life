@@ -41,7 +41,7 @@ function isAgendaItem(value: unknown, availableDates: Set<string>): value is Cal
     value.dateKeys.every((date: unknown) => isDateKey(date) && availableDates.has(date));
 }
 
-function isCalendarAgenda(
+export function isCalendarAgenda(
   value: unknown,
   timeZone: string,
   requiredDateKeys: readonly string[],

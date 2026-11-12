@@ -1,3 +1,5 @@
+import { isCalendarAgenda } from "@/src/application/calendar-agenda";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -202,5 +204,47 @@ END:VCALENDAR`;
       ["Sunday event", "2026-11-02T02:00:00.000Z", ["2026-11-01"]],
       ["Moved event", "2026-11-10T03:00:00.000Z", ["2026-11-09"]],
     ]);
+  });
+});
+
+
+describe("moved recurrence identity", () => {
+  it("preserves both occurrences when an override moves onto another occurrence", () => {
+    const body = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//LAAW Life//Regression//EN
+BEGIN:VEVENT
+UID:moved-weekly
+DTSTAMP:20240101T000000Z
+DTSTART:20240110T020000Z
+DTEND:20240110T050000Z
+RRULE:FREQ=WEEKLY;COUNT=2
+SUMMARY:Regular occurrence
+END:VEVENT
+BEGIN:VEVENT
+UID:moved-weekly
+DTSTAMP:20240101T000000Z
+RECURRENCE-ID:20240110T020000Z
+DTSTART:20240117T020000Z
+DTEND:20240117T050000Z
+SUMMARY:Moved occurrence
+END:VEVENT
+END:VCALENDAR`;
+    const agenda = buildCalendarAgendaFromIcs({
+      feeds: [{ body, calendarKey: "hawthorne" }],
+      now: new Date("2026-11-12T04:00:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+    expect(agenda.events).toHaveLength(2);
+    expect(agenda.events.map((event) => event.start)).toEqual([
+      "2024-01-17T02:00:00.000Z", "2024-01-17T02:00:00.000Z",
+    ]);
+    expect(new Set(agenda.events.map((event) => event.id)).size).toBe(2);
+    expect(agenda.events.map((event) => event.title).sort()).toEqual([
+      "Moved occurrence", "Regular occurrence",
+    ]);
+    expect(isCalendarAgenda(agenda, agenda.timeZone, [agenda.initialDateKey], 1)).toBe(true);
+    const invalid = { ...agenda, events: [agenda.events[0], agenda.events[0]] };
+    expect(isCalendarAgenda(invalid, agenda.timeZone, [agenda.initialDateKey], 1)).toBe(false);
   });
 });

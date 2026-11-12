@@ -1,5 +1,7 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 
+import { isCalendarAgenda } from "@/src/application/calendar-agenda";
+
 import type { CalendarAgenda } from "@/src/application/ports";
 import { laawLifeTenant } from "@/src/config/laaw-life";
 import { googleCalendarAgendaProvider } from "@/src/infrastructure/google-calendar-agenda-provider";
@@ -21,6 +23,10 @@ const agendaEntries = await Promise.all(
       throw new Error(
         `${location.displayName} is missing ${agenda.failedSourceCount} public calendar feeds`,
       );
+    }
+
+    if (!isCalendarAgenda(agenda, agenda.timeZone, [agenda.initialDateKey], agenda.sourceCount)) {
+      throw new Error(`${location.displayName} generated an invalid calendar agenda`);
     }
 
     return [location.id, agenda] as const;

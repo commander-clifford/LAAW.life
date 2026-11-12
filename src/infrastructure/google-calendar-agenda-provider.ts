@@ -252,12 +252,15 @@ function buildCalendarAgenda(
         }
 
         if (agendaItems.length >= 50_000) throw new Error("Calendar event count exceeds the searchable safety limit");
+        // A moved occurrence retains its original recurrence identity. Two
+        // occurrences may legitimately share an actual start time.
+        const occurrenceIdentity = instance.event.recurrenceid ?? instance.start;
         agendaItems.push({
           allDay: instance.isFullDay,
           dateKeys,
           description: getParameterText(instance.event.description, ""),
           end: instance.end.toISOString(),
-          id: `${feed.calendarKey}:${instance.event.uid}:${instance.start.toISOString()}`,
+          id: `${feed.calendarKey}:${instance.event.uid}:${occurrenceIdentity.toISOString()}`,
           location: instance.event.location
             ? getParameterText(instance.event.location, "") || null
             : null,
