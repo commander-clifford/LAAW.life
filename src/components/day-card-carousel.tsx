@@ -798,6 +798,7 @@ export function DayCardCarousel({
                 index={index}
                 isActive={activeIndex === index}
                 key={dateKey}
+                locationId={locationId}
                 relativeLabel={relativeLabel}
               />
             ))}

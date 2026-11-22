@@ -459,6 +459,21 @@ a {
   gap: 1rem;
 }
 
+.location-shout-out {
+  box-sizing: border-box;
+  inline-size: var(--location-content-inline-size);
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--card-radius);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .location-heading-section {
   width: var(--location-content-inline-size);
 }
@@ -836,6 +851,20 @@ a {
   font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.45;
+}
+
+.day-card-event-note {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0.125rem 0 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.event-row-prototype[data-event-layout="title-first"] .day-card-event-note {
+  grid-column: 1;
 }
 
 .day-card-event-title-with-color {
