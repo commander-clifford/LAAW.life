@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getDateKey } from "@/src/application/calendar-dates";
 import type { CalendarAgenda, CalendarAgendaItem } from "@/src/application/ports";
-import { getCalendarEventNote } from "@/src/config/calendar-event-notes";
+import { getCalendarEventCopy } from "@/src/config/calendar-event-notes";
 import { DayCardShell } from "@/src/components/day-card-shell";
 import { getCalendarSourceClassName } from "@/src/components/calendar-source-styles";
 
@@ -327,7 +327,8 @@ export function DayCard({
                   agenda.timeZone,
                 );
 
-                const note = getCalendarEventNote(locationId, dateKey, event.id);
+                const copy = getCalendarEventCopy(locationId, dateKey, event.id);
+                const title = copy?.title ?? event.title;
 
                 return (
                   <li className="day-card-event" key={event.id}>
@@ -351,11 +352,11 @@ export function DayCard({
                             aria-hidden="true"
                             className={`day-card-event-source-dot calendar-source-dot ${getCalendarSourceClassName(event) ?? ""}`}
                           />
-                          <span>{event.title}</span>
+                          <span>{title}</span>
                         </>
-                      ) : event.title}
+                      ) : title}
                     </h3>
-                    {note ? <p className="day-card-event-note">{note}</p> : null}
+                    {copy ? <p className="day-card-event-note">{copy.note}</p> : null}
                     {event.sourceColor ? (
                       <span className="visually-hidden">
                         Calendar: {event.sourceName}.

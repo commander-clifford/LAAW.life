@@ -210,8 +210,8 @@ describe("Ivy Station calendar shout-out", () => {
       <DayCard agenda={snapshot} dateKey={date} index={0} isActive locationId={place} relativeLabel="Today" />,
     );
 
-  it("puts the note under the original title and keeps the closure time unchanged", () => {
-    const originalText = '>Closed to The Public</h3><p class="day-card-event-note">Congratulations LA Ale Jerks for second place trivia. You are the first loser.</p>';
+  it("specializes the one closure title, keeps its time, and puts the note below", () => {
+    const originalText = '>Closed to the public for Lucky Guess Trivia finals</h3><p class="day-card-event-note">Congratulations LA Ale Jerks for second place trivia.</p>';
     expect(render(agenda)).toContain(originalText);
     expect(render(agenda)).toContain(">12:00–5:00 PM</span>");
     expect(render({ ...agenda, generatedAt: "2026-11-22T03:04:00.000Z", events: [{ ...closure }] })).toContain(originalText);
@@ -222,5 +222,6 @@ describe("Ivy Station calendar shout-out", () => {
     expect(render({ ...agenda, events: [] })).not.toContain("day-card-event-note");
     expect(render(agenda, "ivy-station", "2026-11-22")).not.toContain("day-card-event-note");
     expect(render(agenda, "hawthorne")).not.toContain("day-card-event-note");
+    expect(render(agenda, "hawthorne")).toContain(">Closed to The Public</h3>");
   });
 });
