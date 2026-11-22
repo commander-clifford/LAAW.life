@@ -9,6 +9,14 @@ import { getCalendarLocationClassName } from "@/src/components/calendar-source-s
 import type { Location } from "@/src/domain/site";
 import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
+// Clear this value to remove the shout-out without reserving any space.
+const IVY_SHOUT_OUT = "Congratulations to the LAL Jerks for second place trivia";
+
+export function LocationShoutOut({ headline }: Readonly<{ headline?: string }>) {
+  const text = headline?.trim();
+  return text ? <p className="location-shout-out">{text}</p> : null;
+}
+
 type LocationCalendarProps = Readonly<{
   agenda: CalendarAgenda;
   calendarProvider: CalendarEmbedProvider;
@@ -25,6 +33,7 @@ export function LocationCalendar({
 
   return (
     <div className={`location-page ${getCalendarLocationClassName(location.id)}`}>
+      <LocationShoutOut headline={location.id === "ivy-station" ? IVY_SHOUT_OUT : undefined} />
         <EventRowPrototype>
           <LiveCalendarSchedule
             agenda={agenda}

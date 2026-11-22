@@ -46,6 +46,7 @@ describe("DayCard event times", () => {
         dateKey={dateKey}
         index={0}
         isActive
+        locationId="ivy-station"
         relativeLabel="Today"
       />,
     );
@@ -92,6 +93,7 @@ describe("DayCard event times", () => {
         dateKey={fallbackDateKey}
         index={0}
         isActive
+        locationId="ivy-station"
         relativeLabel="Today"
       />,
     );
@@ -134,6 +136,7 @@ describe("DayCard calendar colors", () => {
         dateKey={holidayDateKey}
         index={0}
         isActive
+        locationId="ivy-station"
         relativeLabel="Today"
       />,
     );
@@ -170,6 +173,7 @@ describe("DayCard calendar colors", () => {
         dateKey={dateKey}
         index={0}
         isActive
+        locationId="ivy-station"
         relativeLabel="Today"
       />,
     );
@@ -177,5 +181,46 @@ describe("DayCard calendar colors", () => {
     expect(html).toContain("<h3>Community event</h3>");
     expect(html).not.toContain("day-card-event-source-dot");
     expect(html).not.toContain("Calendar: Test calendar.");
+  });
+});
+
+describe("Ivy Station calendar shout-out", () => {
+  const closureDate = "2026-11-21";
+  const closure = {
+    ...event(
+      "c_998g12g73ffcp0rb7k49tklt2o@group.calendar.google.com:75ilakpmp1nmpsgucl1pdpao4s@google.com:2026-11-21T20:00:00.000Z",
+      "2026-11-21T20:00:00.000Z",
+      "2026-11-22T01:00:00.000Z",
+      "Closed to The Public",
+    ),
+    dateKeys: [closureDate],
+    description: "",
+  };
+  const agenda: CalendarAgenda = {
+    availableDateKeys: [closureDate, "2026-11-22"],
+    events: [closure],
+    failedSourceCount: 0,
+    generatedAt: "2026-11-22T00:19:58.899Z",
+    initialDateKey: closureDate,
+    sourceCount: 8,
+    timeZone: "America/Los_Angeles",
+  };
+  const render = (snapshot: CalendarAgenda, place = "ivy-station", date = closureDate) =>
+    renderToStaticMarkup(
+      <DayCard agenda={snapshot} dateKey={date} index={0} isActive locationId={place} relativeLabel="Today" />,
+    );
+
+  it("puts the note under the original title and keeps the closure time unchanged", () => {
+    const originalText = '>Closed to The Public</h3><p class="day-card-event-note">Congratulations LAL Jerks</p>';
+    expect(render(agenda)).toContain(originalText);
+    expect(render(agenda)).toContain(">12:00–5:00 PM</span>");
+    expect(render({ ...agenda, generatedAt: "2026-11-22T03:04:00.000Z", events: [{ ...closure }] })).toContain(originalText);
+  });
+
+  it("does not create a standalone row, show on another day, or bleed into Hawthorne", () => {
+    expect(render({ ...agenda, events: [{ ...closure, id: "unrelated-closure" }] })).not.toContain("day-card-event-note");
+    expect(render({ ...agenda, events: [] })).not.toContain("day-card-event-note");
+    expect(render(agenda, "ivy-station", "2026-11-22")).not.toContain("day-card-event-note");
+    expect(render(agenda, "hawthorne")).not.toContain("day-card-event-note");
   });
 });
