@@ -5,7 +5,7 @@ const closure = "c_998g12g73ffcp0rb7k49tklt2o@group.calendar.google.com:75ilakpm
 
 describe("calendar event notes", () => {
   it("attaches the exact wording to only the Ivy closure occurrence", () => {
-    expect(getCalendarEventNote("ivy-station", "2026-11-21", closure)).toBe("Congratulations LA Ale Jerks");
+    expect(getCalendarEventNote("ivy-station", "2026-11-21", closure)).toBe("Congratulations LA Ale Jerks for second place trivia. You are the first loser.");
     expect(getCalendarEventNote("hawthorne", "2026-11-21", closure)).toBeNull();
     expect(getCalendarEventNote("ivy-station", "2026-11-22", closure)).toBeNull();
     expect(getCalendarEventNote("ivy-station", "2026-11-21", "another-event")).toBeNull();

@@ -10,7 +10,7 @@ import type { Location } from "@/src/domain/site";
 import { parseGoogleCalendarEmbed } from "@/src/infrastructure/google-calendar-source";
 
 // Clear this value to remove the shout-out without reserving any space.
-const IVY_SHOUT_OUT = "Congratulations to the LA Ale Jerks for second place trivia";
+const IVY_SHOUT_OUT = "Congratulations LA Ale Jerks for second place trivia. You are the first loser.";
 
 export function LocationShoutOut({ headline }: Readonly<{ headline?: string }>) {
   const text = headline?.trim();
