@@ -211,7 +211,7 @@ describe("Ivy Station calendar shout-out", () => {
     );
 
   it("specializes the one closure title, keeps its time, and puts the note below", () => {
-    const originalText = '>Closed to the public for Lucky Guess Trivia finals</h3><p class="day-card-event-note">Congratulations LA Ale Jerks for second place trivia.</p>';
+    const originalText = '>Closed to the public for Lucky Guess Trivia Finals</h3><p class="day-card-event-note">Congratulations LA Ale Jerks for second place trivia.</p>';
     expect(render(agenda)).toContain(originalText);
     expect(render(agenda)).toContain(">12:00–5:00 PM</span>");
     expect(render({ ...agenda, generatedAt: "2026-11-22T03:04:00.000Z", events: [{ ...closure }] })).toContain(originalText);

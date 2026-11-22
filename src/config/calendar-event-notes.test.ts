@@ -6,7 +6,7 @@ const closure = "c_998g12g73ffcp0rb7k49tklt2o@group.calendar.google.com:75ilakpm
 describe("calendar event notes", () => {
   it("attaches the exact wording to only the Ivy closure occurrence", () => {
     expect(getCalendarEventCopy("ivy-station", "2026-11-21", closure)).toEqual({
-      title: "Closed to the public for Lucky Guess Trivia finals",
+      title: "Closed to the public for Lucky Guess Trivia Finals",
       note: "Congratulations LA Ale Jerks for second place trivia.",
     });
     expect(getCalendarEventCopy("hawthorne", "2026-11-21", closure)).toBeNull();
